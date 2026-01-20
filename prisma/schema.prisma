@@ -1,0 +1,597 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTH & USERS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  phone         String?
+  password      String?
+  image         String?
+  role          UserRole  @default(PROPRIETAR)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+
+  // Admin relations
+  asociatiiAdmin Asociatie[] @relation("AdminAsociatie")
+
+  // Proprietar relations
+  apartamente   ProprietarApartament[]
+  plati         Plata[]
+  notificari    Notificare[]
+
+  // AI Agent activity
+  agentLogs     AgentLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  PROPRIETAR
+}
+
+// ============================================
+// ASOCIATIE & BLOC
+// ============================================
+
+model Asociatie {
+  id              String   @id @default(cuid())
+  nume            String
+  cui             String?  @unique
+  adresa          String
+  oras            String
+  judet           String
+  codPostal       String?
+
+  // Contact
+  email           String?
+  telefon         String?
+
+  // Financiar
+  contBancar      String?
+  banca           String?
+
+  // Settings
+  ziScadenta      Int      @default(25)
+  penalizareZi    Float    @default(0.02) // 0.02% pe zi
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  adminId         String
+  admin           User     @relation("AdminAsociatie", fields: [adminId], references: [id])
+
+  scari           Scara[]
+  apartamente     Apartament[]
+  cheltuieli      Cheltuiala[]
+  chitante        Chitanta[]
+  fonduri         Fond[]
+  furnizori       Furnizor[]
+  contoare        ContorComun[]
+  documente       Document[]
+  anunturi        Anunt[]
+
+  // AI
+  agentLogs       AgentLog[]
+  predictii       PredictieRestanta[]
+
+  @@map("asociatii")
+}
+
+model Scara {
+  id          String   @id @default(cuid())
+  numar       String   // "A", "B", "1", "2"
+  etaje       Int      @default(10)
+
+  asociatieId String
+  asociatie   Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  apartamente Apartament[]
+
+  @@unique([asociatieId, numar])
+  @@map("scari")
+}
+
+model Apartament {
+  id              String   @id @default(cuid())
+  numar           String   // "1", "2", "15A"
+  etaj            Int?
+  suprafata       Float?   // mp
+  nrCamere        Int?
+  cotaIndiviza    Float?   // procent din bloc
+  nrPersoane      Int      @default(1)
+
+  asociatieId     String
+  asociatie       Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  scaraId         String?
+  scara           Scara?   @relation(fields: [scaraId], references: [id])
+
+  // Relations
+  proprietari     ProprietarApartament[]
+  contoare        Contor[]
+  chitante        Chitanta[]
+  plati           Plata[]
+  indexuri        IndexContor[]
+
+  @@unique([asociatieId, numar])
+  @@map("apartamente")
+}
+
+model ProprietarApartament {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  apartamentId  String
+  apartament    Apartament @relation(fields: [apartamentId], references: [id], onDelete: Cascade)
+
+  // Ownership details
+  cotaParte     Float    @default(100) // procent proprietate
+  dataInceput   DateTime @default(now())
+  dataSfarsit   DateTime?
+  esteActiv     Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, apartamentId])
+  @@map("proprietari_apartamente")
+}
+
+// ============================================
+// CONTOARE & INDEXURI
+// ============================================
+
+enum TipContor {
+  APA_RECE
+  APA_CALDA
+  GAZ
+  CURENT
+  CALDURA
+}
+
+model Contor {
+  id            String    @id @default(cuid())
+  serie         String?
+  tip           TipContor
+  dataInstalare DateTime?
+  dataExpirare  DateTime?
+  esteActiv     Boolean   @default(true)
+
+  apartamentId  String
+  apartament    Apartament @relation(fields: [apartamentId], references: [id], onDelete: Cascade)
+
+  indexuri      IndexContor[]
+
+  @@map("contoare")
+}
+
+model ContorComun {
+  id            String    @id @default(cuid())
+  serie         String?
+  tip           TipContor
+  denumire      String    // "Contor principal apă rece"
+
+  asociatieId   String
+  asociatie     Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  indexuri      IndexContorComun[]
+
+  @@map("contoare_comune")
+}
+
+model IndexContor {
+  id            String   @id @default(cuid())
+  valoare       Float
+  dataIndex     DateTime
+  luna          Int      // 1-12
+  an            Int
+
+  // AI OCR
+  imagineUrl    String?
+  ocrConfidence Float?   // 0-100
+  verificatManual Boolean @default(false)
+
+  contorId      String
+  contor        Contor   @relation(fields: [contorId], references: [id], onDelete: Cascade)
+
+  apartamentId  String
+  apartament    Apartament @relation(fields: [apartamentId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([contorId, luna, an])
+  @@map("indexuri_contoare")
+}
+
+model IndexContorComun {
+  id          String   @id @default(cuid())
+  valoare     Float
+  dataIndex   DateTime
+  luna        Int
+  an          Int
+
+  contorId    String
+  contor      ContorComun @relation(fields: [contorId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([contorId, luna, an])
+  @@map("indexuri_contoare_comune")
+}
+
+// ============================================
+// CHELTUIELI & FURNIZORI
+// ============================================
+
+model Furnizor {
+  id          String   @id @default(cuid())
+  nume        String
+  cui         String?
+  adresa      String?
+  telefon     String?
+  email       String?
+  contBancar  String?
+
+  asociatieId String
+  asociatie   Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  cheltuieli  Cheltuiala[]
+
+  @@map("furnizori")
+}
+
+enum TipCheltuiala {
+  APA_RECE
+  APA_CALDA
+  CANALIZARE
+  GAZ
+  CURENT_COMUN
+  CALDURA
+  ASCENSOR
+  CURATENIE
+  GUNOI
+  FOND_RULMENT
+  FOND_REPARATII
+  ADMINISTRARE
+  ALTE_CHELTUIELI
+}
+
+enum ModRepartizare {
+  CONSUM          // pe baza indexurilor
+  COTA_INDIVIZA   // pe mp/cota
+  PERSOANE        // pe numar persoane
+  APARTAMENT      // fix per apartament
+  MANUAL          // manual de admin
+}
+
+model Cheltuiala {
+  id              String         @id @default(cuid())
+  tip             TipCheltuiala
+  descriere       String?
+  suma            Float
+  dataFactura     DateTime
+  dataScadenta    DateTime?
+  nrFactura       String?
+
+  modRepartizare  ModRepartizare @default(COTA_INDIVIZA)
+  luna            Int
+  an              Int
+
+  // AI OCR extracted
+  ocrExtracted    Boolean        @default(false)
+  imagineUrl      String?
+
+  asociatieId     String
+  asociatie       Asociatie      @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  furnizorId      String?
+  furnizor        Furnizor?      @relation(fields: [furnizorId], references: [id])
+
+  repartizari     Repartizare[]
+
+  createdAt       DateTime       @default(now())
+
+  @@map("cheltuieli")
+}
+
+model Repartizare {
+  id            String     @id @default(cuid())
+  suma          Float
+  detalii       String?    // JSON with calculation details
+
+  cheltuialaId  String
+  cheltuiala    Cheltuiala @relation(fields: [cheltuialaId], references: [id], onDelete: Cascade)
+
+  chitantaId    String
+  chitanta      Chitanta   @relation(fields: [chitantaId], references: [id], onDelete: Cascade)
+
+  @@map("repartizari")
+}
+
+// ============================================
+// CHITANTE & PLATI
+// ============================================
+
+enum StatusChitanta {
+  GENERATA
+  TRIMISA
+  PARTIAL_PLATITA
+  PLATITA
+  RESTANTA
+}
+
+model Chitanta {
+  id              String         @id @default(cuid())
+  numar           Int            // auto-increment per asociatie
+  luna            Int
+  an              Int
+
+  // Sume calculate
+  sumaIntretinere Float          // cheltuieli curente
+  sumaRestanta    Float          @default(0)
+  sumaPenalizare  Float          @default(0)
+  sumaFonduri     Float          @default(0)
+  sumaTotal       Float
+
+  dataEmitere     DateTime       @default(now())
+  dataScadenta    DateTime
+
+  status          StatusChitanta @default(GENERATA)
+
+  // AI generated breakdown
+  detaliiJson     String?        @db.Text // JSON cu toate detaliile
+
+  asociatieId     String
+  asociatie       Asociatie      @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  apartamentId    String
+  apartament      Apartament     @relation(fields: [apartamentId], references: [id], onDelete: Cascade)
+
+  repartizari     Repartizare[]
+  plati           Plata[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([asociatieId, apartamentId, luna, an])
+  @@map("chitante")
+}
+
+enum MetodaPlata {
+  CASH
+  CARD
+  TRANSFER
+  ALTELE
+}
+
+enum StatusPlata {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+model Plata {
+  id              String      @id @default(cuid())
+  suma            Float
+  dataPlata       DateTime    @default(now())
+  metodaPlata     MetodaPlata
+  status          StatusPlata @default(CONFIRMED)
+
+  // Payment gateway
+  stripePaymentId String?
+  referinta       String?     // Bank reference
+
+  chitantaId      String
+  chitanta        Chitanta    @relation(fields: [chitantaId], references: [id], onDelete: Cascade)
+
+  apartamentId    String
+  apartament      Apartament  @relation(fields: [apartamentId], references: [id], onDelete: Cascade)
+
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id])
+
+  createdAt       DateTime    @default(now())
+
+  @@map("plati")
+}
+
+// ============================================
+// FONDURI
+// ============================================
+
+enum TipFond {
+  RULMENT
+  REPARATII
+  ALTE
+}
+
+model Fond {
+  id          String   @id @default(cuid())
+  tip         TipFond
+  denumire    String
+  sumaLunara  Float    // suma pe apartament/luna
+  soldCurent  Float    @default(0)
+
+  asociatieId String
+  asociatie   Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  @@map("fonduri")
+}
+
+// ============================================
+// DOCUMENTE & ANUNTURI
+// ============================================
+
+enum TipDocument {
+  AVG
+  BUGET
+  REGULAMENT
+  CONTRACT
+  FACTURA
+  ALTELE
+}
+
+model Document {
+  id          String      @id @default(cuid())
+  tip         TipDocument
+  titlu       String
+  descriere   String?
+  fisierUrl   String
+  fisierNume  String
+
+  asociatieId String
+  asociatie   Asociatie   @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime    @default(now())
+
+  @@map("documente")
+}
+
+model Anunt {
+  id          String   @id @default(cuid())
+  titlu       String
+  continut    String   @db.Text
+  important   Boolean  @default(false)
+
+  asociatieId String
+  asociatie   Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+
+  @@map("anunturi")
+}
+
+// ============================================
+// NOTIFICARI
+// ============================================
+
+enum TipNotificare {
+  CHITANTA_NOUA
+  PLATA_CONFIRMATA
+  REMINDER_PLATA
+  ANUNT_NOU
+  INDEX_REMINDER
+  SISTEM
+}
+
+model Notificare {
+  id          String         @id @default(cuid())
+  tip         TipNotificare
+  titlu       String
+  mesaj       String
+  citita      Boolean        @default(false)
+
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime       @default(now())
+
+  @@map("notificari")
+}
+
+// ============================================
+// AI AGENTS
+// ============================================
+
+enum AgentType {
+  OCR_FACTURA       // Extrage date din facturi
+  OCR_INDEX         // Citeste indexuri contoare
+  CALCUL_CHITANTA   // Genereaza chitante
+  PREDICTIE_PLATA   // Prezice restante
+  CHATBOT           // Raspunde la intrebari
+  RECONCILIERE      // Match plati cu chitante
+  REMINDER          // Trimite remindere
+  RAPORT            // Genereaza rapoarte
+}
+
+model AgentLog {
+  id          String    @id @default(cuid())
+  agentType   AgentType
+  input       String    @db.Text
+  output      String    @db.Text
+  success     Boolean
+  errorMsg    String?
+  durationMs  Int
+  tokensUsed  Int?
+  cost        Float?    // in USD
+
+  asociatieId String?
+  asociatie   Asociatie? @relation(fields: [asociatieId], references: [id])
+
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime  @default(now())
+
+  @@map("agent_logs")
+}
+
+model PredictieRestanta {
+  id              String   @id @default(cuid())
+  apartamentId    String
+  luna            Int
+  an              Int
+
+  probabilitate   Float    // 0-100
+  sumaEstimata    Float
+  factori         String   @db.Text // JSON
+
+  asociatieId     String
+  asociatie       Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+
+  @@unique([asociatieId, apartamentId, luna, an])
+  @@map("predictii_restante")
+}
