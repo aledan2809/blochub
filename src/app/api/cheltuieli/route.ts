@@ -24,9 +24,11 @@ const cheltuialaSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
     }
+
+    const userId = (session.user as { id: string }).id
 
     const { searchParams } = new URL(request.url)
     const asociatieId = searchParams.get('asociatieId')
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Verify user owns the association
     const asociatie = await db.asociatie.findFirst({
-      where: { id: asociatieId, adminId: session.user.id }
+      where: { id: asociatieId, adminId: userId }
     })
 
     if (!asociatie) {
@@ -68,16 +70,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
     }
+
+    const userId = (session.user as { id: string }).id
 
     const body = await request.json()
     const validatedData = cheltuialaSchema.parse(body)
 
     // Verify user owns the association
     const asociatie = await db.asociatie.findFirst({
-      where: { id: validatedData.asociatieId, adminId: session.user.id }
+      where: { id: validatedData.asociatieId, adminId: userId }
     })
 
     if (!asociatie) {

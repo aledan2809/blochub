@@ -7,13 +7,15 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.id) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
     }
 
+    const userId = (session.user as { id: string }).id
+
     // Get user's association
     const asociatie = await db.asociatie.findFirst({
-      where: { adminId: session.user.id },
+      where: { adminId: userId },
       include: {
         _count: {
           select: {
@@ -127,14 +129,13 @@ export async function GET() {
       }),
 
       // High risk predictions
-      db.predictieRestanta.findMany({
+      db.predictieRestanta.count({
         where: {
           asociatieId: asociatie.id,
           probabilitate: { gte: 80 },
           luna: now.getMonth() + 1,
           an: now.getFullYear()
-        },
-        _count: true
+        }
       })
     ])
 
@@ -179,10 +180,10 @@ export async function GET() {
     // Generate AI alerts based on real data
     const alerteAI = []
 
-    if (predictiiRisc.length > 0) {
+    if (predictiiRisc > 0) {
       alerteAI.push({
         tip: 'warning',
-        mesaj: `${predictiiRisc.length} apartamente au risc înalt de întârziere (>80%)`,
+        mesaj: `${predictiiRisc} apartamente au risc înalt de întârziere (>80%)`,
         actiune: 'Trimite remindere'
       })
     }
