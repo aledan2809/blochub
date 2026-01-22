@@ -38,6 +38,11 @@ model User {
   // AI Agent activity
   agentLogs     AgentLog[]
 
+  // Tichete
+  ticheteCreate    Tichet[]           @relation("TicheteCreate")
+  ticheteAsignate  Tichet[]           @relation("TicheteAsignate")
+  comentariiTichet ComentariuTichet[]
+
   @@map("users")
 }
 
@@ -111,6 +116,7 @@ model Asociatie {
 
   scari           Scara[]
   apartamente     Apartament[]
+  tipuriApartament TipApartament[]
   cheltuieli      Cheltuiala[]
   chitante        Chitanta[]
   fonduri         Fond[]
@@ -122,6 +128,9 @@ model Asociatie {
   // AI
   agentLogs       AgentLog[]
   predictii       PredictieRestanta[]
+
+  // Tichete
+  tichete         Tichet[]
 
   @@map("asociatii")
 }
@@ -140,6 +149,22 @@ model Scara {
   @@map("scari")
 }
 
+model TipApartament {
+  id              String   @id @default(cuid())
+  denumire        String   // "2 camere, 49mp"
+  nrCamere        Int
+  suprafata       Float    // mp
+  cotaIndiviza    Float    // procent din bloc
+
+  asociatieId     String
+  asociatie       Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  apartamente     Apartament[]
+
+  @@unique([asociatieId, denumire])
+  @@map("tipuri_apartamente")
+}
+
 model Apartament {
   id              String   @id @default(cuid())
   numar           String   // "1", "2", "15A"
@@ -149,14 +174,21 @@ model Apartament {
   cotaIndiviza    Float?   // procent din bloc
   nrPersoane      Int      @default(1)
 
+  // Locuire
+  esteInchiriat   Boolean  @default(false)
+
   asociatieId     String
   asociatie       Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
 
   scaraId         String?
   scara           Scara?   @relation(fields: [scaraId], references: [id])
 
+  tipApartamentId String?
+  tipApartament   TipApartament? @relation(fields: [tipApartamentId], references: [id])
+
   // Relations
   proprietari     ProprietarApartament[]
+  chiriasi        Chirias[]
   contoare        Contor[]
   chitante        Chitanta[]
   plati           Plata[]
@@ -180,10 +212,36 @@ model ProprietarApartament {
   dataSfarsit   DateTime?
   esteActiv     Boolean  @default(true)
 
+  // Contact urgență
+  esteContactUrgenta Boolean @default(false)
+
   createdAt     DateTime @default(now())
 
   @@unique([userId, apartamentId])
   @@map("proprietari_apartamente")
+}
+
+// Chiriaș - pentru apartamente închiriate
+model Chirias {
+  id            String   @id @default(cuid())
+  nume          String
+  email         String?
+  telefon       String?
+
+  apartamentId  String
+  apartament    Apartament @relation(fields: [apartamentId], references: [id], onDelete: Cascade)
+
+  // Detalii contract
+  dataInceput   DateTime @default(now())
+  dataSfarsit   DateTime?
+  esteActiv     Boolean  @default(true)
+
+  // Contact urgență
+  esteContactUrgenta Boolean @default(false)
+
+  createdAt     DateTime @default(now())
+
+  @@map("chiriasi")
 }
 
 // ============================================
@@ -538,6 +596,85 @@ model Notificare {
   createdAt   DateTime       @default(now())
 
   @@map("notificari")
+}
+
+// ============================================
+// TICHETE / SESIZARI
+// ============================================
+
+enum StatusTichet {
+  DESCHIS
+  IN_LUCRU
+  REZOLVAT
+  INCHIS
+}
+
+enum CategorieTichet {
+  DEFECTIUNE       // Probleme tehnice (lift, instalații)
+  CURATENIE        // Probleme curățenie
+  ZGOMOT           // Reclamații zgomot
+  PARCARE          // Probleme parcare
+  ILUMINAT         // Iluminat comun
+  SUGGESTIE        // Sugestii îmbunătățiri
+  FINANCIAR        // Întrebări financiare
+  ALTELE
+}
+
+enum PrioritateTichet {
+  SCAZUTA
+  NORMALA
+  URGENTA
+}
+
+model Tichet {
+  id            String           @id @default(cuid())
+  numar         Int              // Auto-increment per asociatie
+  titlu         String
+  descriere     String           @db.Text
+  categorie     CategorieTichet
+  prioritate    PrioritateTichet @default(NORMALA)
+  status        StatusTichet     @default(DESCHIS)
+
+  // Imagini atașate
+  imagini       String[]         // URLs
+
+  // Localizare opțională
+  locatie       String?          // "Scara A, etaj 3" sau "Parcare subterană"
+
+  // Timestamps
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  rezolvatLa    DateTime?
+
+  // Relations
+  asociatieId   String
+  asociatie     Asociatie        @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  creatorId     String
+  creator       User             @relation("TicheteCreate", fields: [creatorId], references: [id])
+
+  asignatId     String?
+  asignat       User?            @relation("TicheteAsignate", fields: [asignatId], references: [id])
+
+  comentarii    ComentariuTichet[]
+
+  @@map("tichete")
+}
+
+model ComentariuTichet {
+  id          String   @id @default(cuid())
+  continut    String   @db.Text
+  esteIntern  Boolean  @default(false)  // Comentariu doar pentru admin
+
+  tichetId    String
+  tichet      Tichet   @relation(fields: [tichetId], references: [id], onDelete: Cascade)
+
+  autorId     String
+  autor       User     @relation(fields: [autorId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  @@map("comentarii_tichete")
 }
 
 // ============================================

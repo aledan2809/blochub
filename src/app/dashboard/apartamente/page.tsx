@@ -28,6 +28,8 @@ interface Apartament {
   cotaIndiviza: number | null
   scaraId: string | null
   scara?: { numar: string } | null
+  tipApartamentId?: string | null
+  asociatieId?: string
   proprietari: Array<{
     user: {
       id: string
@@ -42,9 +44,18 @@ interface Scara {
   numar: string
 }
 
+interface TipApartament {
+  id: string
+  denumire: string
+  nrCamere: number
+  suprafata: number
+  cotaIndiviza: number
+}
+
 export default function ApartamentePage() {
   const [apartamente, setApartamente] = useState<Apartament[]>([])
   const [scari, setScari] = useState<Scara[]>([])
+  const [tipuriApartament, setTipuriApartament] = useState<TipApartament[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -71,10 +82,19 @@ export default function ApartamentePage() {
       setAsociatieId(cladireData.asociatie.id)
       setScari(cladireData.scari || [])
 
+      // Fetch tipuri apartament
+      const tipuriRes = await fetch(`/api/tipuri-apartament?asociatieId=${cladireData.asociatie.id}`)
+      const tipuriData = await tipuriRes.json()
+      setTipuriApartament(tipuriData.tipuri || [])
+
       // Get apartments
       const res = await fetch(`/api/apartamente?asociatieId=${cladireData.asociatie.id}`)
       const data = await res.json()
-      setApartamente(data.apartamente || [])
+      // Add asociatieId to each apartment for edit modal
+      setApartamente((data.apartamente || []).map((apt: Apartament) => ({
+        ...apt,
+        asociatieId: cladireData.asociatie.id,
+      })))
     } catch (err) {
       console.error('Error fetching apartments:', err)
     } finally {
@@ -301,11 +321,13 @@ export default function ApartamentePage() {
         <AddApartmentModal
           asociatieId={asociatieId}
           scari={scari}
+          tipuriApartament={tipuriApartament}
           onClose={() => setShowAddModal(false)}
           onSuccess={(newApt) => {
             setApartamente([...apartamente, { ...newApt, proprietari: [] }])
             setShowAddModal(false)
           }}
+          onAddTip={(tip) => setTipuriApartament([...tipuriApartament, tip])}
         />
       )}
 
@@ -327,11 +349,13 @@ export default function ApartamentePage() {
         <EditApartmentModal
           apartament={editingApt}
           scari={scari}
+          tipuriApartament={tipuriApartament}
           onClose={() => setEditingApt(null)}
           onSuccess={(updated) => {
             setApartamente(apartamente.map(a => a.id === updated.id ? { ...a, ...updated } : a))
             setEditingApt(null)
           }}
+          onAddTip={(tip) => setTipuriApartament([...tipuriApartament, tip])}
         />
       )}
     </div>
@@ -341,15 +365,21 @@ export default function ApartamentePage() {
 function AddApartmentModal({
   asociatieId,
   scari,
+  tipuriApartament,
   onClose,
   onSuccess,
+  onAddTip,
 }: {
   asociatieId: string
   scari: Scara[]
+  tipuriApartament: TipApartament[]
   onClose: () => void
   onSuccess: (apt: Apartament) => void
+  onAddTip: (tip: TipApartament) => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [showAddTip, setShowAddTip] = useState(false)
+  const [newTip, setNewTip] = useState({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2.5 })
   const [formData, setFormData] = useState({
     numar: '',
     etaj: '',
@@ -358,7 +388,43 @@ function AddApartmentModal({
     nrPersoane: '1',
     cotaIndiviza: '',
     scaraId: '',
+    tipApartamentId: '',
   })
+
+  const handleSelectTip = (tipId: string) => {
+    const tip = tipuriApartament.find(t => t.id === tipId)
+    if (tip) {
+      setFormData({
+        ...formData,
+        tipApartamentId: tipId,
+        nrCamere: String(tip.nrCamere),
+        suprafata: String(tip.suprafata),
+        cotaIndiviza: String(tip.cotaIndiviza),
+      })
+    } else {
+      setFormData({ ...formData, tipApartamentId: '' })
+    }
+  }
+
+  const handleAddNewTip = async () => {
+    if (!newTip.denumire) return
+    try {
+      const res = await fetch('/api/tipuri-apartament', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newTip, asociatieId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        onAddTip(data.tip)
+        handleSelectTip(data.tip.id)
+        setShowAddTip(false)
+        setNewTip({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2.5 })
+      }
+    } catch (err) {
+      console.error('Error adding tip:', err)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -375,12 +441,15 @@ function AddApartmentModal({
           nrCamere: formData.nrCamere ? parseInt(formData.nrCamere) : null,
           nrPersoane: parseInt(formData.nrPersoane) || 1,
           cotaIndiviza: formData.cotaIndiviza ? parseFloat(formData.cotaIndiviza) : null,
-          scaraId: formData.scaraId || null,
+          scaraId: formData.scaraId || undefined,
           asociatieId,
         }),
       })
 
-      if (!res.ok) throw new Error('Eroare la creare')
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Eroare la creare')
+      }
 
       const data = await res.json()
       const scara = scari.find(s => s.id === formData.scaraId)
@@ -447,6 +516,68 @@ function AddApartmentModal({
                 </select>
               </div>
             )}
+
+            {/* Tip Apartament Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tip apartament
+              </label>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.tipApartamentId}
+                  onChange={(e) => handleSelectTip(e.target.value)}
+                >
+                  <option value="">Selectează tipul...</option>
+                  {tipuriApartament.map(tip => (
+                    <option key={tip.id} value={tip.id}>
+                      {tip.denumire} ({tip.nrCamere} cam, {tip.suprafata}mp, {tip.cotaIndiviza}%)
+                    </option>
+                  ))}
+                </select>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowAddTip(!showAddTip)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {showAddTip && (
+                <div className="mt-2 p-3 border rounded-lg bg-gray-50 space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Denumire (ex: 2 camere confort 1)"
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                    value={newTip.denumire}
+                    onChange={(e) => setNewTip({ ...newTip, denumire: e.target.value })}
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="number"
+                      placeholder="Camere"
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+                      value={newTip.nrCamere}
+                      onChange={(e) => setNewTip({ ...newTip, nrCamere: parseInt(e.target.value) || 1 })}
+                    />
+                    <input
+                      type="number"
+                      placeholder="mp"
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+                      value={newTip.suprafata}
+                      onChange={(e) => setNewTip({ ...newTip, suprafata: parseFloat(e.target.value) || 1 })}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Cotă %"
+                      step="0.01"
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+                      value={newTip.cotaIndiviza}
+                      onChange={(e) => setNewTip({ ...newTip, cotaIndiviza: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <Button type="button" size="sm" className="w-full" onClick={handleAddNewTip} disabled={!newTip.denumire}>
+                    Adaugă tip nou
+                  </Button>
+                </div>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -691,15 +822,21 @@ function BulkAddModal({
 function EditApartmentModal({
   apartament,
   scari,
+  tipuriApartament,
   onClose,
   onSuccess,
+  onAddTip,
 }: {
   apartament: Apartament
   scari: Scara[]
+  tipuriApartament: TipApartament[]
   onClose: () => void
   onSuccess: (apt: Apartament) => void
+  onAddTip: (tip: TipApartament) => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [showAddTip, setShowAddTip] = useState(false)
+  const [newTip, setNewTip] = useState({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2.5 })
   const [formData, setFormData] = useState({
     numar: apartament.numar,
     etaj: apartament.etaj?.toString() || '',
@@ -708,7 +845,43 @@ function EditApartmentModal({
     nrPersoane: apartament.nrPersoane.toString(),
     cotaIndiviza: apartament.cotaIndiviza?.toString() || '',
     scaraId: apartament.scaraId || '',
+    tipApartamentId: (apartament as any).tipApartamentId || '',
   })
+
+  const handleSelectTip = (tipId: string) => {
+    const tip = tipuriApartament.find(t => t.id === tipId)
+    if (tip) {
+      setFormData({
+        ...formData,
+        tipApartamentId: tipId,
+        nrCamere: String(tip.nrCamere),
+        suprafata: String(tip.suprafata),
+        cotaIndiviza: String(tip.cotaIndiviza),
+      })
+    } else {
+      setFormData({ ...formData, tipApartamentId: '' })
+    }
+  }
+
+  const handleAddNewTip = async () => {
+    if (!newTip.denumire) return
+    try {
+      const res = await fetch('/api/tipuri-apartament', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newTip, asociatieId: apartament.asociatieId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        onAddTip(data.tip)
+        handleSelectTip(data.tip.id)
+        setShowAddTip(false)
+        setNewTip({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2.5 })
+      }
+    } catch (err) {
+      console.error('Error adding tip:', err)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -726,6 +899,7 @@ function EditApartmentModal({
           nrPersoane: parseInt(formData.nrPersoane) || 1,
           cotaIndiviza: formData.cotaIndiviza ? parseFloat(formData.cotaIndiviza) : null,
           scaraId: formData.scaraId || null,
+          tipApartamentId: formData.tipApartamentId || null,
         }),
       })
 
@@ -790,6 +964,66 @@ function EditApartmentModal({
                 </select>
               </div>
             )}
+
+            {/* Tip Apartament Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tip apartament</label>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.tipApartamentId}
+                  onChange={(e) => handleSelectTip(e.target.value)}
+                >
+                  <option value="">Selectează tipul...</option>
+                  {tipuriApartament.map(tip => (
+                    <option key={tip.id} value={tip.id}>
+                      {tip.denumire} ({tip.nrCamere} cam, {tip.suprafata}mp, {tip.cotaIndiviza}%)
+                    </option>
+                  ))}
+                </select>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowAddTip(!showAddTip)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {showAddTip && (
+                <div className="mt-2 p-3 border rounded-lg bg-gray-50 space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Denumire (ex: 2 camere confort 1)"
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                    value={newTip.denumire}
+                    onChange={(e) => setNewTip({ ...newTip, denumire: e.target.value })}
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="number"
+                      placeholder="Camere"
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+                      value={newTip.nrCamere}
+                      onChange={(e) => setNewTip({ ...newTip, nrCamere: parseInt(e.target.value) || 1 })}
+                    />
+                    <input
+                      type="number"
+                      placeholder="mp"
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+                      value={newTip.suprafata}
+                      onChange={(e) => setNewTip({ ...newTip, suprafata: parseFloat(e.target.value) || 1 })}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Cotă %"
+                      step="0.01"
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded"
+                      value={newTip.cotaIndiviza}
+                      onChange={(e) => setNewTip({ ...newTip, cotaIndiviza: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <Button type="button" size="sm" className="w-full" onClick={handleAddNewTip} disabled={!newTip.denumire}>
+                    Adaugă tip nou
+                  </Button>
+                </div>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>

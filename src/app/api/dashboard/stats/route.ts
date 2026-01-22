@@ -49,7 +49,8 @@ export async function GET() {
       fondRulmentData,
       chitanteRecente,
       agentLogsCount,
-      predictiiRisc
+      predictiiRisc,
+      ticheteStats
     ] = await Promise.all([
       // Total apartments
       db.apartament.count({
@@ -136,7 +137,31 @@ export async function GET() {
           luna: now.getMonth() + 1,
           an: now.getFullYear()
         }
-      })
+      }),
+
+      // Ticket stats - wrapped in try/catch for cases where table doesn't exist yet
+      (async () => {
+        try {
+          const [deschise, inLucru, rezolvate] = await Promise.all([
+            db.tichet.count({
+              where: { asociatieId: asociatie.id, status: 'DESCHIS' }
+            }),
+            db.tichet.count({
+              where: { asociatieId: asociatie.id, status: 'IN_LUCRU' }
+            }),
+            db.tichet.count({
+              where: {
+                asociatieId: asociatie.id,
+                status: 'REZOLVAT',
+                updatedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+              }
+            })
+          ])
+          return { deschise, inLucru, rezolvate, total: deschise + inLucru }
+        } catch {
+          return { deschise: 0, inLucru: 0, rezolvate: 0, total: 0 }
+        }
+      })()
     ])
 
     // Calculate payment status for recent invoices
@@ -216,6 +241,15 @@ export async function GET() {
       })
     }
 
+    // Add ticket alert if there are open tickets
+    if (ticheteStats.deschise > 0) {
+      alerteAI.push({
+        tip: 'info',
+        mesaj: `${ticheteStats.deschise} sesizări noi de la locatari`,
+        actiune: 'Vezi sesizări'
+      })
+    }
+
     return NextResponse.json({
       hasAsociatie: true,
       asociatie: {
@@ -229,7 +263,8 @@ export async function GET() {
         cheltuieliLuna: cheltuieliLuna._sum.suma || 0,
         restante: restanteData._sum.sumaTotal || 0,
         restanteCount: restanteData._count,
-        fondRulment: fondRulmentData._sum.soldCurent || 0
+        fondRulment: fondRulmentData._sum.soldCurent || 0,
+        tichete: ticheteStats
       },
       alerteAI,
       chitanteRecente: chitanteFormatted,

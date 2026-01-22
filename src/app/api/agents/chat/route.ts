@@ -7,6 +7,7 @@ import { runAgent } from '@/agents'
 const chatSchema = z.object({
   message: z.string().min(1, 'Mesajul este obligatoriu'),
   apartamentId: z.string().optional(),
+  currentPage: z.string().optional(),
   conversationHistory: z
     .array(
       z.object({
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
         userId: (session.user as any).id,
         apartamentId: data.apartamentId,
         conversationHistory: data.conversationHistory,
+        currentPage: data.currentPage,
       },
       {
         userId: (session.user as any).id,

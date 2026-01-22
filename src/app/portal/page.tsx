@@ -10,6 +10,9 @@ import {
   CheckCircle,
   ChevronRight,
   Calendar,
+  MessageSquare,
+  Wrench,
+  ClipboardList,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -200,16 +203,40 @@ export default function PortalHomePage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-4">
+        <Link href="/portal/sesizari">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-6 pb-6 text-center">
+              <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-3">
+                <Wrench className="h-6 w-6 text-orange-600" />
+              </div>
+              <p className="font-medium">Sesizări</p>
+              <p className="text-sm text-gray-500">Raportează probleme</p>
+            </CardContent>
+          </Card>
+        </Link>
         <Link href="/portal/chat">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardContent className="pt-6 pb-6 text-center">
               <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
-                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
+                <MessageSquare className="h-6 w-6 text-blue-600" />
               </div>
               <p className="font-medium">Chat cu AI</p>
               <p className="text-sm text-gray-500">Întreabă orice</p>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* More Actions */}
+      <div className="grid grid-cols-2 gap-4">
+        <Link href="/portal/avizier">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-6 pb-6 text-center">
+              <div className="h-12 w-12 rounded-full bg-teal-100 flex items-center justify-center mx-auto mb-3">
+                <ClipboardList className="h-6 w-6 text-teal-600" />
+              </div>
+              <p className="font-medium">Avizier</p>
+              <p className="text-sm text-gray-500">Cheltuieli bloc</p>
             </CardContent>
           </Card>
         </Link>
@@ -217,15 +244,28 @@ export default function PortalHomePage() {
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardContent className="pt-6 pb-6 text-center">
               <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
-                <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <FileText className="h-6 w-6 text-purple-600" />
               </div>
               <p className="font-medium">Documente</p>
               <p className="text-sm text-gray-500">AVG, regulamente</p>
             </CardContent>
           </Card>
         </Link>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Link href="/portal/payments">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-6 pb-6 text-center">
+              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                <CreditCard className="h-6 w-6 text-green-600" />
+              </div>
+              <p className="font-medium">Plăți</p>
+              <p className="text-sm text-gray-500">Istoric plăți</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <div></div>
       </div>
     </div>
   )

@@ -21,6 +21,8 @@ import {
   ChevronDown,
   Building,
   Wallet,
+  MessageSquarePlus,
+  ClipboardList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -63,10 +65,22 @@ const navigation = [
     description: 'Liste de întreținere'
   },
   {
+    name: 'Avizier',
+    href: '/dashboard/avizier',
+    icon: ClipboardList,
+    description: 'Afișaj centralizat'
+  },
+  {
     name: 'Încasări',
     href: '/dashboard/incasari',
     icon: Wallet,
     description: 'Plăți primite'
+  },
+  {
+    name: 'Sesizări',
+    href: '/dashboard/tichete',
+    icon: MessageSquarePlus,
+    description: 'Tichete și reclamații'
   },
   {
     name: 'Setări',
@@ -220,10 +234,10 @@ export default function DashboardLayout({
                 )}
               </button>
 
-              <Link href="/dashboard/chat">
+              <Link href={`/dashboard/chat?from=${pathname}&help=1`}>
                 <Button variant="outline" size="sm" className="hidden sm:flex">
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  Chat AI
+                  Ajutor
                 </Button>
               </Link>
             </div>

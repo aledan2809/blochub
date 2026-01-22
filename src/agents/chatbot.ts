@@ -54,17 +54,43 @@ const APP_KNOWLEDGE = `
 - Tipuri: apă rece/caldă, gaz, curent comun, ascensor, curățenie, gunoi, fonduri
 - Mod repartizare: consum, cotă indiviză, persoane, fix/apartament
 - Filtrare pe lună și an
+- Poți atașa imagini cu facturile pentru transparență
 
 **Chitanțe** (/dashboard/chitante)
 - Generare automată pe baza cheltuielilor
 - Statusuri: generată, trimisă, parțial plătită, plătită, restantă
 - Istoric pe luni
+- Buton "Generează chitanțe" pentru luna curentă
 
 **Încasări** (/dashboard/incasari)
 - Înregistrare plăți: numerar, card, transfer
 - Selectează chitanța, suma se completează automat
 - Referință/nr. document opțional
 - Statusul chitanței se actualizează automat
+
+**Sesizări** (/dashboard/tichete) - NOU
+- Sistem de tichete pentru raportarea problemelor
+- Categorii: defecțiune, curățenie, zgomot, parcare, iluminat, sugestii
+- Priorități: scăzută, normală, urgentă
+- Statusuri: deschis, în lucru, rezolvat, închis
+- Comentarii și comunicare cu locatarii
+- Comentarii interne (vizibile doar admin)
+
+**Setări** (/dashboard/setari)
+- Editare profil: nume, telefon
+- Preferințe notificări
+- Export date (JSON sau CSV pentru Excel)
+- Securitate cont
+
+### Portal Proprietari (pentru locatari):
+- Vizualizare sold și chitanțe
+- Plată online
+- Trimitere indexuri contoare
+- Vizualizare facturi scanate (transparență totală)
+- Documente asociație (AVG, regulamente)
+- Anunțuri
+- Chat AI pentru întrebări
+- Raportare sesizări
 
 ### Întrebări frecvente:
 
@@ -83,11 +109,33 @@ A: Dashboard afișează alertele, sau Chitanțe filtrate pe status
 Q: Pot modifica o chitanță generată?
 A: Nu direct, dar poți șterge și regenera pentru luna respectivă
 
+Q: Cum raportez o problemă la bloc?
+A: Sesizări > Sesizare nouă > completează formularul
+
+Q: Cum văd facturile originale?
+A: Portal > Documente > Facturi furnizori (locatarii pot vedea facturile scanate)
+
+Q: Cum export datele pentru contabilitate?
+A: Setări > Date > Export JSON sau CSV
+
 ### Sugestii pentru feedback:
 Utilizatorii pot da feedback pozitiv/negativ la răspunsurile chat-ului.
 Feedback-ul negativ cere detalii pentru îmbunătățiri.
 Toate conversațiile sunt analizate pentru îmbunătățirea aplicației.
 `
+
+// Page-specific help context
+const PAGE_HELP: Record<string, string> = {
+  '/dashboard': 'Pagina principală cu statistici și alerte. Arată: total apartamente, proprietari, încasări luna curentă, chitanțe recente.',
+  '/dashboard/cladire': 'Configurare bloc: date asociație (nume, CUI, adresă), date bancare (IBAN, bancă), setări facturare (zi scadență, penalizare), gestionare scări.',
+  '/dashboard/apartamente': 'Gestiune apartamente: adaugă individual sau în masă (până la 200), editează număr/etaj/suprafață/persoane/cotă, asignează la scară.',
+  '/dashboard/proprietari': 'Gestiune proprietari: adaugă email și nume pentru fiecare apartament. Email-ul e necesar pentru notificări. Cotă parte pentru coproprietari.',
+  '/dashboard/cheltuieli': 'Înregistrare cheltuieli lunare: selectează tipul (apă, gaz, etc.), suma, modul de repartizare. Poți atașa imaginea facturii.',
+  '/dashboard/chitante': 'Generare și vizualizare chitanțe: apasă "Generează" pentru luna curentă, vezi istoricul pe luni, statusul fiecărei chitanțe.',
+  '/dashboard/incasari': 'Înregistrare plăți: selectează chitanța, introdu suma, metoda de plată. Statusul chitanței se actualizează automat.',
+  '/dashboard/tichete': 'Sistem sesizări: vezi și gestionează problemele raportate de locatari. Schimbă statusul, adaugă comentarii, prioritizează.',
+  '/dashboard/setari': 'Setări cont: editează profilul, configurează notificările, exportă datele, gestionează securitatea contului.',
+}
 
 // Topics that are allowed (app-related)
 const ALLOWED_TOPICS = [
@@ -162,7 +210,7 @@ export class ChatbotAgent extends BaseAgent {
   }
 
   protected async execute(input: AgentInput): Promise<AgentOutput> {
-    const { message, userId, apartamentId, conversationHistory, isAdmin } = input
+    const { message, userId, apartamentId, conversationHistory, isAdmin, currentPage } = input
 
     if (!message) {
       return {
@@ -170,6 +218,9 @@ export class ChatbotAgent extends BaseAgent {
         error: 'Message required',
       }
     }
+
+    // Get page-specific help context
+    const pageContext = currentPage ? PAGE_HELP[currentPage] || '' : ''
 
     // Check if message is on-topic
     if (!this.isOnTopic(message)) {
@@ -280,7 +331,8 @@ REGULI STRICTE:
 8. Dacă nu știi răspunsul exact, spune că vei verifica și revii
 
 ${adminContext ? `\n--- CONTEXT ADMINISTRATOR ---\n${adminContext}` : ''}
-${userContext ? `\n--- CONTEXT PROPRIETAR ---\n${userContext}` : ''}`,
+${userContext ? `\n--- CONTEXT PROPRIETAR ---\n${userContext}` : ''}
+${pageContext ? `\n--- PAGINA CURENTĂ ---\nUtilizatorul se află pe: ${currentPage}\nDetalii pagină: ${pageContext}` : ''}`,
         },
       ]
 

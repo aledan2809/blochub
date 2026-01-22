@@ -16,6 +16,9 @@ import {
   Zap,
   Plus,
   Loader2,
+  MessageSquare,
+  Wrench,
+  ChevronRight,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,6 +38,12 @@ interface DashboardData {
     restante: number
     restanteCount: number
     fondRulment: number
+    tichete?: {
+      deschise: number
+      inLucru: number
+      rezolvate: number
+      total: number
+    }
   }
   alerteAI: Array<{
     tip: 'warning' | 'danger' | 'info'
@@ -256,6 +265,57 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Tickets Summary */}
+        {stats.tichete && stats.tichete.total > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-orange-500" />
+                  <CardTitle>Sesizări</CardTitle>
+                </div>
+                <Link href="/dashboard/tichete">
+                  <Button variant="ghost" size="sm">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <div className="h-2 w-2 rounded-full bg-red-500" />
+                    <span>Deschise</span>
+                  </div>
+                  <span className="font-semibold text-red-600">{stats.tichete.deschise}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                    <span>În lucru</span>
+                  </div>
+                  <span className="font-semibold text-yellow-600">{stats.tichete.inLucru}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <span>Rezolvate (30 zile)</span>
+                  </div>
+                  <span className="font-semibold text-green-600">{stats.tichete.rezolvate}</span>
+                </div>
+                <hr />
+                <Link href="/dashboard/tichete">
+                  <Button variant="outline" className="w-full" size="sm">
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Gestionează sesizări
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Recent Chitante */}
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -362,6 +422,19 @@ export default function DashboardPage() {
   )
 }
 
+interface ScaraConfig {
+  numar: string
+  nrApartamente: number
+  startApt: number
+}
+
+interface TipApartamentConfig {
+  denumire: string
+  nrCamere: number
+  suprafata: number
+  cotaIndiviza: number
+}
+
 function SetupWizard() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -370,8 +443,52 @@ function SetupWizard() {
     adresa: '',
     oras: '',
     judet: '',
-    nrApartamente: 10,
+    nrScari: 1,
   })
+  const [scari, setScari] = useState<ScaraConfig[]>([{ numar: 'A', nrApartamente: 10, startApt: 1 }])
+  const [tipuriApartament, setTipuriApartament] = useState<TipApartamentConfig[]>([])
+  const [newTip, setNewTip] = useState({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2.5 })
+
+  const totalApartamente = scari.reduce((sum, s) => sum + s.nrApartamente, 0)
+
+  const handleScariChange = (count: number) => {
+    const newScari: ScaraConfig[] = []
+    let startApt = 1
+    for (let i = 0; i < count; i++) {
+      const existing = scari[i]
+      const nrApt = existing?.nrApartamente || 10
+      newScari.push({
+        numar: existing?.numar || String.fromCharCode(65 + i), // A, B, C...
+        nrApartamente: nrApt,
+        startApt,
+      })
+      startApt += nrApt
+    }
+    setScari(newScari)
+    setFormData({ ...formData, nrScari: count })
+  }
+
+  const updateScara = (index: number, field: keyof ScaraConfig, value: string | number) => {
+    const newScari = [...scari]
+    newScari[index] = { ...newScari[index], [field]: value }
+    // Recalculate startApt
+    let startApt = 1
+    for (let i = 0; i < newScari.length; i++) {
+      newScari[i].startApt = startApt
+      startApt += newScari[i].nrApartamente
+    }
+    setScari(newScari)
+  }
+
+  const addTipApartament = () => {
+    if (!newTip.denumire) return
+    setTipuriApartament([...tipuriApartament, { ...newTip }])
+    setNewTip({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2.5 })
+  }
+
+  const removeTipApartament = (index: number) => {
+    setTipuriApartament(tipuriApartament.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -394,16 +511,44 @@ function SetupWizard() {
 
       const { asociatie } = await res.json()
 
-      // Create apartments
-      const apartamente = Array.from({ length: formData.nrApartamente }, (_, i) => ({
-        numar: String(i + 1),
-        asociatieId: asociatie.id,
-      }))
+      // Create scari
+      const scariRes = await fetch('/api/scari', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          asociatieId: asociatie.id,
+          scari: scari.map(s => ({ numar: s.numar, etaje: 10 }))
+        })
+      })
+
+      if (!scariRes.ok) throw new Error('Eroare la creare scări')
+      const { scari: scariCreate } = await scariRes.json()
+
+      // Create tipuri apartament if any
+      for (const tip of tipuriApartament) {
+        await fetch('/api/tipuri-apartament', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...tip, asociatieId: asociatie.id })
+        })
+      }
+
+      // Create apartments per scara
+      const apartamente: Array<{ numar: string; scaraId: string }> = []
+      scari.forEach((s, idx) => {
+        const scaraId = scariCreate[idx]?.id
+        for (let i = 0; i < s.nrApartamente; i++) {
+          apartamente.push({
+            numar: String(s.startApt + i),
+            scaraId,
+          })
+        }
+      })
 
       await fetch('/api/apartamente', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apartamente })
+        body: JSON.stringify({ apartamente, asociatieId: asociatie.id })
       })
 
       // Reload to show dashboard
@@ -431,8 +576,10 @@ function SetupWizard() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Progress */}
             <div className="flex items-center justify-center gap-2 mb-8">
-              <div className={`h-2 w-16 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-              <div className={`h-2 w-16 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+              <div className={`h-2 w-12 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+              <div className={`h-2 w-12 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+              <div className={`h-2 w-12 rounded-full ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+              <div className={`h-2 w-12 rounded-full ${step >= 4 ? 'bg-blue-600' : 'bg-gray-200'}`} />
             </div>
 
             {step === 1 && (
@@ -509,49 +656,194 @@ function SetupWizard() {
 
             {step === 2 && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Configurare Apartamente</h3>
+                <h3 className="font-semibold text-lg">Configurare Scări</h3>
+                <p className="text-sm text-gray-500">Câte scări are clădirea?</p>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Număr de apartamente
+                    Număr de scări
                   </label>
                   <input
                     type="number"
                     min="1"
-                    max="500"
+                    max="20"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    value={formData.nrApartamente}
-                    onChange={(e) => setFormData({ ...formData, nrApartamente: parseInt(e.target.value) || 1 })}
+                    value={formData.nrScari}
+                    onChange={(e) => handleScariChange(parseInt(e.target.value) || 1)}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Vom crea {formData.nrApartamente} apartamente numerotate de la 1 la {formData.nrApartamente}.
-                    Poți edita detaliile mai târziu.
-                  </p>
                 </div>
 
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 mb-2">Rezumat</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Asociație: {formData.nume}</li>
-                    <li>• Adresă: {formData.adresa}, {formData.oras}</li>
-                    <li>• Apartamente: {formData.nrApartamente}</li>
-                  </ul>
+                <div className="space-y-3">
+                  {scari.map((scara, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-shrink-0">
+                        <span className="text-sm font-medium text-gray-600">Scara</span>
+                        <input
+                          type="text"
+                          className="w-16 ml-2 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          value={scara.numar}
+                          onChange={(e) => updateScara(index, 'numar', e.target.value)}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-sm text-gray-600">Nr. apartamente:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          className="w-20 ml-2 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          value={scara.nrApartamente}
+                          onChange={(e) => updateScara(index, 'nrApartamente', parseInt(e.target.value) || 1)}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Apt. {scara.startApt} - {scara.startApt + scara.nrApartamente - 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
+                  Total: {totalApartamente} apartamente
                 </div>
 
                 <div className="flex gap-3">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                    Înapoi
+                  </Button>
+                  <Button type="button" className="flex-1" onClick={() => setStep(3)}>
+                    Continuă
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Tipuri de Apartamente (opțional)</h3>
+                <p className="text-sm text-gray-500">
+                  Definește tipurile de apartamente pentru a ușura introducerea datelor
+                </p>
+
+                {tipuriApartament.length > 0 && (
+                  <div className="space-y-2">
+                    {tipuriApartament.map((tip, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <span className="font-medium">{tip.denumire}</span>
+                          <span className="text-sm text-gray-500 ml-2">
+                            {tip.nrCamere} camere, {tip.suprafata} mp, {tip.cotaIndiviza}%
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeTipApartament(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <XCircle className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-sm">Adaugă tip nou</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Denumire</label>
+                      <input
+                        type="text"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="ex: 2 camere confort 1"
+                        value={newTip.denumire}
+                        onChange={(e) => setNewTip({ ...newTip, denumire: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Nr. Camere</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        value={newTip.nrCamere}
+                        onChange={(e) => setNewTip({ ...newTip, nrCamere: parseInt(e.target.value) || 1 })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Suprafață (mp)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.1"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        value={newTip.suprafata}
+                        onChange={(e) => setNewTip({ ...newTip, suprafata: parseFloat(e.target.value) || 1 })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Cotă (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        value={newTip.cotaIndiviza}
+                        onChange={(e) => setNewTip({ ...newTip, cotaIndiviza: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1"
-                    onClick={() => setStep(1)}
+                    size="sm"
+                    className="w-full"
+                    onClick={addTipApartament}
+                    disabled={!newTip.denumire}
                   >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Adaugă tip
+                  </Button>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(2)}>
                     Înapoi
                   </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1"
-                    disabled={loading}
-                  >
+                  <Button type="button" className="flex-1" onClick={() => setStep(4)}>
+                    Continuă
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">Rezumat și Finalizare</h3>
+
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">Rezumat Configurare</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Asociație: {formData.nume}</li>
+                    <li>• Adresă: {formData.adresa}, {formData.oras}, {formData.judet}</li>
+                    <li>• Scări: {scari.length} ({scari.map(s => `Scara ${s.numar}`).join(', ')})</li>
+                    <li>• Total apartamente: {totalApartamente}</li>
+                    {tipuriApartament.length > 0 && (
+                      <li>• Tipuri apartament: {tipuriApartament.map(t => t.denumire).join(', ')}</li>
+                    )}
+                  </ul>
+                </div>
+
+                <div className="bg-yellow-50 rounded-lg p-4 text-sm text-yellow-800">
+                  <strong>Notă:</strong> După finalizare, poți edita toate datele din setări și poți adăuga proprietari, contoare și alte detalii.
+                </div>
+
+                <div className="flex gap-3">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(3)}>
+                    Înapoi
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={loading}>
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />

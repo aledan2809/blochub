@@ -3,6 +3,33 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const asociatieId = searchParams.get('asociatieId')
+
+    if (!asociatieId) {
+      return NextResponse.json({ error: 'asociatieId necesar' }, { status: 400 })
+    }
+
+    const scari = await db.scara.findMany({
+      where: { asociatieId },
+      include: { _count: { select: { apartamente: true } } },
+      orderBy: { numar: 'asc' },
+    })
+
+    return NextResponse.json({ scari })
+  } catch (error) {
+    console.error('GET scari error:', error)
+    return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -22,6 +49,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Asociație negăsită' }, { status: 404 })
     }
 
+    // Bulk create if array provided
+    if (body.scari && Array.isArray(body.scari)) {
+      const scariData = body.scari.map((s: { numar: string; etaje?: number }) => ({
+        numar: s.numar,
+        etaje: s.etaje || 10,
+        asociatieId: body.asociatieId,
+      }))
+
+      await db.scara.createMany({
+        data: scariData,
+        skipDuplicates: true,
+      })
+
+      // Return created scari
+      const scari = await db.scara.findMany({
+        where: {
+          asociatieId: body.asociatieId,
+          numar: { in: body.scari.map((s: { numar: string }) => s.numar) },
+        },
+        orderBy: { numar: 'asc' },
+      })
+
+      return NextResponse.json({ scari }, { status: 201 })
+    }
+
+    // Single create
     const scara = await db.scara.create({
       data: {
         numar: body.numar,

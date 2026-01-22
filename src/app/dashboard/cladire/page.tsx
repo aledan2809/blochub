@@ -16,6 +16,9 @@ import {
   Calendar,
   Percent,
   CreditCard,
+  Wallet,
+  PiggyBank,
+  Wrench,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -45,6 +48,26 @@ interface Scara {
   }
 }
 
+interface Fond {
+  id: string
+  tip: 'RULMENT' | 'REPARATII' | 'ALTE'
+  denumire: string
+  sumaLunara: number
+  soldCurent: number
+}
+
+const tipFondLabels: Record<string, string> = {
+  RULMENT: 'Fond de rulment',
+  REPARATII: 'Fond de reparații',
+  ALTE: 'Alt fond',
+}
+
+const tipFondIcons: Record<string, React.ReactNode> = {
+  RULMENT: <Wallet className="h-5 w-5" />,
+  REPARATII: <Wrench className="h-5 w-5" />,
+  ALTE: <PiggyBank className="h-5 w-5" />,
+}
+
 export default function CladirePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -54,6 +77,9 @@ export default function CladirePage() {
   const [formData, setFormData] = useState<Partial<Asociatie>>({})
   const [showAddScara, setShowAddScara] = useState(false)
   const [newScara, setNewScara] = useState({ numar: '', etaje: 10 })
+  const [fonduri, setFonduri] = useState<Fond[]>([])
+  const [showAddFond, setShowAddFond] = useState(false)
+  const [newFond, setNewFond] = useState({ tip: 'RULMENT' as const, denumire: '', sumaLunara: 0 })
 
   useEffect(() => {
     fetchData()
@@ -61,13 +87,22 @@ export default function CladirePage() {
 
   async function fetchData() {
     try {
-      const res = await fetch('/api/cladire')
-      const data = await res.json()
+      const [cladireRes, fonduriRes] = await Promise.all([
+        fetch('/api/cladire'),
+        fetch('/api/fonduri')
+      ])
 
-      if (data.asociatie) {
-        setAsociatie(data.asociatie)
-        setFormData(data.asociatie)
-        setScari(data.scari || [])
+      const cladireData = await cladireRes.json()
+      const fonduriData = await fonduriRes.json()
+
+      if (cladireData.asociatie) {
+        setAsociatie(cladireData.asociatie)
+        setFormData(cladireData.asociatie)
+        setScari(cladireData.scari || [])
+      }
+
+      if (fonduriData.fonduri) {
+        setFonduri(fonduriData.fonduri)
       }
     } catch (err) {
       console.error('Error:', err)
@@ -131,6 +166,38 @@ export default function CladirePage() {
       setScari(scari.filter(s => s.id !== scaraId))
     } catch (err) {
       console.error('Error deleting scara:', err)
+    }
+  }
+
+  async function handleAddFond() {
+    if (!newFond.denumire || newFond.sumaLunara <= 0) return
+
+    try {
+      const res = await fetch('/api/fonduri', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newFond)
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setFonduri([...fonduri, data.fond])
+        setNewFond({ tip: 'RULMENT', denumire: '', sumaLunara: 0 })
+        setShowAddFond(false)
+      }
+    } catch (err) {
+      console.error('Error adding fond:', err)
+    }
+  }
+
+  async function handleDeleteFond(fondId: string) {
+    if (!confirm('Sigur vrei să ștergi acest fond?')) return
+
+    try {
+      await fetch(`/api/fonduri?id=${fondId}`, { method: 'DELETE' })
+      setFonduri(fonduri.filter(f => f.id !== fondId))
+    } catch (err) {
+      console.error('Error deleting fond:', err)
     }
   }
 
@@ -480,6 +547,152 @@ export default function CladirePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Fonduri Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <PiggyBank className="h-5 w-5 text-green-600" />
+                Fonduri
+              </CardTitle>
+              <CardDescription>
+                {fonduri.length === 0
+                  ? 'Configurează fondurile lunare (rulment, reparații)'
+                  : `${fonduri.length} fonduri • Total: ${fonduri.reduce((s, f) => s + f.sumaLunara, 0)} lei/apt/lună`}
+              </CardDescription>
+            </div>
+            <Button onClick={() => setShowAddFond(true)} variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Adaugă fond
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {fonduri.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <PiggyBank className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+              <p>Nu ai configurat fonduri.</p>
+              <p className="text-sm">Fondurile se adaugă automat la chitanțe.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {fonduri.map((fond) => (
+                <div
+                  key={fond.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                      fond.tip === 'RULMENT' ? 'bg-blue-100 text-blue-600' :
+                      fond.tip === 'REPARATII' ? 'bg-orange-100 text-orange-600' :
+                      'bg-green-100 text-green-600'
+                    }`}>
+                      {tipFondIcons[fond.tip]}
+                    </div>
+                    <div>
+                      <div className="font-medium">{fond.denumire}</div>
+                      <div className="text-sm text-gray-500">
+                        {tipFondLabels[fond.tip]} • Sold: {fond.soldCurent.toLocaleString('ro-RO')} lei
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="font-semibold text-green-600">{fond.sumaLunara} lei</div>
+                      <div className="text-xs text-gray-500">per apt/lună</div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteFond(fond.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Total summary */}
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200 mt-4">
+                <span className="font-medium text-green-800">Total fonduri lunare</span>
+                <span className="font-bold text-green-700">
+                  {fonduri.reduce((s, f) => s + f.sumaLunara, 0)} lei/apartament
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Fond Modal */}
+      {showAddFond && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Adaugă Fond</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tip fond *
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={newFond.tip}
+                  onChange={(e) => setNewFond({ ...newFond, tip: e.target.value as any })}
+                >
+                  <option value="RULMENT">Fond de rulment</option>
+                  <option value="REPARATII">Fond de reparații</option>
+                  <option value="ALTE">Alt fond</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Denumire *
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={newFond.denumire}
+                  onChange={(e) => setNewFond({ ...newFond, denumire: e.target.value })}
+                  placeholder="ex: Fond rulment scări, Fond lift"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sumă lunară per apartament (lei) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={newFond.sumaLunara || ''}
+                  onChange={(e) => setNewFond({ ...newFond, sumaLunara: parseFloat(e.target.value) || 0 })}
+                  placeholder="ex: 20"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowAddFond(false)}
+                >
+                  Anulează
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleAddFond}
+                  disabled={!newFond.denumire || newFond.sumaLunara <= 0}
+                >
+                  Adaugă
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Scara Modal */}
       {showAddScara && (

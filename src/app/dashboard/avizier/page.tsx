@@ -1,0 +1,362 @@
+'use client'
+
+import { useEffect, useState, useRef } from 'react'
+import {
+  FileText,
+  Printer,
+  Download,
+  Loader2,
+  Building2,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+
+interface Apartament {
+  numar: string
+  scara?: string
+  proprietar?: string
+  cheltuieli: Record<string, number>
+  totalIntretinere: number
+  restanta: number
+  penalizari: number
+  fonduri: number
+  total: number
+}
+
+interface AvizierData {
+  asociatie: {
+    nume: string
+    adresa: string
+  }
+  luna: number
+  an: number
+  categoriiCheltuieli: string[]
+  apartamente: Apartament[]
+  totaluri: {
+    categorii: Record<string, number>
+    intretinere: number
+    restante: number
+    penalizari: number
+    fonduri: number
+    total: number
+  }
+}
+
+const months = [
+  'Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
+  'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'
+]
+
+export default function AvizierPage() {
+  const [data, setData] = useState<AvizierData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const printRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetchAvizier()
+  }, [selectedMonth, selectedYear])
+
+  async function fetchAvizier() {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/avizier?luna=${selectedMonth}&an=${selectedYear}`)
+      const json = await res.json()
+      setData(json)
+    } catch (err) {
+      console.error('Error fetching avizier:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const prevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12)
+      setSelectedYear(selectedYear - 1)
+    } else {
+      setSelectedMonth(selectedMonth - 1)
+    }
+  }
+
+  const nextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1)
+      setSelectedYear(selectedYear + 1)
+    } else {
+      setSelectedMonth(selectedMonth + 1)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Nu există date pentru avizier
+          </h3>
+          <p className="text-gray-500">
+            Adaugă cheltuieli și generează chitanțe pentru a vedea avizierul.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header - Hidden when printing */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Avizier</h1>
+          <p className="text-gray-500">{data.asociatie.nume}</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={prevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[140px] text-center">
+              {months[selectedMonth - 1]} {selectedYear}
+            </span>
+            <Button variant="outline" size="sm" onClick={nextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button onClick={handlePrint}>
+            <Printer className="h-4 w-4 mr-2" />
+            Printează A3
+          </Button>
+        </div>
+      </div>
+
+      {/* Printable Avizier */}
+      <div ref={printRef} className="print:p-0">
+        {/* Header for print */}
+        <div className="hidden print:block mb-4">
+          <div className="text-center">
+            <h1 className="text-xl font-bold">{data.asociatie.nume}</h1>
+            <p className="text-sm">{data.asociatie.adresa}</p>
+            <p className="text-lg font-semibold mt-2">
+              AVIZIER - {months[selectedMonth - 1]} {selectedYear}
+            </p>
+          </div>
+        </div>
+
+        {/* Summary Card */}
+        <Card className="mb-6 print:shadow-none print:border">
+          <CardHeader className="print:py-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Sumar Cheltuieli - {months[selectedMonth - 1]} {selectedYear}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="print:py-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:gap-2">
+              <div className="p-3 bg-blue-50 rounded-lg print:p-1">
+                <p className="text-xs text-blue-600 font-medium">Total Întreținere</p>
+                <p className="text-xl font-bold text-blue-900 print:text-lg">
+                  {data.totaluri.intretinere.toLocaleString('ro-RO')} lei
+                </p>
+              </div>
+              <div className="p-3 bg-orange-50 rounded-lg print:p-1">
+                <p className="text-xs text-orange-600 font-medium">Total Restanțe</p>
+                <p className="text-xl font-bold text-orange-900 print:text-lg">
+                  {data.totaluri.restante.toLocaleString('ro-RO')} lei
+                </p>
+              </div>
+              <div className="p-3 bg-red-50 rounded-lg print:p-1">
+                <p className="text-xs text-red-600 font-medium">Total Penalizări</p>
+                <p className="text-xl font-bold text-red-900 print:text-lg">
+                  {data.totaluri.penalizari.toLocaleString('ro-RO')} lei
+                </p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg print:p-1">
+                <p className="text-xs text-green-600 font-medium">Total General</p>
+                <p className="text-xl font-bold text-green-900 print:text-lg">
+                  {data.totaluri.total.toLocaleString('ro-RO')} lei
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Expense Categories Summary */}
+        <Card className="mb-6 print:shadow-none print:border">
+          <CardHeader className="print:py-2">
+            <CardTitle className="text-lg">Defalcare pe Categorii</CardTitle>
+          </CardHeader>
+          <CardContent className="print:py-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 print:gap-1">
+              {Object.entries(data.totaluri.categorii).map(([categorie, suma]) => (
+                <div key={categorie} className="p-2 bg-gray-50 rounded print:p-1 print:text-xs">
+                  <p className="text-xs text-gray-600 truncate">{categorie}</p>
+                  <p className="font-semibold">{suma.toLocaleString('ro-RO')} lei</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Table */}
+        <Card className="print:shadow-none print:border">
+          <CardContent className="p-0 print:p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm print:text-[8pt]">
+                <thead className="bg-gray-100 print:bg-gray-200">
+                  <tr>
+                    <th className="px-2 py-2 text-left font-semibold border-b sticky left-0 bg-gray-100 print:bg-gray-200 print:px-1 print:py-1">
+                      Apt.
+                    </th>
+                    <th className="px-2 py-2 text-left font-semibold border-b print:px-1 print:py-1 hidden md:table-cell print:table-cell">
+                      Scara
+                    </th>
+                    <th className="px-2 py-2 text-left font-semibold border-b print:px-1 print:py-1 hidden lg:table-cell print:table-cell">
+                      Proprietar
+                    </th>
+                    {data.categoriiCheltuieli.map(cat => (
+                      <th key={cat} className="px-2 py-2 text-right font-semibold border-b print:px-1 print:py-1">
+                        <span className="truncate block max-w-[80px]" title={cat}>
+                          {cat.split('_').map(w => w[0]).join('')}
+                        </span>
+                      </th>
+                    ))}
+                    <th className="px-2 py-2 text-right font-semibold border-b bg-blue-50 print:px-1 print:py-1">
+                      Întreț.
+                    </th>
+                    <th className="px-2 py-2 text-right font-semibold border-b bg-orange-50 print:px-1 print:py-1">
+                      Rest.
+                    </th>
+                    <th className="px-2 py-2 text-right font-semibold border-b bg-red-50 print:px-1 print:py-1">
+                      Pen.
+                    </th>
+                    <th className="px-2 py-2 text-right font-semibold border-b bg-purple-50 print:px-1 print:py-1">
+                      Fond.
+                    </th>
+                    <th className="px-2 py-2 text-right font-semibold border-b bg-green-100 print:px-1 print:py-1">
+                      TOTAL
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.apartamente.map((apt, idx) => (
+                    <tr key={apt.numar} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-2 py-1.5 border-b font-medium sticky left-0 bg-inherit print:px-1 print:py-0.5">
+                        {apt.numar}
+                      </td>
+                      <td className="px-2 py-1.5 border-b text-gray-600 print:px-1 print:py-0.5 hidden md:table-cell print:table-cell">
+                        {apt.scara || '-'}
+                      </td>
+                      <td className="px-2 py-1.5 border-b text-gray-600 truncate max-w-[120px] print:px-1 print:py-0.5 hidden lg:table-cell print:table-cell">
+                        {apt.proprietar || '-'}
+                      </td>
+                      {data.categoriiCheltuieli.map(cat => (
+                        <td key={cat} className="px-2 py-1.5 border-b text-right print:px-1 print:py-0.5">
+                          {apt.cheltuieli[cat]?.toLocaleString('ro-RO') || '-'}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1.5 border-b text-right bg-blue-50 font-medium print:px-1 print:py-0.5">
+                        {apt.totalIntretinere.toLocaleString('ro-RO')}
+                      </td>
+                      <td className="px-2 py-1.5 border-b text-right bg-orange-50 print:px-1 print:py-0.5">
+                        {apt.restanta > 0 ? apt.restanta.toLocaleString('ro-RO') : '-'}
+                      </td>
+                      <td className="px-2 py-1.5 border-b text-right bg-red-50 print:px-1 print:py-0.5">
+                        {apt.penalizari > 0 ? apt.penalizari.toLocaleString('ro-RO') : '-'}
+                      </td>
+                      <td className="px-2 py-1.5 border-b text-right bg-purple-50 print:px-1 print:py-0.5">
+                        {apt.fonduri > 0 ? apt.fonduri.toLocaleString('ro-RO') : '-'}
+                      </td>
+                      <td className="px-2 py-1.5 border-b text-right bg-green-100 font-bold print:px-1 print:py-0.5">
+                        {apt.total.toLocaleString('ro-RO')}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Totals Row */}
+                  <tr className="bg-gray-200 font-bold print:bg-gray-300">
+                    <td className="px-2 py-2 border-t-2 sticky left-0 bg-gray-200 print:bg-gray-300 print:px-1">
+                      TOTAL
+                    </td>
+                    <td className="px-2 py-2 border-t-2 print:px-1 hidden md:table-cell print:table-cell">-</td>
+                    <td className="px-2 py-2 border-t-2 print:px-1 hidden lg:table-cell print:table-cell">-</td>
+                    {data.categoriiCheltuieli.map(cat => (
+                      <td key={cat} className="px-2 py-2 border-t-2 text-right print:px-1">
+                        {data.totaluri.categorii[cat]?.toLocaleString('ro-RO') || '-'}
+                      </td>
+                    ))}
+                    <td className="px-2 py-2 border-t-2 text-right bg-blue-100 print:px-1">
+                      {data.totaluri.intretinere.toLocaleString('ro-RO')}
+                    </td>
+                    <td className="px-2 py-2 border-t-2 text-right bg-orange-100 print:px-1">
+                      {data.totaluri.restante.toLocaleString('ro-RO')}
+                    </td>
+                    <td className="px-2 py-2 border-t-2 text-right bg-red-100 print:px-1">
+                      {data.totaluri.penalizari.toLocaleString('ro-RO')}
+                    </td>
+                    <td className="px-2 py-2 border-t-2 text-right bg-purple-100 print:px-1">
+                      {data.totaluri.fonduri.toLocaleString('ro-RO')}
+                    </td>
+                    <td className="px-2 py-2 border-t-2 text-right bg-green-200 print:px-1">
+                      {data.totaluri.total.toLocaleString('ro-RO')}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Legend */}
+        <div className="mt-4 text-xs text-gray-500 print:mt-2">
+          <p className="font-medium mb-1">Legendă categorii:</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {data.categoriiCheltuieli.map(cat => (
+              <span key={cat}>
+                <strong>{cat.split('_').map(w => w[0]).join('')}</strong> = {cat.replace(/_/g, ' ')}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Print footer */}
+        <div className="hidden print:block mt-4 pt-2 border-t text-xs text-gray-500">
+          <p>Generat de BlocHub la {new Date().toLocaleDateString('ro-RO')}</p>
+        </div>
+      </div>
+
+      {/* Print Styles */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A3 landscape;
+            margin: 10mm;
+          }
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+    </div>
+  )
+}

@@ -8,6 +8,10 @@ import {
   Receipt,
   Calendar,
   Building2,
+  Camera,
+  Sparkles,
+  Upload,
+  CheckCircle,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -242,13 +246,74 @@ function AddCheltuialaModal({
   onSuccess: (ch: Cheltuiala) => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [ocrSuccess, setOcrSuccess] = useState(false)
   const [formData, setFormData] = useState({
     tip: 'APA_RECE',
     suma: '',
     descriere: '',
     nrFactura: '',
     modRepartizare: 'COTA_INDIVIZA',
+    furnizorNume: '',
+    furnizorCui: '',
   })
+
+  // OCR scan invoice
+  const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setScanning(true)
+    setOcrSuccess(false)
+
+    try {
+      // Convert to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1]) // Remove data:image/... prefix
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      // Send to OCR API
+      const res = await fetch('/api/agents/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'factura',
+          imageBase64: base64,
+          asociatieId,
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.data) {
+          // Auto-fill form with OCR data
+          setFormData({
+            tip: data.data.tipCheltuiala || 'ALTE_CHELTUIELI',
+            suma: String(data.data.suma || ''),
+            descriere: data.data.descriere || data.data.detaliiServicii?.join(', ') || '',
+            nrFactura: data.data.numarFactura || '',
+            modRepartizare: 'COTA_INDIVIZA',
+            furnizorNume: data.data.furnizor || '',
+            furnizorCui: data.data.cui || '',
+          })
+          setOcrSuccess(true)
+        }
+      } else {
+        alert('Nu am putut citi factura. Completează manual.')
+      }
+    } catch (error) {
+      console.error('OCR error:', error)
+      alert('Eroare la scanarea facturii. Completează manual.')
+    } finally {
+      setScanning(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -291,6 +356,71 @@ function AddCheltuialaModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* OCR Scanner */}
+            <div className="mb-6">
+              {scanning ? (
+                <div className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-blue-400 bg-blue-50 rounded-xl">
+                  <Loader2 className="h-8 w-8 text-blue-500 animate-spin mb-2" />
+                  <span className="text-sm text-blue-600 font-medium">Se scanează factura cu AI...</span>
+                </div>
+              ) : ocrSuccess ? (
+                <div className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-green-400 bg-green-50 rounded-xl">
+                  <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
+                  <span className="text-sm text-green-600 font-medium">Factură citită cu succes!</span>
+                  <span className="text-xs text-green-500">Verifică datele de mai jos</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1 text-sm text-gray-600 mb-2">
+                    <Sparkles className="h-4 w-4 text-yellow-500" />
+                    <span className="font-medium">Încarcă factura - scanăm cu AI</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label
+                      htmlFor="invoice-file"
+                      className="flex flex-col items-center justify-center h-20 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all"
+                    >
+                      <Upload className="h-5 w-5 text-gray-400 mb-1" />
+                      <span className="text-xs text-gray-600 font-medium">Încarcă fișier</span>
+                      <input
+                        id="invoice-file"
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={handleScanInvoice}
+                        disabled={scanning}
+                      />
+                    </label>
+                    <label
+                      htmlFor="invoice-camera"
+                      className="flex flex-col items-center justify-center h-20 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all"
+                    >
+                      <Camera className="h-5 w-5 text-gray-400 mb-1" />
+                      <span className="text-xs text-gray-600 font-medium">Folosește camera</span>
+                      <input
+                        id="invoice-camera"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleScanInvoice}
+                        disabled={scanning}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">sau completează manual</span>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tip cheltuială *

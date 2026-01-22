@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Send,
   Bot,
@@ -44,6 +45,70 @@ const quickActions: QuickAction[] = [
   { icon: <CreditCard className="h-4 w-4" />, label: 'Cum generez chitanțe?', message: 'Cum generez chitanțele lunare?' },
   { icon: <Settings className="h-4 w-4" />, label: 'Setări asociație', message: 'Cum modific setările asociației?' },
 ]
+
+// Page name mapping for contextual help
+function getPageName(page: string | null): string {
+  const names: Record<string, string> = {
+    '/dashboard': 'Dashboard',
+    '/dashboard/cladire': 'Clădire',
+    '/dashboard/apartamente': 'Apartamente',
+    '/dashboard/proprietari': 'Proprietari',
+    '/dashboard/cheltuieli': 'Cheltuieli',
+    '/dashboard/chitante': 'Chitanțe',
+    '/dashboard/incasari': 'Încasări',
+    '/dashboard/tichete': 'Sesizări',
+    '/dashboard/setari': 'Setări',
+  }
+  return names[page || ''] || 'aplicație'
+}
+
+// Page-specific help content
+function getPageHelp(page: string | null): string {
+  const help: Record<string, string> = {
+    '/dashboard': `**Dashboard** - Aici vezi o prezentare generală:
+• Statistici despre apartamente și proprietari
+• Alerte importante (restanțe, acțiuni necesare)
+• Chitanțele recente`,
+    '/dashboard/cladire': `**Clădire** - Configurează asociația:
+• Date asociație: nume, CUI, adresă, email, telefon
+• Date bancare: cont IBAN și bancă
+• Setări: zi scadență, penalizare pe zi
+• Gestionare scări: adaugă scările blocului (A, B sau 1, 2)`,
+    '/dashboard/apartamente': `**Apartamente** - Gestionează apartamentele:
+• Adaugă individual sau în masă (până la 200)
+• Setează: număr, etaj, suprafață, camere, persoane, cotă
+• Asignează la scară
+• Link direct pentru a adăuga proprietar`,
+    '/dashboard/proprietari': `**Proprietari** - Gestionează locatarii:
+• Adaugă proprietar pentru fiecare apartament
+• Email obligatoriu pentru notificări
+• Cotă parte pentru coproprietari`,
+    '/dashboard/cheltuieli': `**Cheltuieli** - Înregistrează facturile:
+• Tipuri: apă, gaz, curent, ascensor, curățenie, gunoi
+• Mod repartizare: consum, cotă indiviză, persoane, fix
+• Poți atașa imaginea facturii pentru transparență`,
+    '/dashboard/chitante': `**Chitanțe** - Generează listele de întreținere:
+• Apasă "Generează" pentru luna curentă
+• Statusuri: generată, trimisă, plătită, restantă
+• Vezi istoricul pe luni`,
+    '/dashboard/incasari': `**Încasări** - Înregistrează plățile:
+• Selectează chitanța de achitat
+• Suma se completează automat
+• Metode: numerar, card, transfer
+• Statusul chitanței se actualizează`,
+    '/dashboard/tichete': `**Sesizări** - Gestionează problemele:
+• Vezi sesizările raportate de locatari
+• Categorii: defecțiune, curățenie, zgomot, etc.
+• Schimbă statusul: deschis → în lucru → rezolvat
+• Adaugă comentarii pentru comunicare`,
+    '/dashboard/setari': `**Setări** - Configurări cont:
+• Editează profilul (nume, telefon)
+• Preferințe notificări
+• Export date (JSON sau CSV)
+• Securitate cont`,
+  }
+  return help[page || ''] || 'Alege o opțiune sau descrie ce vrei să faci.'
+}
 
 // Knowledge base pentru răspunsuri rapide
 const knowledgeBase: Record<string, string> = {
@@ -150,20 +215,33 @@ function findBestAnswer(message: string): { answer: string; intent: string } | n
   return null
 }
 
-export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: `Bună! Sunt asistentul BlocHub.
+function ChatPageContent({ fromPage, helpQuery }: { fromPage: string | null; helpQuery: string | null }) {
+
+  const getInitialMessage = () => {
+    if (helpQuery) {
+      return `Bună! Văd că ai nevoie de ajutor cu pagina **${getPageName(fromPage)}**.
+
+${getPageHelp(fromPage)}
+
+Ai vreo întrebare specifică?`
+    }
+    return `Bună! Sunt asistentul BlocHub.
 
 Te pot ajuta cu:
 • Configurarea clădirii și scărilor
 • Adăugarea apartamentelor și proprietarilor
 • Gestionarea cheltuielilor și chitanțelor
 • Înregistrarea plăților
+• Sesizări și comunicarea cu locatarii
 
-Cu ce te pot ajuta astăzi?`,
+Cu ce te pot ajuta astăzi?`
+  }
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: getInitialMessage(),
       timestamp: new Date()
     }
   ])
@@ -215,7 +293,8 @@ Cu ce te pot ajuta astăzi?`,
             conversationHistory: messages.slice(-6).map(m => ({
               role: m.role,
               content: m.content
-            }))
+            })),
+            currentPage: fromPage || undefined
           })
         })
 
@@ -496,5 +575,36 @@ Echipa noastră citește toate mesajele și îmbunătățește constant aplicaț
         Feedback-ul tău ne ajută să îmbunătățim aplicația
       </div>
     </div>
+  )
+}
+
+function ChatPageWrapper() {
+  const searchParams = useSearchParams()
+  const fromPage = searchParams.get('from')
+  const helpQuery = searchParams.get('help')
+
+  return <ChatPageContent fromPage={fromPage} helpQuery={helpQuery} />
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col h-[calc(100vh-8rem)]">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+            <Bot className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Asistent BlocHub</h1>
+            <p className="text-sm text-gray-500">Se încarcă...</p>
+          </div>
+        </div>
+        <div className="flex-1 bg-white rounded-xl border p-4 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </div>
+    }>
+      <ChatPageWrapper />
+    </Suspense>
   )
 }
