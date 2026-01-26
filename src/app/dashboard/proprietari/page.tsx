@@ -123,26 +123,32 @@ function ProprietariContent() {
 
   const fetchData = async () => {
     try {
-      const [propRes, aptRes, chiriasRes] = await Promise.all([
-        fetch('/api/proprietari'),
-        fetch('/api/apartamente'),
-        fetch('/api/chiriasi')
-      ])
+      // First get proprietari to get asociatieId
+      const propRes = await fetch('/api/proprietari')
 
       if (propRes.ok) {
         const propData = await propRes.json()
         setProprietari(propData.proprietari || [])
-        setAsociatieId(propData.asociatieId)
-      }
+        const currentAsociatieId = propData.asociatieId
+        setAsociatieId(currentAsociatieId)
 
-      if (aptRes.ok) {
-        const aptData = await aptRes.json()
-        setApartamente(aptData.apartamente || [])
-      }
+        // Now fetch apartamente and chiriasi with asociatieId
+        if (currentAsociatieId) {
+          const [aptRes, chiriasRes] = await Promise.all([
+            fetch(`/api/apartamente?asociatieId=${currentAsociatieId}`),
+            fetch('/api/chiriasi')
+          ])
 
-      if (chiriasRes.ok) {
-        const chiriasData = await chiriasRes.json()
-        setChiriasi(chiriasData.chiriasi || [])
+          if (aptRes.ok) {
+            const aptData = await aptRes.json()
+            setApartamente(aptData.apartamente || [])
+          }
+
+          if (chiriasRes.ok) {
+            const chiriasData = await chiriasRes.json()
+            setChiriasi(chiriasData.chiriasi || [])
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
