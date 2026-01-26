@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             numar: true,
+            esteInchiriat: true,
             scara: { select: { numar: true } }
           }
         }
@@ -135,7 +136,8 @@ export async function POST(request: NextRequest) {
         userId: proprietarUser.id,
         apartamentId: body.apartamentId,
         cotaParte: body.cotaParte || 100,
-        esteActiv: true
+        esteActiv: true,
+        esteContactUrgenta: body.esteContactUrgenta || false,
       },
       include: {
         user: {
@@ -150,6 +152,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             numar: true,
+            esteInchiriat: true,
             scara: { select: { numar: true } }
           }
         }
@@ -200,7 +203,8 @@ export async function PUT(request: NextRequest) {
       where: { id: body.id },
       data: {
         cotaParte: body.cotaParte,
-        esteActiv: body.esteActiv
+        esteActiv: body.esteActiv,
+        esteContactUrgenta: body.esteContactUrgenta,
       },
       include: {
         user: {
@@ -215,6 +219,7 @@ export async function PUT(request: NextRequest) {
           select: {
             id: true,
             numar: true,
+            esteInchiriat: true,
             scara: { select: { numar: true } }
           }
         }

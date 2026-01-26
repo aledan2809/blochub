@@ -115,3 +115,103 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
+    }
+
+    const userId = (session.user as { id: string }).id
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'id required' }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const validatedData = cheltuialaSchema.partial().parse(body)
+
+    // Find the cheltuiala and verify ownership
+    const existing = await db.cheltuiala.findUnique({
+      where: { id },
+      include: { asociatie: true }
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Cheltuială negăsită' }, { status: 404 })
+    }
+
+    if (existing.asociatie.adminId !== userId) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 403 })
+    }
+
+    const cheltuiala = await db.cheltuiala.update({
+      where: { id },
+      data: {
+        ...(validatedData.tip && { tip: validatedData.tip }),
+        ...(validatedData.suma && { suma: validatedData.suma }),
+        ...(validatedData.descriere !== undefined && { descriere: validatedData.descriere || null }),
+        ...(validatedData.nrFactura !== undefined && { nrFactura: validatedData.nrFactura || null }),
+        ...(validatedData.modRepartizare && { modRepartizare: validatedData.modRepartizare }),
+        ...(validatedData.luna && { luna: validatedData.luna }),
+        ...(validatedData.an && { an: validatedData.an }),
+        ...(validatedData.dataFactura && { dataFactura: new Date(validatedData.dataFactura) }),
+        ...(validatedData.furnizorId !== undefined && { furnizorId: validatedData.furnizorId || null }),
+      },
+      include: {
+        furnizor: { select: { nume: true } }
+      }
+    })
+
+    return NextResponse.json({ cheltuiala })
+  } catch (error) {
+    console.error('PUT cheltuiala error:', error)
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
+    }
+
+    const userId = (session.user as { id: string }).id
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'id required' }, { status: 400 })
+    }
+
+    // Find the cheltuiala and verify ownership
+    const existing = await db.cheltuiala.findUnique({
+      where: { id },
+      include: { asociatie: true }
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Cheltuială negăsită' }, { status: 404 })
+    }
+
+    if (existing.asociatie.adminId !== userId) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 403 })
+    }
+
+    await db.cheltuiala.delete({ where: { id } })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('DELETE cheltuiala error:', error)
+    return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
+  }
+}

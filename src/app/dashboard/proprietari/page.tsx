@@ -15,7 +15,10 @@ import {
   UserPlus,
   Check,
   AlertCircle,
-  Building
+  Building,
+  UserCheck,
+  Bell,
+  User,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +28,7 @@ interface Proprietar {
   id: string
   cotaParte: number
   esteActiv: boolean
+  esteContactUrgenta: boolean
   user: {
     id: string
     name: string | null
@@ -34,14 +38,27 @@ interface Proprietar {
   apartament: {
     id: string
     numar: string
+    esteInchiriat: boolean
     scara: { numar: string } | null
   }
+}
+
+interface Chirias {
+  id: string
+  nume: string
+  email: string | null
+  telefon: string | null
+  esteActiv: boolean
+  esteContactUrgenta: boolean
+  apartamentId: string
 }
 
 interface Apartament {
   id: string
   numar: string
+  esteInchiriat: boolean
   scara: { numar: string } | null
+  chiriasi?: Chirias[]
 }
 
 export default function ProprietariPage() {
@@ -62,6 +79,7 @@ function ProprietariContent() {
 
   const [proprietari, setProprietari] = useState<Proprietar[]>([])
   const [apartamente, setApartamente] = useState<Apartament[]>([])
+  const [chiriasi, setChiriasi] = useState<Chirias[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [asociatieId, setAsociatieId] = useState<string | null>(null)
@@ -69,7 +87,10 @@ function ProprietariContent() {
   // Modals
   const [showAddModal, setShowAddModal] = useState(!!preselectedAptId)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showChiriasModal, setShowChiriasModal] = useState(false)
   const [editingProprietar, setEditingProprietar] = useState<Proprietar | null>(null)
+  const [editingChirias, setEditingChirias] = useState<Chirias | null>(null)
+  const [selectedAptForChirias, setSelectedAptForChirias] = useState<string | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -77,7 +98,16 @@ function ProprietariContent() {
     name: '',
     email: '',
     phone: '',
-    cotaParte: 100
+    cotaParte: 100,
+    esteContactUrgenta: false,
+  })
+
+  // Chirias form state
+  const [chiriasForm, setChiriasForm] = useState({
+    nume: '',
+    email: '',
+    telefon: '',
+    esteContactUrgenta: false,
   })
 
   useEffect(() => {
@@ -93,9 +123,10 @@ function ProprietariContent() {
 
   const fetchData = async () => {
     try {
-      const [propRes, aptRes] = await Promise.all([
+      const [propRes, aptRes, chiriasRes] = await Promise.all([
         fetch('/api/proprietari'),
-        fetch('/api/apartamente')
+        fetch('/api/apartamente'),
+        fetch('/api/chiriasi')
       ])
 
       if (propRes.ok) {
@@ -107,6 +138,11 @@ function ProprietariContent() {
       if (aptRes.ok) {
         const aptData = await aptRes.json()
         setApartamente(aptData.apartamente || [])
+      }
+
+      if (chiriasRes.ok) {
+        const chiriasData = await chiriasRes.json()
+        setChiriasi(chiriasData.chiriasi || [])
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -134,7 +170,8 @@ function ProprietariContent() {
           name: '',
           email: '',
           phone: '',
-          cotaParte: 100
+          cotaParte: 100,
+          esteContactUrgenta: false,
         })
       }
     } catch (error) {
@@ -154,7 +191,8 @@ function ProprietariContent() {
           name: formData.name,
           phone: formData.phone,
           cotaParte: formData.cotaParte,
-          esteActiv: editingProprietar.esteActiv
+          esteActiv: editingProprietar.esteActiv,
+          esteContactUrgenta: formData.esteContactUrgenta,
         })
       })
 
@@ -169,6 +207,112 @@ function ProprietariContent() {
     } catch (error) {
       console.error('Failed to update proprietar:', error)
     }
+  }
+
+  // Toggle esteInchiriat for apartment
+  const handleToggleInchiriat = async (aptId: string, currentValue: boolean) => {
+    try {
+      const res = await fetch(`/api/apartamente?id=${aptId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ esteInchiriat: !currentValue })
+      })
+
+      if (res.ok) {
+        setApartamente(apartamente.map(a =>
+          a.id === aptId ? { ...a, esteInchiriat: !currentValue } : a
+        ))
+        // Also update in proprietari data
+        setProprietari(proprietari.map(p =>
+          p.apartament.id === aptId
+            ? { ...p, apartament: { ...p.apartament, esteInchiriat: !currentValue } }
+            : p
+        ))
+      }
+    } catch (error) {
+      console.error('Failed to update apartment:', error)
+    }
+  }
+
+  // Chirias CRUD
+  const handleAddChirias = async () => {
+    if (!selectedAptForChirias || !chiriasForm.nume) return
+
+    try {
+      const res = await fetch('/api/chiriasi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...chiriasForm,
+          apartamentId: selectedAptForChirias,
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setChiriasi([...chiriasi, data.chirias])
+        setShowChiriasModal(false)
+        setChiriasForm({ nume: '', email: '', telefon: '', esteContactUrgenta: false })
+        setSelectedAptForChirias(null)
+        setEditingChirias(null)
+      }
+    } catch (error) {
+      console.error('Failed to add chirias:', error)
+    }
+  }
+
+  const handleEditChirias = async () => {
+    if (!editingChirias) return
+
+    try {
+      const res = await fetch(`/api/chiriasi?id=${editingChirias.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chiriasForm)
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setChiriasi(chiriasi.map(c =>
+          c.id === editingChirias.id ? data.chirias : c
+        ))
+        setShowChiriasModal(false)
+        setEditingChirias(null)
+        setChiriasForm({ nume: '', email: '', telefon: '', esteContactUrgenta: false })
+      }
+    } catch (error) {
+      console.error('Failed to update chirias:', error)
+    }
+  }
+
+  const handleDeleteChirias = async (id: string) => {
+    if (!confirm('Sigur doriți să eliminați acest chiriaș?')) return
+
+    try {
+      const res = await fetch(`/api/chiriasi?id=${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setChiriasi(chiriasi.filter(c => c.id !== id))
+      }
+    } catch (error) {
+      console.error('Failed to delete chirias:', error)
+    }
+  }
+
+  const openChiriasModal = (aptId: string, chirias?: Chirias) => {
+    setSelectedAptForChirias(aptId)
+    if (chirias) {
+      setEditingChirias(chirias)
+      setChiriasForm({
+        nume: chirias.nume,
+        email: chirias.email || '',
+        telefon: chirias.telefon || '',
+        esteContactUrgenta: chirias.esteContactUrgenta,
+      })
+    } else {
+      setEditingChirias(null)
+      setChiriasForm({ nume: '', email: '', telefon: '', esteContactUrgenta: false })
+    }
+    setShowChiriasModal(true)
   }
 
   const handleDelete = async (id: string) => {
@@ -194,10 +338,14 @@ function ProprietariContent() {
       name: prop.user.name || '',
       email: prop.user.email,
       phone: prop.user.phone || '',
-      cotaParte: prop.cotaParte
+      cotaParte: prop.cotaParte,
+      esteContactUrgenta: prop.esteContactUrgenta || false,
     })
     setShowEditModal(true)
   }
+
+  // Get chiriasi for an apartment
+  const getChiriasiForApt = (aptId: string) => chiriasi.filter(c => c.apartamentId === aptId && c.esteActiv)
 
   // Filter proprietari
   const filtered = proprietari.filter(p => {
@@ -366,7 +514,11 @@ function ProprietariContent() {
               const numB = parseInt(b.apartament.numar) || 0
               return numA - numB
             })
-            .map(({ apartament, proprietari: props }) => (
+            .map(({ apartament, proprietari: props }) => {
+              const aptChiriasi = getChiriasiForApt(apartament.id)
+              const isInchiriat = apartamente.find(a => a.id === apartament.id)?.esteInchiriat || apartament.esteInchiriat
+
+              return (
               <div key={apartament.id} className="bg-white rounded-xl border overflow-hidden">
                 {/* Apartment header */}
                 <div className="bg-gray-50 px-4 py-3 border-b flex items-center gap-3">
@@ -380,6 +532,11 @@ function ProprietariContent() {
                     {apartament.scara && (
                       <span className="text-gray-500 text-sm ml-2">
                         Scara {apartament.scara.numar}
+                      </span>
+                    )}
+                    {isInchiriat && (
+                      <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                        Închiriat
                       </span>
                     )}
                   </div>
@@ -419,6 +576,12 @@ function ProprietariContent() {
                               {prop.cotaParte}%
                             </span>
                           )}
+                          {prop.esteContactUrgenta && (
+                            <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                              <Bell className="h-3 w-3" />
+                              Contact urgență
+                            </span>
+                          )}
                         </p>
                         <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
                           <span className="flex items-center gap-1">
@@ -453,8 +616,98 @@ function ProprietariContent() {
                     </div>
                   ))}
                 </div>
+
+                {/* Închiriat toggle and Chiriași section */}
+                <div className="border-t bg-gray-50 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isInchiriat}
+                        onChange={() => handleToggleInchiriat(apartament.id, isInchiriat)}
+                        className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Locuit de chiriaș(i)
+                      </span>
+                    </label>
+                    {isInchiriat && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openChiriasModal(apartament.id)}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Adaugă chiriaș
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Chiriași list */}
+                  {isInchiriat && aptChiriasi.length > 0 && (
+                    <div className="space-y-2">
+                      {aptChiriasi.map(chirias => (
+                        <div key={chirias.id} className="flex items-center gap-3 p-2 bg-white rounded-lg border">
+                          <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
+                            <User className="h-4 w-4 text-purple-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                              {chirias.nume}
+                              {chirias.esteContactUrgenta && (
+                                <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+                                  <Bell className="h-2.5 w-2.5" />
+                                  Urgență
+                                </span>
+                              )}
+                            </p>
+                            <div className="flex items-center gap-3 text-xs text-gray-500">
+                              {chirias.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="h-2.5 w-2.5" />
+                                  {chirias.email}
+                                </span>
+                              )}
+                              {chirias.telefon && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="h-2.5 w-2.5" />
+                                  {chirias.telefon}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => openChiriasModal(apartament.id, chirias)}
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleDeleteChirias(chirias.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {isInchiriat && aptChiriasi.length === 0 && (
+                    <p className="text-sm text-gray-500 italic">
+                      Niciun chiriaș adăugat. Adaugă datele chiriașului pentru notificări de urgență.
+                    </p>
+                  )}
+                </div>
               </div>
-            ))}
+              )
+            })}
         </div>
       )}
 
@@ -553,6 +806,25 @@ function ProprietariContent() {
                   Procent din proprietate (util pentru coproprietari)
                 </p>
               </div>
+
+              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <input
+                  type="checkbox"
+                  id="add-contact-urgenta"
+                  checked={formData.esteContactUrgenta}
+                  onChange={(e) => setFormData({ ...formData, esteContactUrgenta: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+                <label htmlFor="add-contact-urgenta" className="flex-1 cursor-pointer">
+                  <span className="text-sm font-medium text-orange-900 flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    Contact de urgență
+                  </span>
+                  <p className="text-xs text-orange-700 mt-0.5">
+                    Va primi notificări email/SMS în caz de avarii sau urgențe
+                  </p>
+                </label>
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -638,6 +910,25 @@ function ProprietariContent() {
                   onChange={(e) => setFormData({ ...formData, cotaParte: parseInt(e.target.value) || 100 })}
                 />
               </div>
+
+              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <input
+                  type="checkbox"
+                  id="edit-contact-urgenta"
+                  checked={formData.esteContactUrgenta}
+                  onChange={(e) => setFormData({ ...formData, esteContactUrgenta: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+                <label htmlFor="edit-contact-urgenta" className="flex-1 cursor-pointer">
+                  <span className="text-sm font-medium text-orange-900 flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    Contact de urgență
+                  </span>
+                  <p className="text-xs text-orange-700 mt-0.5">
+                    Va primi notificări email/SMS în caz de avarii sau urgențe
+                  </p>
+                </label>
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -650,6 +941,99 @@ function ProprietariContent() {
               </Button>
               <Button className="flex-1" onClick={handleEdit}>
                 Salvează
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chirias Modal */}
+      {showChiriasModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowChiriasModal(false)} />
+          <div className="relative bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">
+                {editingChirias ? 'Editează chiriaș' : 'Adaugă chiriaș'}
+              </h2>
+              <button
+                onClick={() => setShowChiriasModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nume complet *
+                </label>
+                <Input
+                  value={chiriasForm.nume}
+                  onChange={(e) => setChiriasForm({ ...chiriasForm, nume: e.target.value })}
+                  placeholder="Ion Popescu"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <Input
+                  type="email"
+                  value={chiriasForm.email}
+                  onChange={(e) => setChiriasForm({ ...chiriasForm, email: e.target.value })}
+                  placeholder="ion.popescu@email.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Telefon
+                </label>
+                <Input
+                  type="tel"
+                  value={chiriasForm.telefon}
+                  onChange={(e) => setChiriasForm({ ...chiriasForm, telefon: e.target.value })}
+                  placeholder="0722 123 456"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <input
+                  type="checkbox"
+                  id="chirias-contact-urgenta"
+                  checked={chiriasForm.esteContactUrgenta}
+                  onChange={(e) => setChiriasForm({ ...chiriasForm, esteContactUrgenta: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+                <label htmlFor="chirias-contact-urgenta" className="flex-1 cursor-pointer">
+                  <span className="text-sm font-medium text-orange-900 flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    Contact de urgență
+                  </span>
+                  <p className="text-xs text-orange-700 mt-0.5">
+                    Va primi notificări în caz de avarii sau urgențe
+                  </p>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowChiriasModal(false)}
+              >
+                Anulează
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={editingChirias ? handleEditChirias : handleAddChirias}
+                disabled={!chiriasForm.nume}
+              >
+                {editingChirias ? 'Salvează' : 'Adaugă'}
               </Button>
             </div>
           </div>

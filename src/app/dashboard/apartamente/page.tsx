@@ -686,18 +686,23 @@ function BulkAddModal({
         apartamente.push({
           numar: formData.prefix + i.toString(),
           nrPersoane: parseInt(formData.defaultPersons) || 2,
-          scaraId: formData.scaraId || null,
-          asociatieId,
+          scaraId: formData.scaraId || undefined,
         })
       }
 
       const res = await fetch('/api/apartamente', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apartamente }),
+        body: JSON.stringify({
+          asociatieId,
+          apartamente,
+        }),
       })
 
-      if (!res.ok) throw new Error('Eroare la creare')
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Eroare la creare')
+      }
 
       const data = await res.json()
       const scara = scari.find(s => s.id === formData.scaraId)

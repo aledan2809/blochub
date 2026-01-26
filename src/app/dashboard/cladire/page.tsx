@@ -19,6 +19,7 @@ import {
   Wallet,
   PiggyBank,
   Wrench,
+  LayoutGrid,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,17 @@ interface Fond {
   soldCurent: number
 }
 
+interface TipApartament {
+  id: string
+  denumire: string
+  nrCamere: number
+  suprafata: number
+  cotaIndiviza: number
+  _count?: {
+    apartamente: number
+  }
+}
+
 const tipFondLabels: Record<string, string> = {
   RULMENT: 'Fond de rulment',
   REPARATII: 'Fond de reparații',
@@ -80,6 +92,9 @@ export default function CladirePage() {
   const [fonduri, setFonduri] = useState<Fond[]>([])
   const [showAddFond, setShowAddFond] = useState(false)
   const [newFond, setNewFond] = useState({ tip: 'RULMENT' as const, denumire: '', sumaLunara: 0 })
+  const [tipuriApartament, setTipuriApartament] = useState<TipApartament[]>([])
+  const [showAddTip, setShowAddTip] = useState(false)
+  const [newTip, setNewTip] = useState({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2 })
 
   useEffect(() => {
     fetchData()
@@ -87,22 +102,29 @@ export default function CladirePage() {
 
   async function fetchData() {
     try {
-      const [cladireRes, fonduriRes] = await Promise.all([
-        fetch('/api/cladire'),
-        fetch('/api/fonduri')
-      ])
-
+      const cladireRes = await fetch('/api/cladire')
       const cladireData = await cladireRes.json()
-      const fonduriData = await fonduriRes.json()
 
       if (cladireData.asociatie) {
         setAsociatie(cladireData.asociatie)
         setFormData(cladireData.asociatie)
         setScari(cladireData.scari || [])
-      }
 
-      if (fonduriData.fonduri) {
-        setFonduri(fonduriData.fonduri)
+        // Fetch fonduri and tipuri apartament with asociatieId
+        const [fonduriRes, tipuriRes] = await Promise.all([
+          fetch('/api/fonduri'),
+          fetch(`/api/tipuri-apartament?asociatieId=${cladireData.asociatie.id}`)
+        ])
+
+        const fonduriData = await fonduriRes.json()
+        const tipuriData = await tipuriRes.json()
+
+        if (fonduriData.fonduri) {
+          setFonduri(fonduriData.fonduri)
+        }
+        if (tipuriData.tipuri) {
+          setTipuriApartament(tipuriData.tipuri)
+        }
       }
     } catch (err) {
       console.error('Error:', err)
@@ -201,6 +223,44 @@ export default function CladirePage() {
     }
   }
 
+  async function handleAddTipApartament() {
+    if (!asociatie || !newTip.denumire) return
+
+    try {
+      const res = await fetch('/api/tipuri-apartament', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newTip,
+          asociatieId: asociatie.id
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setTipuriApartament([...tipuriApartament, data.tip])
+        setNewTip({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2 })
+        setShowAddTip(false)
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Eroare la adăugare')
+      }
+    } catch (err) {
+      console.error('Error adding tip apartament:', err)
+    }
+  }
+
+  async function handleDeleteTipApartament(tipId: string) {
+    if (!confirm('Sigur vrei să ștergi acest tip de apartament?')) return
+
+    try {
+      await fetch(`/api/tipuri-apartament?id=${tipId}`, { method: 'DELETE' })
+      setTipuriApartament(tipuriApartament.filter(t => t.id !== tipId))
+    } catch (err) {
+      console.error('Error deleting tip apartament:', err)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -219,7 +279,7 @@ export default function CladirePage() {
               Nu ai configurat încă asociația
             </h3>
             <p className="text-gray-500 mb-4">
-              Mergi la Dashboard pentru a crea asociația.
+              Folosește selectorul de clădiri din meniul lateral pentru a adăuga prima clădire.
             </p>
           </CardContent>
         </Card>
@@ -548,6 +608,67 @@ export default function CladirePage() {
         </CardContent>
       </Card>
 
+      {/* Tipuri Apartamente */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <LayoutGrid className="h-5 w-5 text-purple-600" />
+                Tipuri Apartamente
+              </CardTitle>
+              <CardDescription>
+                {tipuriApartament.length === 0
+                  ? 'Definește tipurile de apartamente din bloc (garsonieră, 2 camere, etc.)'
+                  : `${tipuriApartament.length} tipuri configurate`}
+              </CardDescription>
+            </div>
+            <Button onClick={() => setShowAddTip(true)} variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Adaugă tip
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {tipuriApartament.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <LayoutGrid className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+              <p>Nu ai configurat tipuri de apartamente.</p>
+              <p className="text-sm">Definește tipurile pentru a le folosi la adăugarea apartamentelor.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tipuriApartament.map((tip) => (
+                <div
+                  key={tip.id}
+                  className="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-100"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Home className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <div className="font-medium">{tip.denumire}</div>
+                      <div className="text-sm text-gray-500">
+                        {tip.nrCamere} cam • {tip.suprafata} mp • {tip.cotaIndiviza}%
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteTipApartament(tip.id)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Fonduri Card */}
       <Card>
         <CardHeader>
@@ -685,6 +806,90 @@ export default function CladirePage() {
                   className="flex-1"
                   onClick={handleAddFond}
                   disabled={!newFond.denumire || newFond.sumaLunara <= 0}
+                >
+                  Adaugă
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Tip Apartament Modal */}
+      {showAddTip && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Adaugă Tip Apartament</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Denumire *
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={newTip.denumire}
+                  onChange={(e) => setNewTip({ ...newTip, denumire: e.target.value })}
+                  placeholder="ex: Garsonieră, 2 camere decomandat"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nr. camere *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={newTip.nrCamere}
+                    onChange={(e) => setNewTip({ ...newTip, nrCamere: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Suprafață (mp) *
+                  </label>
+                  <input
+                    type="number"
+                    min="10"
+                    max="500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={newTip.suprafata}
+                    onChange={(e) => setNewTip({ ...newTip, suprafata: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cotă (%) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={newTip.cotaIndiviza}
+                    onChange={(e) => setNewTip({ ...newTip, cotaIndiviza: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Cota indiviză reprezintă procentul din cheltuielile comune suportate de acest tip de apartament.
+              </p>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowAddTip(false)}
+                >
+                  Anulează
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleAddTipApartament}
+                  disabled={!newTip.denumire || newTip.nrCamere < 1 || newTip.suprafata < 1}
                 >
                   Adaugă
                 </Button>

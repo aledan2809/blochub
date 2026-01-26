@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import {
   Building2,
@@ -23,9 +23,260 @@ import {
   Wallet,
   MessageSquarePlus,
   ClipboardList,
+  Plus,
+  Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { AsociatieProvider, useAsociatie } from '@/contexts/AsociatieContext'
+
+// Modal pentru adăugare clădire nouă
+function AddBuildingModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [formData, setFormData] = useState({
+    nume: '',
+    adresa: '',
+    oras: '',
+    judet: '',
+  })
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/asociatii', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.asociatie) {
+        // Save new asociatie ID and reload
+        localStorage.setItem('currentAsociatieId', data.asociatie.id)
+        window.location.reload()
+      } else {
+        setError(data.error || 'Eroare la creare')
+      }
+    } catch (err) {
+      console.error('Error creating asociatie:', err)
+      setError('Eroare de conexiune')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h3 className="text-lg font-semibold mb-4">Adaugă clădire nouă</h3>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nume asociație *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.nume}
+              onChange={(e) => setFormData({ ...formData, nume: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="ex: Asociația Bloc A1"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Adresa *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.adresa}
+              onChange={(e) => setFormData({ ...formData, adresa: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="ex: Str. Exemplu nr. 10"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Oraș *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.oras}
+                onChange={(e) => setFormData({ ...formData, oras: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="București"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Județ *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.judet}
+                onChange={(e) => setFormData({ ...formData, judet: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Sector 1"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Anulează
+            </Button>
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? 'Se salvează...' : 'Adaugă'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Componenta selector clădiri
+function BuildingSelector() {
+  const { asociatii, currentAsociatie, setCurrentAsociatie, refreshAsociatii, addAsociatie, loading } = useAsociatie()
+  const [isOpen, setIsOpen] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  if (loading) {
+    return (
+      <div className="px-3 py-2 mx-3 mb-2 bg-gray-50 rounded-lg animate-pulse">
+        <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+      </div>
+    )
+  }
+
+  if (!currentAsociatie) {
+    return (
+      <>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-3 py-2 mx-3 mb-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors w-[calc(100%-1.5rem)]"
+        >
+          <Plus className="h-4 w-4" />
+          Adaugă prima clădire
+        </button>
+        <AddBuildingModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={async () => {
+            await refreshAsociatii()
+          }}
+        />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <div className="relative mx-3 mb-2">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 hover:border-blue-200 transition-colors"
+        >
+          <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Building2 className="h-4 w-4 text-white" />
+          </div>
+          <div className="flex-1 text-left min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {currentAsociatie.nume}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {currentAsociatie.adresa}, {currentAsociatie.oras}
+            </p>
+          </div>
+          <ChevronDown className={cn('h-4 w-4 text-gray-400 transition-transform', isOpen && 'rotate-180')} />
+        </button>
+
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border z-50 py-1 max-h-64 overflow-y-auto">
+              {asociatii.map((asociatie) => (
+                <button
+                  key={asociatie.id}
+                  onClick={() => {
+                    setCurrentAsociatie(asociatie)
+                    setIsOpen(false)
+                  }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors',
+                    asociatie.id === currentAsociatie.id && 'bg-blue-50'
+                  )}
+                >
+                  <div className="h-7 w-7 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Building2 className="h-3.5 w-3.5 text-gray-600" />
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {asociatie.nume}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {asociatie._count?.apartamente || 0} apartamente
+                    </p>
+                  </div>
+                  {asociatie.id === currentAsociatie.id && (
+                    <Check className="h-4 w-4 text-blue-600" />
+                  )}
+                </button>
+              ))}
+              <div className="border-t mt-1 pt-1">
+                <button
+                  onClick={() => {
+                    setIsOpen(false)
+                    setShowAddModal(true)
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-blue-600 hover:bg-blue-50 transition-colors"
+                >
+                  <div className="h-7 w-7 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Plus className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-sm font-medium">Adaugă clădire nouă</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <AddBuildingModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={async () => {
+          await refreshAsociatii()
+        }}
+      />
+    </>
+  )
+}
 
 const navigation = [
   {
@@ -90,7 +341,7 @@ const navigation = [
   },
 ]
 
-export default function DashboardLayout({
+function DashboardLayoutContent({
   children,
 }: {
   children: React.ReactNode
@@ -137,6 +388,11 @@ export default function DashboardLayout({
             >
               <X className="h-5 w-5" />
             </button>
+          </div>
+
+          {/* Building Selector */}
+          <div className="pt-3">
+            <BuildingSelector />
           </div>
 
           {/* Navigation */}
@@ -248,5 +504,17 @@ export default function DashboardLayout({
         <main className="p-4 md:p-6">{children}</main>
       </div>
     </div>
+  )
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <AsociatieProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </AsociatieProvider>
   )
 }
