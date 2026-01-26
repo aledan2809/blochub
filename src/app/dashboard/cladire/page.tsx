@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 
 interface Asociatie {
   id: string
@@ -87,6 +88,7 @@ const tipFondIcons: Record<string, React.ReactNode> = {
 }
 
 export default function CladirePage() {
+  const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [asociatie, setAsociatie] = useState<Asociatie | null>(null)
@@ -136,6 +138,7 @@ export default function CladirePage() {
       }
     } catch (err) {
       console.error('Error:', err)
+      toast.error('Eroare la încărcarea datelor')
     } finally {
       setLoading(false)
     }
@@ -156,9 +159,13 @@ export default function CladirePage() {
         const data = await res.json()
         setAsociatie(data.asociatie)
         setEditMode(false)
+        toast.success('Asociație actualizată cu succes')
+      } else {
+        toast.error('Eroare la salvarea datelor')
       }
     } catch (err) {
       console.error('Error saving:', err)
+      toast.error('Eroare la salvarea datelor')
     } finally {
       setSaving(false)
     }
@@ -182,9 +189,13 @@ export default function CladirePage() {
         setCladiri([...cladiri, { ...data.cladire, scari: [] }])
         setNewCladire({ nume: '' })
         setShowAddCladire(false)
+        toast.success('Clădire adăugată cu succes')
+      } else {
+        toast.error('Eroare la adăugarea clădirii')
       }
     } catch (err) {
       console.error('Error adding cladire:', err)
+      toast.error('Eroare la adăugarea clădirii')
     }
   }
 
@@ -212,9 +223,13 @@ export default function CladirePage() {
         ))
         setNewScara({ numar: '', etaje: 10 })
         setShowAddScara(null)
+        toast.success('Scară adăugată cu succes')
+      } else {
+        toast.error('Eroare la adăugarea scării')
       }
     } catch (err) {
       console.error('Error adding scara:', err)
+      toast.error('Eroare la adăugarea scării')
     }
   }
 
@@ -222,15 +237,21 @@ export default function CladirePage() {
     if (!confirm('Sigur vrei să ștergi această scară? Apartamentele asociate vor fi dezasociate.')) return
 
     try {
-      await fetch(`/api/scari?id=${scaraId}`, { method: 'DELETE' })
-      // Update cladiri state by removing the scara
-      setCladiri(cladiri.map(c =>
-        c.id === cladireId
-          ? { ...c, scari: c.scari.filter(s => s.id !== scaraId) }
-          : c
-      ))
+      const res = await fetch(`/api/scari?id=${scaraId}`, { method: 'DELETE' })
+      if (res.ok) {
+        // Update cladiri state by removing the scara
+        setCladiri(cladiri.map(c =>
+          c.id === cladireId
+            ? { ...c, scari: c.scari.filter(s => s.id !== scaraId) }
+            : c
+        ))
+        toast.success('Scară ștearsă cu succes')
+      } else {
+        toast.error('Eroare la ștergerea scării')
+      }
     } catch (err) {
       console.error('Error deleting scara:', err)
+      toast.error('Eroare la ștergerea scării')
     }
   }
 
@@ -239,17 +260,23 @@ export default function CladirePage() {
     if (!cladire) return
 
     if (cladire.scari.length > 0) {
-      alert('Nu poți șterge o clădire care are scări. Șterge mai întâi scările.')
+      toast.warning('Nu poți șterge o clădire care are scări. Șterge mai întâi scările.')
       return
     }
 
     if (!confirm('Sigur vrei să ștergi această clădire?')) return
 
     try {
-      await fetch(`/api/cladire?id=${cladireId}`, { method: 'DELETE' })
-      setCladiri(cladiri.filter(c => c.id !== cladireId))
+      const res = await fetch(`/api/cladire?id=${cladireId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setCladiri(cladiri.filter(c => c.id !== cladireId))
+        toast.success('Clădire ștearsă cu succes')
+      } else {
+        toast.error('Eroare la ștergerea clădirii')
+      }
     } catch (err) {
       console.error('Error deleting cladire:', err)
+      toast.error('Eroare la ștergerea clădirii')
     }
   }
 
@@ -268,9 +295,13 @@ export default function CladirePage() {
         setFonduri([...fonduri, data.fond])
         setNewFond({ tip: 'RULMENT', denumire: '', sumaLunara: 0 })
         setShowAddFond(false)
+        toast.success('Fond adăugat cu succes')
+      } else {
+        toast.error('Eroare la adăugarea fondului')
       }
     } catch (err) {
       console.error('Error adding fond:', err)
+      toast.error('Eroare la adăugarea fondului')
     }
   }
 
@@ -278,10 +309,16 @@ export default function CladirePage() {
     if (!confirm('Sigur vrei să ștergi acest fond?')) return
 
     try {
-      await fetch(`/api/fonduri?id=${fondId}`, { method: 'DELETE' })
-      setFonduri(fonduri.filter(f => f.id !== fondId))
+      const res = await fetch(`/api/fonduri?id=${fondId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setFonduri(fonduri.filter(f => f.id !== fondId))
+        toast.success('Fond șters cu succes')
+      } else {
+        toast.error('Eroare la ștergerea fondului')
+      }
     } catch (err) {
       console.error('Error deleting fond:', err)
+      toast.error('Eroare la ștergerea fondului')
     }
   }
 
@@ -303,12 +340,14 @@ export default function CladirePage() {
         setTipuriApartament([...tipuriApartament, data.tip])
         setNewTip({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2 })
         setShowAddTip(false)
+        toast.success('Tip apartament adăugat cu succes')
       } else {
         const err = await res.json()
-        alert(err.error || 'Eroare la adăugare')
+        toast.error(err.error || 'Eroare la adăugarea tipului de apartament')
       }
     } catch (err) {
       console.error('Error adding tip apartament:', err)
+      toast.error('Eroare la adăugarea tipului de apartament')
     }
   }
 
@@ -316,10 +355,16 @@ export default function CladirePage() {
     if (!confirm('Sigur vrei să ștergi acest tip de apartament?')) return
 
     try {
-      await fetch(`/api/tipuri-apartament?id=${tipId}`, { method: 'DELETE' })
-      setTipuriApartament(tipuriApartament.filter(t => t.id !== tipId))
+      const res = await fetch(`/api/tipuri-apartament?id=${tipId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setTipuriApartament(tipuriApartament.filter(t => t.id !== tipId))
+        toast.success('Tip apartament șters cu succes')
+      } else {
+        toast.error('Eroare la ștergerea tipului de apartament')
+      }
     } catch (err) {
       console.error('Error deleting tip apartament:', err)
+      toast.error('Eroare la ștergerea tipului de apartament')
     }
   }
 

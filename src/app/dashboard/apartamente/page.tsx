@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import Link from 'next/link'
 
 interface Apartament {
@@ -53,6 +54,7 @@ interface TipApartament {
 }
 
 export default function ApartamentePage() {
+  const toast = useToast()
   const [apartamente, setApartamente] = useState<Apartament[]>([])
   const [scari, setScari] = useState<Scara[]>([])
   const [tipuriApartament, setTipuriApartament] = useState<TipApartament[]>([])
@@ -97,6 +99,7 @@ export default function ApartamentePage() {
       })))
     } catch (err) {
       console.error('Error fetching apartments:', err)
+      toast.error('Eroare la încărcarea apartamentelor')
     } finally {
       setLoading(false)
     }
@@ -126,10 +129,16 @@ export default function ApartamentePage() {
     if (!confirm('Sigur vrei să ștergi acest apartament?')) return
 
     try {
-      await fetch(`/api/apartamente?id=${aptId}`, { method: 'DELETE' })
-      setApartamente(apartamente.filter(a => a.id !== aptId))
+      const res = await fetch(`/api/apartamente?id=${aptId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setApartamente(apartamente.filter(a => a.id !== aptId))
+        toast.success('Apartament șters cu succes')
+      } else {
+        toast.error('Eroare la ștergerea apartamentului')
+      }
     } catch (err) {
       console.error('Error deleting apartment:', err)
+      toast.error('Eroare la ștergerea apartamentului')
     }
   }
 
