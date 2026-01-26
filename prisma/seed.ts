@@ -59,11 +59,23 @@ async function main() {
   })
   console.log('✅ Association created:', asociatie.nume)
 
+  // Create building
+  const cladire = await prisma.cladire.upsert({
+    where: { id: 'seed-cladire-1' },
+    update: {},
+    create: {
+      id: 'seed-cladire-1',
+      nume: 'Clădirea Principală',
+      asociatieId: asociatie.id,
+    },
+  })
+  console.log('✅ Building created:', cladire.nume)
+
   // Create stairs
   const scara = await prisma.scara.upsert({
     where: {
-      asociatieId_numar: {
-        asociatieId: asociatie.id,
+      cladireId_numar: {
+        cladireId: cladire.id,
         numar: 'A',
       },
     },
@@ -71,6 +83,7 @@ async function main() {
     create: {
       numar: 'A',
       etaje: 10,
+      cladireId: cladire.id,
       asociatieId: asociatie.id,
     },
   })

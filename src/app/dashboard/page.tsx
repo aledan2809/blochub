@@ -511,12 +511,27 @@ function SetupWizard() {
 
       const { asociatie } = await res.json()
 
+      // Create clădire
+      const cladireRes = await fetch('/api/cladire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nume: 'Clădirea Principală',
+          asociatieId: asociatie.id,
+        })
+      })
+
+      if (!cladireRes.ok) throw new Error('Eroare la creare clădire')
+
+      const { cladire } = await cladireRes.json()
+
       // Create scari
       const scariRes = await fetch('/api/scari', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           asociatieId: asociatie.id,
+          cladireId: cladire.id,
           scari: scari.map(s => ({ numar: s.numar, etaje: 10 }))
         })
       })

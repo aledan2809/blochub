@@ -17,22 +17,62 @@ export async function GET() {
     })
 
     if (!asociatie) {
-      return NextResponse.json({ asociatie: null, scari: [] })
+      return NextResponse.json({ asociatie: null, cladiri: [] })
     }
 
-    const scari = await db.scara.findMany({
+    // Get clădiri with scari
+    const cladiri = await db.cladire.findMany({
       where: { asociatieId: asociatie.id },
       include: {
-        _count: {
-          select: { apartamente: true }
+        scari: {
+          include: {
+            _count: {
+              select: { apartamente: true }
+            }
+          },
+          orderBy: { numar: 'asc' }
         }
       },
-      orderBy: { numar: 'asc' }
+      orderBy: { createdAt: 'asc' }
     })
 
-    return NextResponse.json({ asociatie, scari })
+    return NextResponse.json({ asociatie, cladiri })
   } catch (error) {
     console.error('GET cladire error:', error)
+    return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
+    }
+
+    const userId = (session.user as { id: string }).id
+    const body = await request.json()
+
+    // Verify user owns the association
+    const asociatie = await db.asociatie.findFirst({
+      where: { id: body.asociatieId, adminId: userId }
+    })
+
+    if (!asociatie) {
+      return NextResponse.json({ error: 'Asociație negăsită' }, { status: 404 })
+    }
+
+    // Create clădire
+    const cladire = await db.cladire.create({
+      data: {
+        nume: body.nume || 'Clădirea Principală',
+        asociatieId: body.asociatieId,
+      }
+    })
+
+    return NextResponse.json({ cladire }, { status: 201 })
+  } catch (error) {
+    console.error('POST cladire error:', error)
     return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
   }
 }

@@ -51,10 +51,15 @@ export async function POST(request: NextRequest) {
 
     // Bulk create if array provided
     if (body.scari && Array.isArray(body.scari)) {
+      if (!body.cladireId) {
+        return NextResponse.json({ error: 'cladireId necesar' }, { status: 400 })
+      }
+
       const scariData = body.scari.map((s: { numar: string; etaje?: number }) => ({
         numar: s.numar,
         etaje: s.etaje || 10,
-        asociatieId: body.asociatieId,
+        cladireId: body.cladireId,
+        asociatieId: body.asociatieId, // Păstrat pentru compatibilitate
       }))
 
       await db.scara.createMany({
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
       // Return created scari
       const scari = await db.scara.findMany({
         where: {
-          asociatieId: body.asociatieId,
+          cladireId: body.cladireId,
           numar: { in: body.scari.map((s: { numar: string }) => s.numar) },
         },
         orderBy: { numar: 'asc' },
@@ -75,11 +80,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Single create
+    if (!body.cladireId) {
+      return NextResponse.json({ error: 'cladireId necesar' }, { status: 400 })
+    }
+
     const scara = await db.scara.create({
       data: {
         numar: body.numar,
         etaje: body.etaje || 10,
-        asociatieId: body.asociatieId
+        cladireId: body.cladireId,
+        asociatieId: body.asociatieId, // Păstrat pentru compatibilitate
       }
     })
 

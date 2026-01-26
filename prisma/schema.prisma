@@ -115,6 +115,7 @@ model Asociatie {
   adminId         String
   admin           User     @relation("AdminAsociatie", fields: [adminId], references: [id])
 
+  cladiri         Cladire[]
   scari           Scara[]
   apartamente     Apartament[]
   tipuriApartament TipApartament[]
@@ -136,17 +137,36 @@ model Asociatie {
   @@map("asociatii")
 }
 
+model Cladire {
+  id          String   @id @default(cuid())
+  nume        String?  // Opțional: "Clădirea Principală", "Bloc A", etc.
+
+  asociatieId String
+  asociatie   Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  scari       Scara[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("cladiri")
+}
+
 model Scara {
   id          String   @id @default(cuid())
   numar       String   // "A", "B", "1", "2"
   etaje       Int      @default(10)
 
+  cladireId   String
+  cladire     Cladire @relation(fields: [cladireId], references: [id], onDelete: Cascade)
+
+  // Păstrăm asociatieId pentru queries rapide (denormalizare)
   asociatieId String
   asociatie   Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
 
   apartamente Apartament[]
 
-  @@unique([asociatieId, numar])
+  @@unique([cladireId, numar])
   @@map("scari")
 }
 
