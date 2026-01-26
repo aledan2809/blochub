@@ -3,16 +3,20 @@
   "version": "1.0.0",
   "description": "Platformă modernă de administrare a asociațiilor de proprietari cu AI 95%+ automatizare",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3004",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
-    "start": "next start",
+    "start": "next start -p 3004",
     "lint": "next lint",
+    "type-check": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss && next build",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel"
   },
   "keywords": [
     "administrare",

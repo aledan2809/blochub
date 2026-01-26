@@ -203,6 +203,7 @@ const updateApartamentSchema = z.object({
   nrPersoane: z.number().optional(),
   scaraId: z.string().nullable().optional(),
   tipApartamentId: z.string().nullable().optional(),
+  esteInchiriat: z.boolean().optional(),
 })
 
 // PUT update apartament
@@ -260,7 +261,13 @@ export async function PUT(request: Request) {
     const updated = await db.apartament.update({
       where: { id },
       data: {
-        ...data,
+        numar: data.numar,
+        etaj: data.etaj,
+        suprafata: data.suprafata,
+        nrCamere: data.nrCamere,
+        cotaIndiviza: data.cotaIndiviza,
+        nrPersoane: data.nrPersoane,
+        esteInchiriat: data.esteInchiriat,
         scaraId: data.scaraId === null ? null : data.scaraId || undefined,
         tipApartamentId: data.tipApartamentId === null ? null : data.tipApartamentId || undefined,
       },
