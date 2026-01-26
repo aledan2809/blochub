@@ -49,6 +49,12 @@ interface Scara {
   }
 }
 
+interface Cladire {
+  id: string
+  nume: string | null
+  scari: Scara[]
+}
+
 interface Fond {
   id: string
   tip: 'RULMENT' | 'REPARATII' | 'ALTE'
@@ -84,10 +90,12 @@ export default function CladirePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [asociatie, setAsociatie] = useState<Asociatie | null>(null)
-  const [scari, setScari] = useState<Scara[]>([])
+  const [cladiri, setCladiri] = useState<Cladire[]>([])
   const [editMode, setEditMode] = useState(false)
   const [formData, setFormData] = useState<Partial<Asociatie>>({})
-  const [showAddScara, setShowAddScara] = useState(false)
+  const [showAddCladire, setShowAddCladire] = useState(false)
+  const [newCladire, setNewCladire] = useState({ nume: '' })
+  const [showAddScara, setShowAddScara] = useState<string | null>(null) // cladireId
   const [newScara, setNewScara] = useState({ numar: '', etaje: 10 })
   const [fonduri, setFonduri] = useState<Fond[]>([])
   const [showAddFond, setShowAddFond] = useState(false)
@@ -108,7 +116,7 @@ export default function CladirePage() {
       if (cladireData.asociatie) {
         setAsociatie(cladireData.asociatie)
         setFormData(cladireData.asociatie)
-        setScari(cladireData.scari || [])
+        setCladiri(cladireData.cladiri || [])
 
         // Fetch fonduri and tipuri apartament with asociatieId
         const [fonduriRes, tipuriRes] = await Promise.all([
@@ -156,8 +164,32 @@ export default function CladirePage() {
     }
   }
 
+  async function handleAddCladire() {
+    if (!asociatie) return
+
+    try {
+      const res = await fetch('/api/cladire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nume: newCladire.nume || 'Clădire nouă',
+          asociatieId: asociatie.id
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setCladiri([...cladiri, { ...data.cladire, scari: [] }])
+        setNewCladire({ nume: '' })
+        setShowAddCladire(false)
+      }
+    } catch (err) {
+      console.error('Error adding cladire:', err)
+    }
+  }
+
   async function handleAddScara() {
-    if (!asociatie || !newScara.numar) return
+    if (!asociatie || !newScara.numar || !showAddScara) return
 
     try {
       const res = await fetch('/api/scari', {
@@ -165,29 +197,59 @@ export default function CladirePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newScara,
+          cladireId: showAddScara,
           asociatieId: asociatie.id
         })
       })
 
       if (res.ok) {
         const data = await res.json()
-        setScari([...scari, { ...data.scara, _count: { apartamente: 0 } }])
+        // Update the cladiri state with the new scara
+        setCladiri(cladiri.map(c =>
+          c.id === showAddScara
+            ? { ...c, scari: [...c.scari, { ...data.scara, _count: { apartamente: 0 } }] }
+            : c
+        ))
         setNewScara({ numar: '', etaje: 10 })
-        setShowAddScara(false)
+        setShowAddScara(null)
       }
     } catch (err) {
       console.error('Error adding scara:', err)
     }
   }
 
-  async function handleDeleteScara(scaraId: string) {
+  async function handleDeleteScara(scaraId: string, cladireId: string) {
     if (!confirm('Sigur vrei să ștergi această scară? Apartamentele asociate vor fi dezasociate.')) return
 
     try {
       await fetch(`/api/scari?id=${scaraId}`, { method: 'DELETE' })
-      setScari(scari.filter(s => s.id !== scaraId))
+      // Update cladiri state by removing the scara
+      setCladiri(cladiri.map(c =>
+        c.id === cladireId
+          ? { ...c, scari: c.scari.filter(s => s.id !== scaraId) }
+          : c
+      ))
     } catch (err) {
       console.error('Error deleting scara:', err)
+    }
+  }
+
+  async function handleDeleteCladire(cladireId: string) {
+    const cladire = cladiri.find(c => c.id === cladireId)
+    if (!cladire) return
+
+    if (cladire.scari.length > 0) {
+      alert('Nu poți șterge o clădire care are scări. Șterge mai întâi scările.')
+      return
+    }
+
+    if (!confirm('Sigur vrei să ștergi această clădire?')) return
+
+    try {
+      await fetch(`/api/cladire?id=${cladireId}`, { method: 'DELETE' })
+      setCladiri(cladiri.filter(c => c.id !== cladireId))
+    } catch (err) {
+      console.error('Error deleting cladire:', err)
     }
   }
 
@@ -547,60 +609,114 @@ export default function CladirePage() {
         </CardContent>
       </Card>
 
-      {/* Scari (Building Sections) */}
+      {/* Clădiri */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5 text-blue-600" />
-                Scări / Intrări
+                <Building2 className="h-5 w-5 text-blue-600" />
+                Clădiri
               </CardTitle>
               <CardDescription>
-                {scari.length === 0
-                  ? 'Opțional: Adaugă scări dacă blocul are mai multe intrări'
-                  : `${scari.length} scări configurate`}
+                {cladiri.length === 0
+                  ? 'Adaugă clădirile asociației'
+                  : `${cladiri.length} clădiri • ${cladiri.reduce((sum, c) => sum + c.scari.length, 0)} scări total`}
               </CardDescription>
             </div>
-            <Button onClick={() => setShowAddScara(true)} variant="outline" size="sm">
+            <Button onClick={() => setShowAddCladire(true)} variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Adaugă scară
+              Adaugă clădire
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {scari.length === 0 ? (
+          {cladiri.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <Building className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-              <p>Nu ai configurat scări.</p>
-              <p className="text-sm">Dacă blocul are o singură intrare, nu este necesar.</p>
+              <Building2 className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+              <p>Nu ai configurat clădiri.</p>
+              <p className="text-sm">Adaugă prima clădire pentru a gestiona asociația.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {scari.map((scara) => (
+            <div className="space-y-4">
+              {cladiri.map((cladire) => (
                 <div
-                  key={scara.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border"
+                  key={cladire.id}
+                  className="border rounded-lg overflow-hidden"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <span className="font-bold text-blue-600">{scara.numar}</span>
-                    </div>
-                    <div>
-                      <div className="font-medium">Scara {scara.numar}</div>
-                      <div className="text-sm text-gray-500">
-                        {scara.etaje} etaje • {scara._count.apartamente} apartamente
+                  {/* Cladire Header */}
+                  <div className="bg-blue-50 border-b px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          {cladire.nume || 'Clădire fără nume'}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {cladire.scari.length} scări • {cladire.scari.reduce((sum, s) => sum + s._count.apartamente, 0)} apartamente
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => setShowAddScara(cladire.id)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adaugă scară
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteCladire(cladire.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteScara(scara.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+
+                  {/* Scari List */}
+                  <div className="p-4">
+                    {cladire.scari.length === 0 ? (
+                      <div className="text-center py-6 text-gray-500">
+                        <Building className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                        <p className="text-sm">Nicio scară configurată</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {cladire.scari.map((scara) => (
+                          <div
+                            key={scara.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 bg-blue-100 rounded flex items-center justify-center">
+                                <span className="font-bold text-blue-600 text-sm">{scara.numar}</span>
+                              </div>
+                              <div>
+                                <div className="font-medium text-sm">Scara {scara.numar}</div>
+                                <div className="text-xs text-gray-500">
+                                  {scara.etaje} etaje • {scara._count.apartamente} apt.
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteScara(scara.id, cladire.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -899,6 +1015,45 @@ export default function CladirePage() {
         </div>
       )}
 
+      {/* Add Cladire Modal */}
+      {showAddCladire && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Adaugă Clădire</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nume clădire (opțional)
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={newCladire.nume}
+                  onChange={(e) => setNewCladire({ ...newCladire, nume: e.target.value })}
+                  placeholder="ex: Clădirea A, Bloc Principal"
+                />
+                <p className="text-xs text-gray-500 mt-1">Lasă gol pentru nume implicit</p>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowAddCladire(false)}
+                >
+                  Anulează
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleAddCladire}
+                >
+                  Adaugă Clădire
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Scara Modal */}
       {showAddScara && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -934,7 +1089,7 @@ export default function CladirePage() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setShowAddScara(false)}
+                  onClick={() => setShowAddScara(null)}
                 >
                   Anulează
                 </Button>
@@ -943,7 +1098,7 @@ export default function CladirePage() {
                   onClick={handleAddScara}
                   disabled={!newScara.numar}
                 >
-                  Adaugă
+                  Adaugă Scară
                 </Button>
               </div>
             </div>

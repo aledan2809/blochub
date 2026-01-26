@@ -119,3 +119,47 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
+    }
+
+    const userId = (session.user as { id: string }).id
+    const { searchParams } = new URL(request.url)
+    const cladireId = searchParams.get('id')
+
+    if (!cladireId) {
+      return NextResponse.json({ error: 'ID clădire necesar' }, { status: 400 })
+    }
+
+    // Verify user owns the association that owns this building
+    const cladire = await db.cladire.findFirst({
+      where: { id: cladireId },
+      include: {
+        asociatie: true,
+        scari: true
+      }
+    })
+
+    if (!cladire || cladire.asociatie.adminId !== userId) {
+      return NextResponse.json({ error: 'Clădire negăsită' }, { status: 404 })
+    }
+
+    // Check if building has stairs
+    if (cladire.scari.length > 0) {
+      return NextResponse.json({
+        error: 'Nu poți șterge o clădire care are scări. Șterge mai întâi scările.'
+      }, { status: 400 })
+    }
+
+    await db.cladire.delete({ where: { id: cladireId } })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('DELETE cladire error:', error)
+    return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
+  }
+}
