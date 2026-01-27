@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import {
   BarChart3,
   Download,
@@ -13,12 +14,120 @@ import {
   Users,
   FileText,
   PieChart,
+  Loader2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { exportFinancialReportToPDF, exportFinancialReportToExcel, exportApartamenteToPDF, exportApartamenteToExcel } from '@/lib/export-utils'
 
 export default function RapoartePage() {
+  const toast = useToast()
   const [selectedPeriod, setSelectedPeriod] = useState('luna-curenta')
   const [selectedReport, setSelectedReport] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalIncasari: 0,
+    totalCheltuieli: 0,
+    rataIncasare: 0,
+    restante: 0,
+  })
+  const [asociatie, setAsociatie] = useState<any>(null)
+  const [apartamente, setApartamente] = useState<any[]>([])
+  const [fonduri, setFonduri] = useState<any[]>([])
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  async function fetchData() {
+    try {
+      const [cladireRes, apartamenteRes] = await Promise.all([
+        fetch('/api/cladire'),
+        fetch('/api/dashboard/stats'),
+      ])
+
+      const cladireData = await cladireRes.json()
+      const statsData = await apartamenteRes.json()
+
+      if (cladireData.asociatie) {
+        setAsociatie(cladireData.asociatie)
+      }
+
+      if (statsData.stats) {
+        setStats({
+          totalIncasari: statsData.stats.incasariLuna || 0,
+          totalCheltuieli: statsData.stats.cheltuieliLuna || 0,
+          rataIncasare: statsData.stats.totalApartamente > 0
+            ? Math.round(((statsData.stats.incasariLuna / (statsData.stats.incasariLuna + statsData.stats.restante)) || 0) * 100)
+            : 0,
+          restante: statsData.stats.restante || 0,
+        })
+      }
+
+      // Fetch detailed data for reports
+      const [aptRes, fonduriRes] = await Promise.all([
+        fetch(`/api/apartamente?asociatieId=${cladireData.asociatie?.id}`),
+        fetch('/api/fonduri'),
+      ])
+
+      const aptData = await aptRes.json()
+      const fonduriData = await fonduriRes.json()
+
+      setApartamente(aptData.apartamente || [])
+      setFonduri(fonduriData.fonduri || [])
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      toast.error('Eroare la încărcarea datelor')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleGenerateReport(reportId: string, format: string) {
+    try {
+      toast.info(`Generare raport ${format}...`)
+
+      // Use existing export functions
+      if (reportId === 'incasari-lunare' || reportId === 'cheltuieli-categorie' || reportId === 'sold-proprietari' || reportId === 'cashflow') {
+        if (format === 'PDF') {
+          exportFinancialReportToPDF({
+            asociatie,
+            apartamente,
+            fonduri,
+            totalRestante: stats.restante,
+          })
+        } else {
+          exportFinancialReportToExcel({
+            asociatie,
+            apartamente,
+            fonduri,
+            totalRestante: stats.restante,
+          })
+        }
+      } else if (reportId === 'restante-apartament' || reportId === 'istoric-plati') {
+        if (format === 'PDF') {
+          exportApartamenteToPDF(apartamente, asociatie)
+        } else {
+          exportApartamenteToExcel(apartamente, asociatie)
+        }
+      } else {
+        toast.warning('Raport în dezvoltare')
+        return
+      }
+
+      toast.success(`Raport ${format} generat cu succes`)
+    } catch (error) {
+      console.error('Error generating report:', error)
+      toast.error('Eroare la generarea raportului')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -47,29 +156,29 @@ export default function RapoartePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Încasări"
-          value="25,430 lei"
-          change="+12.5%"
+          value={`${stats.totalIncasari.toLocaleString('ro-RO')} lei`}
+          change="Luna curentă"
           trend="up"
           icon={<DollarSign className="h-5 w-5 text-green-600" />}
         />
         <StatCard
           title="Total Cheltuieli"
-          value="18,920 lei"
-          change="-8.3%"
+          value={`${stats.totalCheltuieli.toLocaleString('ro-RO')} lei`}
+          change="Luna curentă"
           trend="down"
           icon={<TrendingDown className="h-5 w-5 text-blue-600" />}
         />
         <StatCard
           title="Rată Încasare"
-          value="87.5%"
-          change="+5.2%"
-          trend="up"
+          value={`${stats.rataIncasare}%`}
+          change={stats.rataIncasare >= 80 ? 'Excelent' : stats.rataIncasare >= 60 ? 'Bine' : 'Sub medie'}
+          trend={stats.rataIncasare >= 80 ? 'up' : stats.rataIncasare >= 60 ? 'up' : 'down'}
           icon={<TrendingUp className="h-5 w-5 text-purple-600" />}
         />
         <StatCard
           title="Restanțe Active"
-          value="8,250 lei"
-          change="-15.4%"
+          value={`${stats.restante.toLocaleString('ro-RO')} lei`}
+          change={`${apartamente.length} apartamente`}
           trend="down"
           icon={<FileText className="h-5 w-5 text-orange-600" />}
         />
