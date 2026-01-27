@@ -448,7 +448,7 @@ ${pageContext ? `\n--- PAGINA CURENTĂ ---\nUtilizatorul se află pe: ${currentP
     if (recentCheltuieli.length > 0) {
       lines.push(`\nUltime cheltuieli:`)
       for (const ch of recentCheltuieli) {
-        lines.push(`- ${ch.tip}: ${formatCurrency(ch.sumaTotal)} (${formatMonth(ch.luna, ch.an)})`)
+        lines.push(`- ${ch.tip}: ${formatCurrency(ch.suma)} (${formatMonth(ch.luna, ch.an)})`)
       }
     }
 
