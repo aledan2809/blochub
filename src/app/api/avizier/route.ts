@@ -95,11 +95,81 @@ export async function GET(request: Request) {
     let totalFonduri = 0
     let totalGeneral = 0
 
+    // Calculate outstanding balances for all previous months
+    const previousMonthsExpenses = await db.cheltuiala.findMany({
+      where: {
+        asociatieId: asociatie.id,
+        OR: [
+          { an: { lt: an } },
+          { an, luna: { lt: luna } }
+        ]
+      },
+    })
+
+    // Calculate all confirmed payments
+    const allPayments = await db.plata.findMany({
+      where: {
+        apartament: { asociatieId: asociatie.id },
+        status: 'CONFIRMED',
+      },
+      include: {
+        apartament: { select: { id: true } }
+      }
+    })
+
+    // Group payments by apartment
+    const paymentsByApartment: Record<string, number> = {}
+    allPayments.forEach(plata => {
+      paymentsByApartment[plata.apartament.id] =
+        (paymentsByApartment[plata.apartament.id] || 0) + plata.suma
+    })
+
+    // Calculate total owed per apartment from previous months
+    const previousOwedByApartment: Record<string, number> = {}
+    previousMonthsExpenses.forEach(ch => {
+      apartamente.forEach(apt => {
+        let sumaApt = 0
+        if (ch.modRepartizare === 'COTA_INDIVIZA' && totalCotaIndiviza > 0) {
+          sumaApt = (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza
+        } else if (ch.modRepartizare === 'PERSOANE' && totalPersons > 0) {
+          sumaApt = (ch.suma * apt.nrPersoane) / totalPersons
+        } else if (ch.modRepartizare === 'APARTAMENT' && apartamente.length > 0) {
+          sumaApt = ch.suma / apartamente.length
+        } else if (ch.modRepartizare === 'MANUAL' || ch.modRepartizare === 'CONSUM') {
+          sumaApt = 0
+        } else {
+          sumaApt = totalCotaIndiviza > 0 ? (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza : 0
+        }
+        previousOwedByApartment[apt.id] = (previousOwedByApartment[apt.id] || 0) + sumaApt
+      })
+    })
+
+    // Add previous months' funds - count unique months
+    const previousMonthsSet = new Set<string>()
+    previousMonthsExpenses.forEach(ch => {
+      previousMonthsSet.add(`${ch.an}-${ch.luna}`)
+    })
+    const monthlyFunds = asociatie.fonduri.reduce((sum, fond) => sum + fond.sumaLunara, 0)
+    apartamente.forEach(apt => {
+      previousOwedByApartment[apt.id] =
+        (previousOwedByApartment[apt.id] || 0) + (monthlyFunds * previousMonthsSet.size)
+    })
+
+    // Calculate outstanding balance (restanță)
+    const restantaByApartment: Record<string, number> = {}
+    apartamente.forEach(apt => {
+      const totalOwed = previousOwedByApartment[apt.id] || 0
+      const totalPaid = paymentsByApartment[apt.id] || 0
+      restantaByApartment[apt.id] = Math.max(0, totalOwed - totalPaid)
+    })
+
+    let totalRestante = 0
+
     const apartamenteData = apartamente.map(apt => {
       const cheltuieliApt: Record<string, number> = {}
-      let totalApt = 0
+      let totalAptCurent = 0
 
-      // Distribute each expense category
+      // Distribute each expense category for current month
       cheltuieli.forEach(ch => {
         const tipLabel = tipCheltuialaLabels[ch.tip] || ch.tip
         let sumaApt = 0
@@ -124,15 +194,22 @@ export async function GET(request: Request) {
 
         cheltuieliApt[tipLabel] = (cheltuieliApt[tipLabel] || 0) + sumaApt
         totaluriCategorii[tipLabel] = (totaluriCategorii[tipLabel] || 0) + sumaApt
-        totalApt += sumaApt
+        totalAptCurent += sumaApt
       })
 
-      // Add monthly funds
+      // Add monthly funds for current month
       const fonduriApt = asociatie.fonduri.reduce((sum, fond) => sum + fond.sumaLunara, 0)
-      totalApt += fonduriApt
+      totalAptCurent += fonduriApt
       totalFonduri += fonduriApt
 
-      totalIntretinere += totalApt - fonduriApt
+      // Get outstanding balance (restanță from previous months)
+      const restanta = restantaByApartment[apt.id] || 0
+      totalRestante += restanta
+
+      // Total = current month + outstanding balance
+      const totalApt = totalAptCurent + restanta
+
+      totalIntretinere += totalAptCurent - fonduriApt
       totalGeneral += totalApt
 
       const proprietar = apt.proprietari[0]?.user
@@ -143,9 +220,9 @@ export async function GET(request: Request) {
         scara: apt.scara?.numar,
         proprietar: proprietarNume,
         cheltuieli: cheltuieliApt,
-        totalIntretinere: totalApt - fonduriApt,
-        restanta: 0, // Restante from previous months - TODO
-        penalizari: 0, // TODO
+        totalIntretinere: totalAptCurent - fonduriApt,
+        restanta,
+        penalizari: 0, // TODO: Calculate penalties for late payments
         fonduri: fonduriApt,
         total: totalApt,
       }
@@ -163,7 +240,7 @@ export async function GET(request: Request) {
       totaluri: {
         categorii: totaluriCategorii,
         intretinere: totalIntretinere,
-        restante: 0,
+        restante: totalRestante,
         penalizari: 0,
         fonduri: totalFonduri,
         total: totalGeneral,
