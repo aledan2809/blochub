@@ -217,16 +217,30 @@ export class CalculChitantaAgent extends BaseAgent {
           sumaRestanta += restantaChitanta - platit
         }
 
-        // Calculate penalizare
+        // Calculate penalizare per each unpaid chitanță
         let sumaPenalizare = 0
         if (sumaRestanta > 0) {
-          // Get oldest unpaid chitanta date
-          const oldestUnpaid = apt.chitante[apt.chitante.length - 1]
-          if (oldestUnpaid) {
-            const daysLate = Math.floor(
-              (Date.now() - oldestUnpaid.dataScadenta.getTime()) / (1000 * 60 * 60 * 24)
-            )
-            sumaPenalizare = calculatePenalty(sumaRestanta, daysLate, asociatie.penalizareZi)
+          const currentDate = new Date()
+          for (const chitantaVeche of apt.chitante) {
+            // Get amount still unpaid for this chitanță
+            const platiChitanta = await db.plata.aggregate({
+              where: {
+                chitantaId: chitantaVeche.id,
+                status: 'CONFIRMED',
+              },
+              _sum: { suma: true },
+            })
+            const platit = platiChitanta._sum.suma || 0
+            const restantaChitanta = Math.max(0, chitantaVeche.sumaTotal - platit)
+
+            if (restantaChitanta > 0 && currentDate > chitantaVeche.dataScadenta) {
+              const daysLate = Math.floor(
+                (currentDate.getTime() - chitantaVeche.dataScadenta.getTime()) / (1000 * 60 * 60 * 24)
+              )
+              // penalizareZi is stored as percentage (e.g., 0.02 means 0.02%)
+              // Convert to rate by dividing by 100
+              sumaPenalizare += calculatePenalty(restantaChitanta, daysLate, asociatie.penalizareZi / 100)
+            }
           }
         }
 
