@@ -1,7 +1,7 @@
 import { AgentType, TipNotificare } from '@prisma/client'
 import { BaseAgent, AgentInput, AgentOutput } from './base'
 import { db } from '@/lib/db'
-import { formatCurrency, formatMonth, getDaysUntilDue } from '@/lib/utils'
+import { formatCurrency, formatMonth, getDaysUntilDue, calculatePenalty } from '@/lib/utils'
 
 interface ReminderResult {
   userId: string
@@ -9,6 +9,8 @@ interface ReminderResult {
   phone?: string
   apartament: string
   suma: number
+  penalizare: number
+  totalCuPenalizare: number
   tipReminder: 'BEFORE_DUE' | 'ON_DUE' | 'AFTER_DUE'
   zileRamase: number
   mesaj: string
@@ -87,6 +89,16 @@ export class ReminderAgent extends BaseAgent {
 
         if (!shouldSend) continue
 
+        // Calculate penalty for late payments
+        let penalizare = 0
+        if (tipReminder === 'AFTER_DUE') {
+          const daysLate = Math.abs(zileRamase)
+          // penalizareZi is stored as percentage (e.g., 0.02 = 0.02%)
+          // Convert to rate by dividing by 100
+          penalizare = calculatePenalty(restDePlata, daysLate, chitanta.asociatie.penalizareZi / 100)
+        }
+        const totalCuPenalizare = restDePlata + penalizare
+
         // Get proprietari
         for (const proprietarRel of chitanta.apartament.proprietari) {
           const user = proprietarRel.user
@@ -100,7 +112,9 @@ export class ReminderAgent extends BaseAgent {
             chitanta.an,
             restDePlata,
             zileRamase,
-            chitanta.asociatie.nume
+            chitanta.asociatie.nume,
+            penalizare,
+            chitanta.asociatie.penalizareZi
           )
 
           reminders.push({
@@ -109,6 +123,8 @@ export class ReminderAgent extends BaseAgent {
             phone: user.phone || undefined,
             apartament: chitanta.apartament.numar,
             suma: restDePlata,
+            penalizare,
+            totalCuPenalizare,
             tipReminder,
             zileRamase,
             mesaj,
@@ -163,7 +179,9 @@ export class ReminderAgent extends BaseAgent {
     an: number,
     suma: number,
     zile: number,
-    asociatie: string
+    asociatie: string,
+    penalizare: number = 0,
+    penalizareZi: number = 0.02
   ): string {
     const lunaFormatata = formatMonth(luna, an)
     const sumaFormatata = formatCurrency(suma)
@@ -195,15 +213,20 @@ Echipa BlocHub`
 
       case 'AFTER_DUE':
         const zileLate = Math.abs(zile)
+        const penalizareFormatata = formatCurrency(penalizare)
+        const totalFormatat = formatCurrency(suma + penalizare)
         return `Bună ziua, ${nume}!
 
 Întreținerea pentru ${lunaFormatata} la apartamentul ${apartament} este restantă de ${zileLate} ${zileLate === 1 ? 'zi' : 'zile'}.
 
-Suma de plată: ${sumaFormatata}
+📋 Detalii plată:
+• Suma restantă: ${sumaFormatata}
+• Penalizare (${penalizareZi}% × ${zileLate} zile): ${penalizareFormatata}
+• TOTAL DE PLATĂ: ${totalFormatat}
 
-⚠️ Se aplică penalizări de întârziere conform regulamentului asociației.
+⚠️ Penalizările cresc zilnic cu ${penalizareZi}% din suma restantă.
 
-Vă rugăm să efectuați plata cât mai curând posibil.
+Vă rugăm să efectuați plata cât mai curând posibil pentru a evita acumularea de penalizări suplimentare.
 
 Cu respect,
 Echipa BlocHub`

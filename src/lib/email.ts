@@ -203,6 +203,88 @@ export const emailTemplates = {
     `
   }),
 
+  restantaNotification: (data: {
+    nume: string
+    apartament: string
+    sumaRestanta: number
+    penalizare: number
+    totalDePlata: number
+    zileLate: number
+    penalizareZi: number
+    asociatie: string
+    link: string
+  }) => ({
+    subject: `[BlocHub] ⚠️ Restanță întreținere - ${data.totalDePlata.toLocaleString('ro-RO')} lei`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #374151; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #dc2626, #ea580c); color: white; padding: 24px; border-radius: 12px 12px 0 0; }
+    .content { background: #f9fafb; padding: 24px; border-radius: 0 0 12px 12px; }
+    .warning-box { background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .details-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .details-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
+    .details-table tr:last-child td { border-bottom: none; font-weight: bold; background: #fef3c7; }
+    .amount { font-size: 28px; font-weight: bold; color: #dc2626; }
+    .btn { display: inline-block; background: #dc2626; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 500; margin-top: 16px; }
+    .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0; font-size: 24px;">⚠️ Notificare Restanță</h1>
+      <p style="margin: 8px 0 0 0; opacity: 0.9;">${data.asociatie} - Apt. ${data.apartament}</p>
+    </div>
+    <div class="content">
+      <p>Stimate/ă ${data.nume},</p>
+
+      <div class="warning-box">
+        <strong>Aveți o restanță de ${data.zileLate} zile la plata întreținerii!</strong>
+      </div>
+
+      <table class="details-table">
+        <tr>
+          <td>Sumă restantă:</td>
+          <td style="text-align: right;">${data.sumaRestanta.toLocaleString('ro-RO')} lei</td>
+        </tr>
+        <tr>
+          <td>Penalizare (${data.penalizareZi}% × ${data.zileLate} zile):</td>
+          <td style="text-align: right; color: #dc2626;">${data.penalizare.toLocaleString('ro-RO')} lei</td>
+        </tr>
+        <tr>
+          <td>TOTAL DE PLATĂ:</td>
+          <td style="text-align: right;"><span class="amount">${data.totalDePlata.toLocaleString('ro-RO')} lei</span></td>
+        </tr>
+      </table>
+
+      <p style="color: #dc2626; font-weight: 500;">
+        ⚠️ Penalizările cresc zilnic cu ${data.penalizareZi}% din suma restantă.
+      </p>
+
+      <p>Vă rugăm să efectuați plata cât mai curând posibil pentru a evita acumularea de penalizări suplimentare.</p>
+
+      <a href="${data.link}" class="btn">Plătește acum</a>
+
+      <p style="margin-top: 24px; font-size: 14px; color: #6b7280;">
+        Poți plăti online cu cardul sau prin transfer bancar în contul asociației.
+      </p>
+    </div>
+    <div class="footer">
+      <p>Ai primit acest email pentru că ești proprietar înregistrat pe BlocHub.</p>
+      <p>© ${new Date().getFullYear()} BlocHub - Administrare inteligentă</p>
+    </div>
+  </div>
+</body>
+</html>
+    `
+  }),
+
   passwordReset: (data: {
     email: string
     resetToken: string
