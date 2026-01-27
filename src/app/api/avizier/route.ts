@@ -35,13 +35,16 @@ export async function GET(request: Request) {
     // Get user's asociatie
     const asociatie = await db.asociatie.findFirst({
       where: { adminId: userId },
+      include: {
+        fonduri: true,
+      },
     })
 
     if (!asociatie) {
       return NextResponse.json(null)
     }
 
-    // Get all apartments with their chitante and repartizari for this month
+    // Get all apartments
     const apartamente = await db.apartament.findMany({
       where: { asociatieId: asociatie.id },
       include: {
@@ -54,16 +57,6 @@ export async function GET(request: Request) {
             },
           },
         },
-        chitante: {
-          where: { luna, an },
-          include: {
-            repartizari: {
-              include: {
-                cheltuiala: true,
-              },
-            },
-          },
-        },
       },
       orderBy: [
         { scara: { numar: 'asc' } },
@@ -71,47 +64,76 @@ export async function GET(request: Request) {
       ],
     })
 
-    // Get all expense types used this month
+    // Get all expenses for this month
     const cheltuieli = await db.cheltuiala.findMany({
-      where: { asociatieId: asociatie.id, luna, an },
-      select: { tip: true },
-      distinct: ['tip'],
+      where: {
+        asociatieId: asociatie.id,
+        luna,
+        an,
+      },
     })
 
-    const categoriiCheltuieli = cheltuieli.map(c => tipCheltuialaLabels[c.tip] || c.tip)
+    // Get expense categories
+    const categoriiSet = new Set<string>()
+    cheltuieli.forEach(ch => categoriiSet.add(tipCheltuialaLabels[ch.tip] || ch.tip))
+    const categoriiCheltuieli = Array.from(categoriiSet)
 
-    // Build avizier data
+    // Calculate total cota indiviza and total persons for distribution
+    const totalCotaIndiviza = apartamente.reduce((sum, apt) => sum + (apt.cotaIndiviza || 0), 0)
+    const totalPersons = apartamente.reduce((sum, apt) => sum + apt.nrPersoane, 0)
+
+    // Group expenses by type
+    const cheltuieliByType: Record<string, number> = {}
+    cheltuieli.forEach(ch => {
+      const tipLabel = tipCheltuialaLabels[ch.tip] || ch.tip
+      cheltuieliByType[tipLabel] = (cheltuieliByType[tipLabel] || 0) + ch.suma
+    })
+
+    // Build avizier data - calculate distribution for each apartment
     const totaluriCategorii: Record<string, number> = {}
     let totalIntretinere = 0
-    let totalRestante = 0
-    let totalPenalizari = 0
     let totalFonduri = 0
     let totalGeneral = 0
 
     const apartamenteData = apartamente.map(apt => {
-      const chitanta = apt.chitante[0]
       const cheltuieliApt: Record<string, number> = {}
+      let totalApt = 0
 
-      // Calculate expenses per category from repartizari
-      if (chitanta?.repartizari) {
-        for (const rep of chitanta.repartizari) {
-          const tipLabel = tipCheltuialaLabels[rep.cheltuiala.tip] || rep.cheltuiala.tip
-          cheltuieliApt[tipLabel] = (cheltuieliApt[tipLabel] || 0) + rep.suma
-          totaluriCategorii[tipLabel] = (totaluriCategorii[tipLabel] || 0) + rep.suma
+      // Distribute each expense category
+      cheltuieli.forEach(ch => {
+        const tipLabel = tipCheltuialaLabels[ch.tip] || ch.tip
+        let sumaApt = 0
+
+        // Distribution logic based on expense type
+        if (ch.modRepartizare === 'COTA_INDIVIZA' && totalCotaIndiviza > 0) {
+          // By cota indiviza
+          sumaApt = (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza
+        } else if (ch.modRepartizare === 'PERSOANE' && totalPersons > 0) {
+          // By number of persons
+          sumaApt = (ch.suma * apt.nrPersoane) / totalPersons
+        } else if (ch.modRepartizare === 'APARTAMENT' && apartamente.length > 0) {
+          // Equal distribution per apartment
+          sumaApt = ch.suma / apartamente.length
+        } else if (ch.modRepartizare === 'MANUAL' || ch.modRepartizare === 'CONSUM') {
+          // Manual or consumption-based - skip for now (would need repartizari/indexes)
+          sumaApt = 0
+        } else {
+          // Default: cota indiviza
+          sumaApt = totalCotaIndiviza > 0 ? (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza : 0
         }
-      }
 
-      const intretinere = chitanta?.sumaIntretinere || 0
-      const restanta = chitanta?.sumaRestanta || 0
-      const penalizari = chitanta?.sumaPenalizare || 0
-      const fonduri = chitanta?.sumaFonduri || 0
-      const total = chitanta?.sumaTotal || 0
+        cheltuieliApt[tipLabel] = (cheltuieliApt[tipLabel] || 0) + sumaApt
+        totaluriCategorii[tipLabel] = (totaluriCategorii[tipLabel] || 0) + sumaApt
+        totalApt += sumaApt
+      })
 
-      totalIntretinere += intretinere
-      totalRestante += restanta
-      totalPenalizari += penalizari
-      totalFonduri += fonduri
-      totalGeneral += total
+      // Add monthly funds
+      const fonduriApt = asociatie.fonduri.reduce((sum, fond) => sum + fond.sumaLunara, 0)
+      totalApt += fonduriApt
+      totalFonduri += fonduriApt
+
+      totalIntretinere += totalApt - fonduriApt
+      totalGeneral += totalApt
 
       const proprietar = apt.proprietari[0]?.user
       const proprietarNume = proprietar?.name || proprietar?.email?.split('@')[0] || ''
@@ -121,11 +143,11 @@ export async function GET(request: Request) {
         scara: apt.scara?.numar,
         proprietar: proprietarNume,
         cheltuieli: cheltuieliApt,
-        totalIntretinere: intretinere,
-        restanta,
-        penalizari,
-        fonduri,
-        total,
+        totalIntretinere: totalApt - fonduriApt,
+        restanta: 0, // Restante from previous months - TODO
+        penalizari: 0, // TODO
+        fonduri: fonduriApt,
+        total: totalApt,
       }
     })
 
@@ -141,11 +163,12 @@ export async function GET(request: Request) {
       totaluri: {
         categorii: totaluriCategorii,
         intretinere: totalIntretinere,
-        restante: totalRestante,
-        penalizari: totalPenalizari,
+        restante: 0,
+        penalizari: 0,
         fonduri: totalFonduri,
         total: totalGeneral,
       },
+      hasExpenses: cheltuieli.length > 0,
     })
   } catch (error) {
     console.error('Error fetching avizier:', error)

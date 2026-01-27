@@ -43,6 +43,7 @@ interface AvizierData {
     fonduri: number
     total: number
   }
+  hasExpenses?: boolean
 }
 
 const months = [
@@ -53,6 +54,7 @@ const months = [
 export default function AvizierPage() {
   const [data, setData] = useState<AvizierData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const printRef = useRef<HTMLDivElement>(null)
@@ -76,6 +78,34 @@ export default function AvizierPage() {
 
   const handlePrint = () => {
     window.print()
+  }
+
+  const handleGenerateChitante = async () => {
+    if (!confirm(`Sigur vrei să generezi chitanțe pentru ${months[selectedMonth - 1]} ${selectedYear}?\n\nAceastă operațiune va crea chitanțe pentru toate apartamentele bazate pe calculul din avizier.`)) {
+      return
+    }
+
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/chitante/genereaza', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ luna: selectedMonth, an: selectedYear }),
+      })
+
+      if (res.ok) {
+        alert('Chitanțe generate cu succes!')
+        fetchAvizier() // Refresh data
+      } else {
+        const data = await res.json()
+        alert('Eroare: ' + (data.error || 'Nu s-au putut genera chitanțele'))
+      }
+    } catch (err) {
+      console.error('Error generating chitante:', err)
+      alert('Eroare la generarea chitanțelor')
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const prevMonth = () => {
@@ -113,10 +143,59 @@ export default function AvizierPage() {
             Nu există date pentru avizier
           </h3>
           <p className="text-gray-500">
-            Adaugă cheltuieli și generează chitanțe pentru a vedea avizierul.
+            Configurează asociația pentru a vedea avizierul.
           </p>
         </CardContent>
       </Card>
+    )
+  }
+
+  if (!data.hasExpenses || data.apartamente.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Avizier</h1>
+            <p className="text-gray-500">{data.asociatie.nume}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={prevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[140px] text-center">
+              {months[selectedMonth - 1]} {selectedYear}
+            </span>
+            <Button variant="outline" size="sm" onClick={nextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="py-12 text-center">
+            <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {data.apartamente.length === 0
+                ? 'Nu există apartamente înregistrate'
+                : `Nu există cheltuieli pentru ${months[selectedMonth - 1]} ${selectedYear}`}
+            </h3>
+            <p className="text-gray-500 mb-4">
+              {data.apartamente.length === 0
+                ? 'Adaugă apartamente pentru a putea genera avizierul.'
+                : 'Adaugă cheltuieli pentru această lună pentru a calcula repartizarea pe apartamente.'}
+            </p>
+            {data.apartamente.length === 0 ? (
+              <Button onClick={() => window.location.href = '/dashboard/apartamente'}>
+                Adaugă apartamente
+              </Button>
+            ) : (
+              <Button onClick={() => window.location.href = '/dashboard/cheltuieli'}>
+                Adaugă cheltuieli
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -140,10 +219,25 @@ export default function AvizierPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Printează A3
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleGenerateChitante} disabled={generating}>
+              {generating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generează...
+                </>
+              ) : (
+                <>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Generează chitanțe
+                </>
+              )}
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Printează A3
+            </Button>
+          </div>
         </div>
       </div>
 
