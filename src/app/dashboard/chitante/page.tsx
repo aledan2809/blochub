@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   Search,
   Loader2,
@@ -76,13 +76,19 @@ export default function ChitantePage() {
     fetchData()
   }, [selectedMonth, selectedYear])
 
-  const filteredChitante = chitante.filter(ch => {
-    const matchesSearch = ch.apartament.numar.includes(searchTerm)
-    const matchesStatus = statusFilter === 'ALL' || ch.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  // Memoize filtered chitante to avoid recalculation on every render
+  const filteredChitante = useMemo(() => {
+    return chitante.filter(ch => {
+      const matchesSearch = ch.apartament.numar.includes(searchTerm)
+      const matchesStatus = statusFilter === 'ALL' || ch.status === statusFilter
+      return matchesSearch && matchesStatus
+    })
+  }, [chitante, searchTerm, statusFilter])
 
-  const totalSum = filteredChitante.reduce((sum, ch) => sum + ch.sumaTotal, 0)
+  // Memoize total sum calculation
+  const totalSum = useMemo(() => {
+    return filteredChitante.reduce((sum, ch) => sum + ch.sumaTotal, 0)
+  }, [filteredChitante])
 
   if (loading) {
     return (

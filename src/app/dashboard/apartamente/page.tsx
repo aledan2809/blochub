@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   Plus,
   Search,
@@ -70,6 +70,7 @@ export default function ApartamentePage() {
   const [asociatie, setAsociatie] = useState<any>(null)
   const [filterScara, setFilterScara] = useState<string>('ALL')
   const [editingApt, setEditingApt] = useState<Apartament | null>(null)
+  const [showExportMenu, setShowExportMenu] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -111,25 +112,30 @@ export default function ApartamentePage() {
     }
   }
 
-  const filteredApartamente = apartamente.filter(apt => {
-    const matchesSearch = apt.numar.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      apt.proprietari.some(p =>
-        p.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    const matchesScara = filterScara === 'ALL' ||
-      (filterScara === 'NONE' && !apt.scaraId) ||
-      apt.scaraId === filterScara
-    return matchesSearch && matchesScara
-  })
+  // Memoize filtered apartments to avoid recalculation on every render
+  const filteredApartamente = useMemo(() => {
+    return apartamente.filter(apt => {
+      const matchesSearch = apt.numar.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.proprietari.some(p =>
+          p.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      const matchesScara = filterScara === 'ALL' ||
+        (filterScara === 'NONE' && !apt.scaraId) ||
+        apt.scaraId === filterScara
+      return matchesSearch && matchesScara
+    })
+  }, [apartamente, searchTerm, filterScara])
 
-  // Group by scara
-  const groupedApartamente = filteredApartamente.reduce((acc, apt) => {
-    const key = apt.scara?.numar || 'Fără scară'
-    if (!acc[key]) acc[key] = []
-    acc[key].push(apt)
-    return acc
-  }, {} as Record<string, Apartament[]>)
+  // Memoize grouped apartments
+  const groupedApartamente = useMemo(() => {
+    return filteredApartamente.reduce((acc, apt) => {
+      const key = apt.scara?.numar || 'Fără scară'
+      if (!acc[key]) acc[key] = []
+      acc[key].push(apt)
+      return acc
+    }, {} as Record<string, Apartament[]>)
+  }, [filteredApartamente])
 
   async function handleDelete(aptId: string) {
     if (!confirm('Sigur vrei să ștergi acest apartament?')) return
@@ -180,42 +186,61 @@ export default function ApartamentePage() {
           <h1 className="text-2xl font-bold text-gray-900">Apartamente</h1>
           <p className="text-gray-500">{apartamente.length} apartamente înregistrate</p>
         </div>
-        <div className="flex gap-2">
-          <div className="relative group">
-            <Button variant="outline">
+        <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
+              <ChevronDown className="h-4 w-4 ml-1" />
             </Button>
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 hidden group-hover:block z-10">
-              <button
-                onClick={() => {
-                  exportApartamenteToExcel(apartamente, asociatie)
-                  toast.success('Export Excel generat cu succes')
-                }}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
-              >
-                <FileSpreadsheet className="h-4 w-4 text-green-600" />
-                Export Excel
-              </button>
-              <button
-                onClick={() => {
-                  exportApartamenteToPDF(apartamente, asociatie)
-                  toast.success('Export PDF generat cu succes')
-                }}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-b-lg"
-              >
-                <FileText className="h-4 w-4 text-red-600" />
-                Export PDF
-              </button>
-            </div>
+            {showExportMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowExportMenu(false)}
+                />
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                  <button
+                    onClick={() => {
+                      exportApartamenteToExcel(apartamente, asociatie)
+                      toast.success('Export Excel generat cu succes')
+                      setShowExportMenu(false)
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                    Export Excel
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportApartamenteToPDF(apartamente, asociatie)
+                      toast.success('Export PDF generat cu succes')
+                      setShowExportMenu(false)
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-b-lg"
+                  >
+                    <FileText className="h-4 w-4 text-red-600" />
+                    Export PDF
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-          <Button onClick={() => setShowBulkModal(true)} variant="outline">
+          <Button
+            onClick={() => setShowBulkModal(true)}
+            variant="outline"
+            className="hidden sm:flex"
+          >
             <Upload className="h-4 w-4 mr-2" />
             Adaugă în masă
           </Button>
           <Button onClick={() => setShowAddModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Adaugă Apartament
+            <span className="hidden sm:inline">Adaugă Apartament</span>
+            <span className="sm:hidden">Adaugă</span>
           </Button>
         </div>
       </div>
@@ -379,6 +404,7 @@ export default function ApartamentePage() {
         <BulkAddModal
           asociatieId={asociatieId}
           scari={scari}
+          tipuriApartament={tipuriApartament}
           onClose={() => setShowBulkModal(false)}
           onSuccess={(newApts) => {
             setApartamente([...apartamente, ...newApts.map(a => ({ ...a, proprietari: [] }))])
@@ -695,24 +721,72 @@ function AddApartmentModal({
 function BulkAddModal({
   asociatieId,
   scari,
+  tipuriApartament,
   onClose,
   onSuccess,
 }: {
   asociatieId: string
   scari: Scara[]
+  tipuriApartament: TipApartament[]
   onClose: () => void
   onSuccess: (apts: Apartament[]) => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState<'range' | 'custom'>('range')
   const [formData, setFormData] = useState({
+    // Range mode
     start: '1',
     end: '10',
+    // Custom mode
+    customList: '',
+    // Common fields
     prefix: '',
     scaraId: '',
-    defaultPersons: '2',
+    etaj: '',
+    suprafata: '',
+    nrCamere: '',
+    nrPersoane: '2',
+    cotaIndiviza: '',
+    tipApartamentId: '',
   })
 
-  const count = Math.max(0, (parseInt(formData.end) || 0) - (parseInt(formData.start) || 0) + 1)
+  // Parse apartment numbers based on mode
+  const apartamentNumbers = useMemo(() => {
+    if (mode === 'range') {
+      const start = parseInt(formData.start) || 1
+      const end = parseInt(formData.end) || 1
+      if (end < start) return []
+      const numbers = []
+      for (let i = start; i <= end; i++) {
+        numbers.push(i)
+      }
+      return numbers
+    } else {
+      // Custom mode - parse comma separated list
+      const nums = formData.customList
+        .split(',')
+        .map(n => parseInt(n.trim()))
+        .filter(n => !isNaN(n) && n > 0)
+      return [...new Set(nums)].sort((a, b) => a - b) // Remove duplicates and sort
+    }
+  }, [mode, formData.start, formData.end, formData.customList])
+
+  const count = apartamentNumbers.length
+
+  const handleSelectTip = (tipId: string) => {
+    const tip = tipuriApartament.find(t => t.id === tipId)
+    if (tip) {
+      setFormData({
+        ...formData,
+        tipApartamentId: tipId,
+        nrCamere: String(tip.nrCamere),
+        suprafata: String(tip.suprafata),
+        cotaIndiviza: String(tip.cotaIndiviza),
+      })
+    } else {
+      setFormData({ ...formData, tipApartamentId: '' })
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -724,14 +798,15 @@ function BulkAddModal({
     setLoading(true)
 
     try {
-      const apartamente = []
-      for (let i = parseInt(formData.start); i <= parseInt(formData.end); i++) {
-        apartamente.push({
-          numar: formData.prefix + i.toString(),
-          nrPersoane: parseInt(formData.defaultPersons) || 2,
-          scaraId: formData.scaraId || undefined,
-        })
-      }
+      const apartamente = apartamentNumbers.map(num => ({
+        numar: formData.prefix + num.toString(),
+        etaj: formData.etaj ? parseInt(formData.etaj) : null,
+        suprafata: formData.suprafata ? parseFloat(formData.suprafata) : null,
+        nrCamere: formData.nrCamere ? parseInt(formData.nrCamere) : null,
+        nrPersoane: parseInt(formData.nrPersoane) || 2,
+        cotaIndiviza: formData.cotaIndiviza ? parseFloat(formData.cotaIndiviza) : null,
+        scaraId: formData.scaraId || undefined,
+      }))
 
       const res = await fetch('/api/apartamente', {
         method: 'POST',
@@ -762,7 +837,7 @@ function BulkAddModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Adaugă apartamente în masă</h2>
@@ -772,32 +847,79 @@ function BulkAddModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  De la nr.
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  value={formData.start}
-                  onChange={(e) => setFormData({ ...formData, start: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Până la nr.
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  value={formData.end}
-                  onChange={(e) => setFormData({ ...formData, end: e.target.value })}
-                />
+            {/* Mode selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mod de introducere
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMode('range')}
+                  className={`flex-1 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                    mode === 'range'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Interval (1-10)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('custom')}
+                  className={`flex-1 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                    mode === 'custom'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Listă custom (2,6,9,12)
+                </button>
               </div>
             </div>
+
+            {/* Range or Custom input */}
+            {mode === 'range' ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    De la nr.
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={formData.start}
+                    onChange={(e) => setFormData({ ...formData, start: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Până la nr.
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={formData.end}
+                    onChange={(e) => setFormData({ ...formData, end: e.target.value })}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Lista de apartamente (separate prin virgulă)
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.customList}
+                  onChange={(e) => setFormData({ ...formData, customList: e.target.value })}
+                  placeholder="ex: 1, 5, 8, 12, 15"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -830,27 +952,116 @@ function BulkAddModal({
               </div>
             )}
 
+            {/* Tip Apartament */}
+            {tipuriApartament.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tip apartament (auto-completează câmpurile)
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.tipApartamentId}
+                  onChange={(e) => handleSelectTip(e.target.value)}
+                >
+                  <option value="">Fără tip / Manual</option>
+                  {tipuriApartament.map(tip => (
+                    <option key={tip.id} value={tip.id}>
+                      {tip.denumire} ({tip.nrCamere} cam, {tip.suprafata}mp, {tip.cotaIndiviza}%)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Etaj implicit
+                </label>
+                <input
+                  type="number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.etaj}
+                  onChange={(e) => setFormData({ ...formData, etaj: e.target.value })}
+                  placeholder="Opțional"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Suprafață (mp)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.suprafata}
+                  onChange={(e) => setFormData({ ...formData, suprafata: e.target.value })}
+                  placeholder="Opțional"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Camere
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.nrCamere}
+                  onChange={(e) => setFormData({ ...formData, nrCamere: e.target.value })}
+                  placeholder="Opțional"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nr. Persoane
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.nrPersoane}
+                  onChange={(e) => setFormData({ ...formData, nrPersoane: e.target.value })}
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nr. persoane implicit
+                Cotă indiviza (%)
               </label>
               <input
                 type="number"
-                min="1"
+                step="0.01"
+                max="100"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                value={formData.defaultPersons}
-                onChange={(e) => setFormData({ ...formData, defaultPersons: e.target.value })}
+                value={formData.cotaIndiviza}
+                onChange={(e) => setFormData({ ...formData, cotaIndiviza: e.target.value })}
+                placeholder="Opțional"
               />
             </div>
 
-            <div className="bg-blue-50 rounded-lg p-4 text-sm">
-              <p className="font-medium text-blue-900">
-                Se vor crea {count} apartamente
-              </p>
-              <p className="text-blue-700 mt-1">
-                {formData.prefix}{formData.start}, {formData.prefix}{parseInt(formData.start) + 1}, ..., {formData.prefix}{formData.end}
-              </p>
-            </div>
+            {count > 0 && (
+              <div className="bg-blue-50 rounded-lg p-4 text-sm">
+                <p className="font-medium text-blue-900">
+                  Se vor crea {count} apartamente
+                </p>
+                <p className="text-blue-700 mt-1">
+                  {apartamentNumbers.length <= 10
+                    ? apartamentNumbers.map(n => formData.prefix + n).join(', ')
+                    : `${formData.prefix}${apartamentNumbers[0]}, ${formData.prefix}${apartamentNumbers[1]}, ..., ${formData.prefix}${apartamentNumbers[apartamentNumbers.length - 1]}`}
+                </p>
+              </div>
+            )}
+
+            {count === 0 && (
+              <div className="bg-yellow-50 rounded-lg p-4 text-sm text-yellow-800">
+                ⚠️ Nu sunt apartamente de adăugat. {mode === 'custom' ? 'Introdu numere valide separate prin virgulă.' : 'Verifică intervalul.'}
+              </div>
+            )}
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" className="flex-1" onClick={onClose}>

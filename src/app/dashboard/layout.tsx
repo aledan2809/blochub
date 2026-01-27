@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
   Building2,
   LayoutDashboard,
@@ -501,7 +502,9 @@ function DashboardLayoutContent({
         </header>
 
         {/* Page content */}
-        <main className="p-4 md:p-6">{children}</main>
+        <main className="p-4 md:p-6">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
       </div>
     </div>
   )

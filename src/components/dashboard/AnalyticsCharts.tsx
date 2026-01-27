@@ -1,5 +1,6 @@
 'use client'
 
+import { memo, useMemo } from 'react'
 import {
   BarChart,
   Bar,
@@ -31,41 +32,46 @@ interface AnalyticsChartsProps {
   }>
 }
 
-export function AnalyticsCharts({ stats, agentActivity = [] }: AnalyticsChartsProps) {
-  // Financial overview data
-  const financialData = [
+export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, agentActivity = [] }: AnalyticsChartsProps) {
+  // Financial overview data - memoized to prevent recalculation on every render
+  const financialData = useMemo(() => [
     { name: 'Încasări', value: stats.incasariLuna, color: '#10b981' },
     { name: 'Cheltuieli', value: stats.cheltuieliLuna, color: '#3b82f6' },
     { name: 'Restanțe', value: stats.restante, color: '#f59e0b' },
-  ]
+  ], [stats.incasariLuna, stats.cheltuieliLuna, stats.restante])
 
-  // Monthly trend data (mock data - in real app this would come from API)
-  const monthlyTrend = [
+  // Monthly trend data (mock data - in real app this would come from API) - memoized
+  const monthlyTrend = useMemo(() => [
     { month: 'Ian', incasari: stats.incasariLuna * 0.85, cheltuieli: stats.cheltuieliLuna * 0.9 },
     { month: 'Feb', incasari: stats.incasariLuna * 0.92, cheltuieli: stats.cheltuieliLuna * 0.95 },
     { month: 'Mar', incasari: stats.incasariLuna, cheltuieli: stats.cheltuieliLuna },
-  ]
+  ], [stats.incasariLuna, stats.cheltuieliLuna])
 
-  // Agent activity data
-  const agentData = agentActivity.slice(0, 5).map(agent => ({
-    name: agent.agent.replace('Agent', '').trim(),
-    actiuni: agent.actiuni,
-  }))
+  // Agent activity data - memoized
+  const agentData = useMemo(
+    () => agentActivity.slice(0, 5).map(agent => ({
+      name: agent.agent.replace('Agent', '').trim(),
+      actiuni: agent.actiuni,
+    })),
+    [agentActivity]
+  )
 
-  // Payment status distribution
-  const totalPlati = stats.incasariLuna + stats.restante
-  const paymentStatusData = [
-    {
-      name: 'Plătit',
-      value: stats.incasariLuna,
-      percentage: totalPlati > 0 ? Math.round((stats.incasariLuna / totalPlati) * 100) : 0,
-    },
-    {
-      name: 'Restanță',
-      value: stats.restante,
-      percentage: totalPlati > 0 ? Math.round((stats.restante / totalPlati) * 100) : 0,
-    },
-  ]
+  // Payment status distribution - memoized
+  const paymentStatusData = useMemo(() => {
+    const totalPlati = stats.incasariLuna + stats.restante
+    return [
+      {
+        name: 'Plătit',
+        value: stats.incasariLuna,
+        percentage: totalPlati > 0 ? Math.round((stats.incasariLuna / totalPlati) * 100) : 0,
+      },
+      {
+        name: 'Restanță',
+        value: stats.restante,
+        percentage: totalPlati > 0 ? Math.round((stats.restante / totalPlati) * 100) : 0,
+      },
+    ]
+  }, [stats.incasariLuna, stats.restante])
 
   const COLORS = ['#10b981', '#f59e0b']
 
@@ -184,4 +190,4 @@ export function AnalyticsCharts({ stats, agentActivity = [] }: AnalyticsChartsPr
       )}
     </div>
   )
-}
+})

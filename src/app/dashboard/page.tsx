@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import {
   Building2,
   Users,
@@ -22,8 +22,14 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AnalyticsCharts } from '@/components/dashboard/AnalyticsCharts'
 import Link from 'next/link'
+
+// Lazy load analytics charts for better performance
+const AnalyticsCharts = lazy(() =>
+  import('@/components/dashboard/AnalyticsCharts').then(module => ({
+    default: module.AnalyticsCharts
+  }))
+)
 
 interface DashboardData {
   hasAsociatie: boolean
@@ -421,7 +427,24 @@ export default function DashboardPage() {
       </div>
 
       {/* Analytics Charts */}
-      <AnalyticsCharts stats={stats} agentActivity={data.agentActivity} />
+      <Suspense
+        fallback={
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardContent className="p-8 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-8 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </CardContent>
+            </Card>
+          </div>
+        }
+      >
+        <AnalyticsCharts stats={stats} agentActivity={data.agentActivity} />
+      </Suspense>
     </div>
   )
 }

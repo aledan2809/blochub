@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Wallet,
   Plus,
@@ -185,15 +185,17 @@ export default function IncasariPage() {
     }
   }
 
-  // Filter plati
-  const filtered = plati.filter(p => {
-    const term = searchTerm.toLowerCase()
-    return (
-      p.apartament.numar.toLowerCase().includes(term) ||
-      p.referinta?.toLowerCase().includes(term) ||
-      metodaPlataLabels[p.metodaPlata].toLowerCase().includes(term)
-    )
-  })
+  // Filter plati - memoized to avoid recalculation on every render
+  const filtered = useMemo(() => {
+    return plati.filter(p => {
+      const term = searchTerm.toLowerCase()
+      return (
+        p.apartament.numar.toLowerCase().includes(term) ||
+        p.referinta?.toLowerCase().includes(term) ||
+        metodaPlataLabels[p.metodaPlata].toLowerCase().includes(term)
+      )
+    })
+  }, [plati, searchTerm])
 
   // Auto-fill suma when chitanta selected
   const handleChitantaSelect = (chitantaId: string) => {
