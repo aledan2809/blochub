@@ -317,6 +317,8 @@ export async function GET(request: Request) {
       asociatie: {
         nume: asociatie.nume,
         adresa: `${asociatie.adresa}, ${asociatie.oras}`,
+        ziScadenta: asociatie.ziScadenta,
+        penalizareZi: asociatie.penalizareZi,
       },
       luna,
       an,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
 import {
   FileText,
   Printer,
@@ -12,6 +13,8 @@ import {
   ChevronRight,
   AlertTriangle,
   AlertCircle,
+  Info,
+  Settings,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -32,6 +35,8 @@ interface AvizierData {
   asociatie: {
     nume: string
     adresa: string
+    ziScadenta: number
+    penalizareZi: number
   }
   luna: number
   an: number
@@ -329,6 +334,44 @@ export default function AvizierPage() {
                         + {data.apartamente.filter(apt => apt.restanta > 0).length - 10} mai multe
                       </span>
                     )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Penalty Information */}
+        {data.totaluri.penalizari > 0 && (
+          <Card className="mb-6 border-red-200 bg-red-50 print:shadow-none print:border">
+            <CardContent className="py-4 print:py-2">
+              <div className="flex items-start gap-3">
+                <Info className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
+                    Informații despre penalizări
+                  </h3>
+                  <div className="text-sm text-red-800 space-y-2">
+                    <p>
+                      Penalizările sunt calculate automat pentru plățile întârziate după ziua de <strong>{data.asociatie.ziScadenta}</strong> a fiecărei luni.
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span>Rată penalizare:</span>
+                      <span className="font-semibold bg-white px-2 py-1 rounded border border-red-300">
+                        {data.asociatie.penalizareZi}% pe zi
+                      </span>
+                      <span className="text-xs text-red-700">
+                        (exemplu: 1000 lei × {data.asociatie.penalizareZi}% × 30 zile = {(1000 * data.asociatie.penalizareZi / 100 * 30).toFixed(2)} lei)
+                      </span>
+                    </div>
+                    <div className="flex gap-2 print:hidden">
+                      <Link href="/dashboard/setari">
+                        <Button size="sm" variant="outline" className="text-red-700 border-red-300 hover:bg-red-100">
+                          <Settings className="h-3 w-3 mr-1" />
+                          Modifică setările
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
