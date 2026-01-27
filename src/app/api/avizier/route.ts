@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const luna = parseInt(searchParams.get('luna') || String(new Date().getMonth() + 1))
     const an = parseInt(searchParams.get('an') || String(new Date().getFullYear()))
 
-    // Get user's asociatie
+    // Get user's asociatie with penalty settings
     const asociatie = await db.asociatie.findFirst({
       where: { adminId: userId },
       include: {
@@ -163,7 +163,88 @@ export async function GET(request: Request) {
       restantaByApartment[apt.id] = Math.max(0, totalOwed - totalPaid)
     })
 
+    // Calculate penalties for late payments
+    const penalizariByApartment: Record<string, number> = {}
+    const currentDate = new Date()
+
+    // Group previous expenses by month
+    const expensesByMonth: Record<string, typeof previousMonthsExpenses> = {}
+    previousMonthsExpenses.forEach(ch => {
+      const key = `${ch.an}-${ch.luna}`
+      if (!expensesByMonth[key]) {
+        expensesByMonth[key] = []
+      }
+      expensesByMonth[key].push(ch)
+    })
+
+    // Calculate penalties for each apartment
+    apartamente.forEach(apt => {
+      let penalizareTotal = 0
+
+      // Only calculate penalties if there's an outstanding balance
+      if (restantaByApartment[apt.id] > 0) {
+        // Group payments by month to see what was paid when
+        const paymentsByMonth: Record<string, number> = {}
+        allPayments
+          .filter(p => p.apartament.id === apt.id && p.status === 'CONFIRMED')
+          .forEach(plata => {
+            const plataDate = new Date(plata.createdAt)
+            const key = `${plataDate.getFullYear()}-${plataDate.getMonth() + 1}`
+            paymentsByMonth[key] = (paymentsByMonth[key] || 0) + plata.suma
+          })
+
+        // Calculate penalties for each unpaid/partially paid month
+        Object.entries(expensesByMonth).forEach(([monthKey, expenses]) => {
+          const [yearStr, lunaStr] = monthKey.split('-')
+          const expenseYear = parseInt(yearStr)
+          const expenseLuna = parseInt(lunaStr)
+
+          // Calculate total owed for this apartment for this month
+          let monthlyOwed = 0
+          expenses.forEach(ch => {
+            let sumaApt = 0
+            if (ch.modRepartizare === 'COTA_INDIVIZA' && totalCotaIndiviza > 0) {
+              sumaApt = (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza
+            } else if (ch.modRepartizare === 'PERSOANE' && totalPersons > 0) {
+              sumaApt = (ch.suma * apt.nrPersoane) / totalPersons
+            } else if (ch.modRepartizare === 'APARTAMENT' && apartamente.length > 0) {
+              sumaApt = ch.suma / apartamente.length
+            } else if (ch.modRepartizare === 'MANUAL' || ch.modRepartizare === 'CONSUM') {
+              sumaApt = 0
+            } else {
+              sumaApt = totalCotaIndiviza > 0 ? (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza : 0
+            }
+            monthlyOwed += sumaApt
+          })
+
+          // Add monthly funds for this month
+          monthlyOwed += asociatie.fonduri.reduce((sum, fond) => sum + fond.sumaLunara, 0)
+
+          // Calculate how much was paid for this month
+          const monthlyPaid = paymentsByMonth[monthKey] || 0
+          const monthlyUnpaid = Math.max(0, monthlyOwed - monthlyPaid)
+
+          if (monthlyUnpaid > 0) {
+            // Calculate due date for this month
+            const dueDate = new Date(expenseYear, expenseLuna - 1, asociatie.ziScadenta)
+
+            // Calculate days late (only if past due date)
+            if (currentDate > dueDate) {
+              const daysLate = Math.floor((currentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+
+              // Apply penalty: unpaid amount × (penalty rate / 100) × days late
+              const penalizare = monthlyUnpaid * (asociatie.penalizareZi / 100) * daysLate
+              penalizareTotal += penalizare
+            }
+          }
+        })
+      }
+
+      penalizariByApartment[apt.id] = Math.round(penalizareTotal * 100) / 100 // Round to 2 decimals
+    })
+
     let totalRestante = 0
+    let totalPenalizari = 0
 
     const apartamenteData = apartamente.map(apt => {
       const cheltuieliApt: Record<string, number> = {}
@@ -206,8 +287,12 @@ export async function GET(request: Request) {
       const restanta = restantaByApartment[apt.id] || 0
       totalRestante += restanta
 
-      // Total = current month + outstanding balance
-      const totalApt = totalAptCurent + restanta
+      // Get penalties for late payments
+      const penalizari = penalizariByApartment[apt.id] || 0
+      totalPenalizari += penalizari
+
+      // Total = current month + outstanding balance + penalties
+      const totalApt = totalAptCurent + restanta + penalizari
 
       totalIntretinere += totalAptCurent - fonduriApt
       totalGeneral += totalApt
@@ -222,7 +307,7 @@ export async function GET(request: Request) {
         cheltuieli: cheltuieliApt,
         totalIntretinere: totalAptCurent - fonduriApt,
         restanta,
-        penalizari: 0, // TODO: Calculate penalties for late payments
+        penalizari,
         fonduri: fonduriApt,
         total: totalApt,
       }
@@ -241,7 +326,7 @@ export async function GET(request: Request) {
         categorii: totaluriCategorii,
         intretinere: totalIntretinere,
         restante: totalRestante,
-        penalizari: 0,
+        penalizari: totalPenalizari,
         fonduri: totalFonduri,
         total: totalGeneral,
       },

@@ -10,6 +10,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
+  AlertCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -270,10 +272,16 @@ export default function AvizierPage() {
                   {data.totaluri.intretinere.toLocaleString('ro-RO')} lei
                 </p>
               </div>
-              <div className="p-3 bg-orange-50 rounded-lg print:p-1">
-                <p className="text-xs text-orange-600 font-medium">Total Restanțe</p>
+              <div className="p-3 bg-orange-50 rounded-lg print:p-1 border-2 border-orange-200">
+                <p className="text-xs text-orange-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Total Restanțe
+                </p>
                 <p className="text-xl font-bold text-orange-900 print:text-lg">
                   {data.totaluri.restante.toLocaleString('ro-RO')} lei
+                </p>
+                <p className="text-[10px] text-orange-700 mt-1">
+                  {data.apartamente.filter(apt => apt.restanta > 0).length} apartamente
                 </p>
               </div>
               <div className="p-3 bg-red-50 rounded-lg print:p-1">
@@ -291,6 +299,42 @@ export default function AvizierPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Outstanding Balance Alert */}
+        {data.apartamente.filter(apt => apt.restanta > 0).length > 0 && (
+          <Card className="mb-6 border-orange-200 bg-orange-50 print:shadow-none print:border">
+            <CardContent className="py-4 print:py-2">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-orange-900 mb-2">
+                    Apartamente cu restanțe ({data.apartamente.filter(apt => apt.restanta > 0).length})
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {data.apartamente
+                      .filter(apt => apt.restanta > 0)
+                      .sort((a, b) => b.restanta - a.restanta)
+                      .slice(0, 10)
+                      .map(apt => (
+                        <div
+                          key={apt.numar}
+                          className="inline-flex items-center gap-2 px-3 py-1 bg-white rounded-md border border-orange-200 text-sm"
+                        >
+                          <span className="font-semibold text-orange-900">Ap. {apt.numar}</span>
+                          <span className="text-orange-700">{apt.restanta.toLocaleString('ro-RO')} lei</span>
+                        </div>
+                      ))}
+                    {data.apartamente.filter(apt => apt.restanta > 0).length > 10 && (
+                      <span className="text-sm text-orange-700 self-center">
+                        + {data.apartamente.filter(apt => apt.restanta > 0).length - 10} mai multe
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Expense Categories Summary */}
         <Card className="mb-6 print:shadow-none print:border">
@@ -350,39 +394,65 @@ export default function AvizierPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.apartamente.map((apt, idx) => (
-                    <tr key={apt.numar} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-2 py-1.5 border-b font-medium sticky left-0 bg-inherit print:px-1 print:py-0.5">
-                        {apt.numar}
-                      </td>
-                      <td className="px-2 py-1.5 border-b text-gray-600 print:px-1 print:py-0.5 hidden md:table-cell print:table-cell">
-                        {apt.scara || '-'}
-                      </td>
-                      <td className="px-2 py-1.5 border-b text-gray-600 truncate max-w-[120px] print:px-1 print:py-0.5 hidden lg:table-cell print:table-cell">
-                        {apt.proprietar || '-'}
-                      </td>
-                      {data.categoriiCheltuieli.map(cat => (
-                        <td key={cat} className="px-2 py-1.5 border-b text-right print:px-1 print:py-0.5">
-                          {apt.cheltuieli[cat]?.toLocaleString('ro-RO') || '-'}
+                  {data.apartamente.map((apt, idx) => {
+                    const hasRestanta = apt.restanta > 0
+                    const rowClass = hasRestanta
+                      ? 'bg-orange-50/30 border-l-4 border-orange-400'
+                      : idx % 2 === 0
+                      ? 'bg-white'
+                      : 'bg-gray-50'
+
+                    return (
+                      <tr key={apt.numar} className={rowClass}>
+                        <td className="px-2 py-1.5 border-b font-medium sticky left-0 bg-inherit print:px-1 print:py-0.5">
+                          <div className="flex items-center gap-1">
+                            {hasRestanta && (
+                              <AlertCircle className="h-3 w-3 text-orange-600 flex-shrink-0 print:hidden" />
+                            )}
+                            <span className={hasRestanta ? 'font-bold' : ''}>{apt.numar}</span>
+                          </div>
                         </td>
-                      ))}
-                      <td className="px-2 py-1.5 border-b text-right bg-blue-50 font-medium print:px-1 print:py-0.5">
-                        {apt.totalIntretinere.toLocaleString('ro-RO')}
-                      </td>
-                      <td className="px-2 py-1.5 border-b text-right bg-orange-50 print:px-1 print:py-0.5">
-                        {apt.restanta > 0 ? apt.restanta.toLocaleString('ro-RO') : '-'}
-                      </td>
-                      <td className="px-2 py-1.5 border-b text-right bg-red-50 print:px-1 print:py-0.5">
-                        {apt.penalizari > 0 ? apt.penalizari.toLocaleString('ro-RO') : '-'}
-                      </td>
-                      <td className="px-2 py-1.5 border-b text-right bg-purple-50 print:px-1 print:py-0.5">
-                        {apt.fonduri > 0 ? apt.fonduri.toLocaleString('ro-RO') : '-'}
-                      </td>
-                      <td className="px-2 py-1.5 border-b text-right bg-green-100 font-bold print:px-1 print:py-0.5">
-                        {apt.total.toLocaleString('ro-RO')}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-2 py-1.5 border-b text-gray-600 print:px-1 print:py-0.5 hidden md:table-cell print:table-cell">
+                          {apt.scara || '-'}
+                        </td>
+                        <td className="px-2 py-1.5 border-b text-gray-600 truncate max-w-[120px] print:px-1 print:py-0.5 hidden lg:table-cell print:table-cell">
+                          {apt.proprietar || '-'}
+                        </td>
+                        {data.categoriiCheltuieli.map(cat => (
+                          <td key={cat} className="px-2 py-1.5 border-b text-right print:px-1 print:py-0.5">
+                            {apt.cheltuieli[cat]?.toLocaleString('ro-RO') || '-'}
+                          </td>
+                        ))}
+                        <td className="px-2 py-1.5 border-b text-right bg-blue-50 font-medium print:px-1 print:py-0.5">
+                          {apt.totalIntretinere.toLocaleString('ro-RO')}
+                        </td>
+                        <td className={`px-2 py-1.5 border-b text-right ${hasRestanta ? 'bg-orange-100' : 'bg-orange-50'} print:px-1 print:py-0.5`}>
+                          {apt.restanta > 0 ? (
+                            <span className="font-bold text-orange-900">
+                              {apt.restanta.toLocaleString('ro-RO')}
+                            </span>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 border-b text-right bg-red-50 print:px-1 print:py-0.5">
+                          {apt.penalizari > 0 ? (
+                            <span className="font-semibold text-red-900">
+                              {apt.penalizari.toLocaleString('ro-RO')}
+                            </span>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 border-b text-right bg-purple-50 print:px-1 print:py-0.5">
+                          {apt.fonduri > 0 ? apt.fonduri.toLocaleString('ro-RO') : '-'}
+                        </td>
+                        <td className="px-2 py-1.5 border-b text-right bg-green-100 font-bold print:px-1 print:py-0.5">
+                          {apt.total.toLocaleString('ro-RO')}
+                        </td>
+                      </tr>
+                    )
+                  })}
                   {/* Totals Row */}
                   <tr className="bg-gray-200 font-bold print:bg-gray-300">
                     <td className="px-2 py-2 border-t-2 sticky left-0 bg-gray-200 print:bg-gray-300 print:px-1">
