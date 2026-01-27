@@ -40,11 +40,20 @@ interface AsociatieInfo {
   cheltuieli: number
 }
 
+interface AsociatieSettings {
+  ziScadenta: number
+  penalizareZi: number
+  contBancar: string
+  banca: string
+}
+
 export default function SetariPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'profil' | 'notificari' | 'date' | 'cont'>('profil')
+  const [savingAsociatie, setSavingAsociatie] = useState(false)
+  const [savedAsociatie, setSavedAsociatie] = useState(false)
+  const [activeTab, setActiveTab] = useState<'profil' | 'notificari' | 'asociatie' | 'date' | 'cont'>('profil')
 
   const [settings, setSettings] = useState<UserSettings>({
     name: '',
@@ -56,6 +65,12 @@ export default function SetariPage() {
   })
 
   const [asociatie, setAsociatie] = useState<AsociatieInfo | null>(null)
+  const [asociatieSettings, setAsociatieSettings] = useState<AsociatieSettings>({
+    ziScadenta: 25,
+    penalizareZi: 0.02,
+    contBancar: '',
+    banca: ''
+  })
 
   useEffect(() => {
     fetchData()
@@ -89,6 +104,18 @@ export default function SetariPage() {
           })
         }
       }
+
+      // Get association settings
+      const asociatieRes = await fetch('/api/asociatie/settings')
+      if (asociatieRes.ok) {
+        const asociatieData = await asociatieRes.json()
+        setAsociatieSettings({
+          ziScadenta: asociatieData.ziScadenta || 25,
+          penalizareZi: asociatieData.penalizareZi || 0.02,
+          contBancar: asociatieData.contBancar || '',
+          banca: asociatieData.banca || ''
+        })
+      }
     } catch (error) {
       console.error('Failed to fetch settings:', error)
     } finally {
@@ -119,6 +146,30 @@ export default function SetariPage() {
     }
   }
 
+  const handleSaveAsociatie = async () => {
+    setSavingAsociatie(true)
+    try {
+      const res = await fetch('/api/asociatie/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(asociatieSettings)
+      })
+
+      if (res.ok) {
+        setSavedAsociatie(true)
+        setTimeout(() => setSavedAsociatie(false), 3000)
+      } else {
+        const data = await res.json()
+        alert('Eroare: ' + (data.error || 'Nu s-au putut salva setările'))
+      }
+    } catch (error) {
+      console.error('Failed to save asociatie settings:', error)
+      alert('Eroare la salvarea setărilor')
+    } finally {
+      setSavingAsociatie(false)
+    }
+  }
+
   const handleExportData = async (format: 'json' | 'csv' = 'json') => {
     try {
       const res = await fetch(`/api/export?format=${format}`)
@@ -143,6 +194,7 @@ export default function SetariPage() {
 
   const tabs = [
     { id: 'profil', label: 'Profil', icon: User },
+    { id: 'asociatie', label: 'Asociație', icon: Building2 },
     { id: 'notificari', label: 'Notificări', icon: Bell },
     { id: 'date', label: 'Date', icon: Database },
     { id: 'cont', label: 'Cont', icon: Shield },
@@ -268,6 +320,139 @@ export default function SetariPage() {
                   <Save className="h-4 w-4 mr-2" />
                 )}
                 {saved ? 'Salvat!' : 'Salvează modificările'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Asociație Tab */}
+        {activeTab === 'asociatie' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold mb-4">Setări Penalizări</h2>
+              <p className="text-gray-600 mb-6">
+                Configurează penalizările pentru plăți întârziate. Acestea se calculează automat în Avizier.
+              </p>
+
+              <div className="grid gap-6 max-w-2xl">
+                {/* Zi Scadenta */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ziua scadentă de plată
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={asociatieSettings.ziScadenta}
+                      onChange={(e) => setAsociatieSettings({
+                        ...asociatieSettings,
+                        ziScadenta: parseInt(e.target.value) || 25
+                      })}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-gray-600">a fiecărei luni</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Data până la care proprietarii trebuie să achite întreținerea lunară.
+                    Penalizările se calculează de la această dată.
+                  </p>
+                </div>
+
+                {/* Penalizare pe zi */}
+                <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                  <label className="block text-sm font-medium text-orange-900 mb-2">
+                    Penalizare zilnică pentru întârziere
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={10}
+                      step={0.01}
+                      value={asociatieSettings.penalizareZi}
+                      onChange={(e) => setAsociatieSettings({
+                        ...asociatieSettings,
+                        penalizareZi: parseFloat(e.target.value) || 0.02
+                      })}
+                      className="w-32"
+                    />
+                    <span className="text-sm text-gray-700">% pe zi</span>
+                  </div>
+                  <p className="text-xs text-orange-700 mt-2">
+                    Exemplu: Pentru 0.02% pe zi și o restanță de 500 lei la 30 zile întârziere:<br />
+                    Penalizare = 500 × 0.02% × 30 = <strong>3 lei</strong>
+                  </p>
+                  <div className="mt-3 p-3 bg-white rounded border border-orange-300">
+                    <p className="text-xs font-medium text-orange-900 mb-1">Simulare pentru restanța de 1000 lei:</p>
+                    <div className="text-xs text-orange-800 space-y-1">
+                      <div className="flex justify-between">
+                        <span>La 10 zile întârziere:</span>
+                        <strong>{(1000 * (asociatieSettings.penalizareZi / 100) * 10).toFixed(2)} lei</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>La 30 zile întârziere:</span>
+                        <strong>{(1000 * (asociatieSettings.penalizareZi / 100) * 30).toFixed(2)} lei</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>La 90 zile întârziere:</span>
+                        <strong>{(1000 * (asociatieSettings.penalizareZi / 100) * 90).toFixed(2)} lei</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date bancare */}
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h3 className="text-sm font-medium text-blue-900 mb-3">Date bancare asociație</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-blue-800 mb-1">
+                        Cont bancar (IBAN)
+                      </label>
+                      <Input
+                        value={asociatieSettings.contBancar}
+                        onChange={(e) => setAsociatieSettings({
+                          ...asociatieSettings,
+                          contBancar: e.target.value
+                        })}
+                        placeholder="RO49AAAA1B31007593840000"
+                        className="bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-blue-800 mb-1">
+                        Bancă
+                      </label>
+                      <Input
+                        value={asociatieSettings.banca}
+                        onChange={(e) => setAsociatieSettings({
+                          ...asociatieSettings,
+                          banca: e.target.value
+                        })}
+                        placeholder="BCR, BRD, ING, etc."
+                        className="bg-white"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-2">
+                    Aceste date vor apărea pe chitanțe și în avizier pentru plăți.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <Button onClick={handleSaveAsociatie} disabled={savingAsociatie}>
+                {savingAsociatie ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : savedAsociatie ? (
+                  <Check className="h-4 w-4 mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {savedAsociatie ? 'Salvat!' : 'Salvează setările'}
               </Button>
             </div>
           </div>
