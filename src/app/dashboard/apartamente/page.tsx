@@ -13,10 +13,14 @@ import {
   ChevronDown,
   Check,
   X,
+  Download,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { exportApartamenteToPDF, exportApartamenteToExcel } from '@/lib/export-utils'
 import Link from 'next/link'
 
 interface Apartament {
@@ -63,6 +67,7 @@ export default function ApartamentePage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [asociatieId, setAsociatieId] = useState<string | null>(null)
+  const [asociatie, setAsociatie] = useState<any>(null)
   const [filterScara, setFilterScara] = useState<string>('ALL')
   const [editingApt, setEditingApt] = useState<Apartament | null>(null)
 
@@ -82,6 +87,7 @@ export default function ApartamentePage() {
       }
 
       setAsociatieId(cladireData.asociatie.id)
+      setAsociatie(cladireData.asociatie)
       setScari(cladireData.scari || [])
 
       // Fetch tipuri apartament
@@ -175,6 +181,34 @@ export default function ApartamentePage() {
           <p className="text-gray-500">{apartamente.length} apartamente înregistrate</p>
         </div>
         <div className="flex gap-2">
+          <div className="relative group">
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 hidden group-hover:block z-10">
+              <button
+                onClick={() => {
+                  exportApartamenteToExcel(apartamente, asociatie)
+                  toast.success('Export Excel generat cu succes')
+                }}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                Export Excel
+              </button>
+              <button
+                onClick={() => {
+                  exportApartamenteToPDF(apartamente, asociatie)
+                  toast.success('Export PDF generat cu succes')
+                }}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-b-lg"
+              >
+                <FileText className="h-4 w-4 text-red-600" />
+                Export PDF
+              </button>
+            </div>
+          </div>
           <Button onClick={() => setShowBulkModal(true)} variant="outline">
             <Upload className="h-4 w-4 mr-2" />
             Adaugă în masă

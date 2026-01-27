@@ -20,10 +20,14 @@ import {
   PiggyBank,
   Wrench,
   LayoutGrid,
+  Download,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { exportFinancialReportToPDF, exportFinancialReportToExcel } from '@/lib/export-utils'
 
 interface Asociatie {
   id: string
@@ -845,10 +849,48 @@ export default function CladirePage() {
                   : `${fonduri.length} fonduri • Total: ${fonduri.reduce((s, f) => s + f.sumaLunara, 0)} lei/apt/lună`}
               </CardDescription>
             </div>
-            <Button onClick={() => setShowAddFond(true)} variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Adaugă fond
-            </Button>
+            <div className="flex gap-2">
+              <div className="relative group">
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 hidden group-hover:block z-10">
+                  <button
+                    onClick={() => {
+                      exportFinancialReportToExcel({
+                        asociatie,
+                        apartamente: [],
+                        fonduri
+                      })
+                      toast.success('Raport Excel generat cu succes')
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-t-lg"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                    Export Excel
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportFinancialReportToPDF({
+                        asociatie,
+                        apartamente: [],
+                        fonduri
+                      })
+                      toast.success('Raport PDF generat cu succes')
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-b-lg"
+                  >
+                    <FileText className="h-4 w-4 text-red-600" />
+                    Export PDF
+                  </button>
+                </div>
+              </div>
+              <Button onClick={() => setShowAddFond(true)} variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Adaugă fond
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
