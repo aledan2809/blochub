@@ -297,7 +297,7 @@ Cu ce te pot ajuta în legătură cu administrarea blocului?`,
           // Build admin context if user is admin
           if (user.asociatiiAdmin && user.asociatiiAdmin.length > 0) {
             const asociatie = user.asociatiiAdmin[0]
-            adminContext = this.buildAdminContext(user.name || 'Administrator', asociatie)
+            adminContext = await this.buildAdminContext(user.name || 'Administrator', asociatie)
           }
           // Build proprietar context
           else if (user.apartamente.length > 0) {
@@ -324,11 +324,15 @@ REGULI STRICTE:
 1. Răspunde ÎNTOTDEAUNA în limba română
 2. Fii concis și practic - oferă pași clari
 3. Bazează-te pe documentația aplicației de mai sus
-4. Dacă utilizatorul raportează o problemă, mulțumește și spune că vei transmite echipei
-5. Pentru întrebări în afara aplicației, refuză politicos și redirecționează
-6. Sumele în format românesc (ex: 520 lei)
-7. Nu inventa funcționalități care nu există
-8. Dacă nu știi răspunsul exact, spune că vei verifica și revii
+4. FOLOSEȘTE contextul specific al utilizatorului pentru răspunsuri personalizate
+   - Dacă ai date despre asociația lor, referă-te la ele (ex: "Văd că ai X apartamente")
+   - Dacă vezi restanțe, menționează-le când e relevant
+   - Dacă vezi că nu au completat anumite setări, sugerează completarea lor
+5. Dacă utilizatorul raportează o problemă, mulțumește și spune că vei transmite echipei
+6. Pentru întrebări în afara aplicației, refuză politicos și redirecționează
+7. Sumele în format românesc (ex: 520 lei)
+8. Nu inventa funcționalități care nu există
+9. Dacă nu știi răspunsul exact, spune că vei verifica și revii
 
 ${adminContext ? `\n--- CONTEXT ADMINISTRATOR ---\n${adminContext}` : ''}
 ${userContext ? `\n--- CONTEXT PROPRIETAR ---\n${userContext}` : ''}
@@ -381,16 +385,75 @@ ${pageContext ? `\n--- PAGINA CURENTĂ ---\nUtilizatorul se află pe: ${currentP
     }
   }
 
-  private buildAdminContext(userName: string, asociatie: any): string {
+  private async buildAdminContext(userName: string, asociatie: any): Promise<string> {
     const lines: string[] = []
 
     lines.push(`Rol: ADMINISTRATOR`)
     lines.push(`Nume: ${userName}`)
     lines.push(`Asociație: ${asociatie.nume}`)
+    lines.push(`CUI: ${asociatie.cui || 'necompletat'}`)
+    lines.push(`Adresă: ${asociatie.adresa}, ${asociatie.oras}, ${asociatie.judet}`)
+
+    // Building structure
+    const cladiri = await db.cladire.findMany({
+      where: { asociatieId: asociatie.id },
+      include: { scari: true }
+    })
+    lines.push(`Clădiri: ${cladiri.length}`)
+    lines.push(`Scări total: ${cladiri.reduce((sum, c) => sum + c.scari.length, 0)}`)
     lines.push(`Apartamente: ${asociatie._count.apartamente}`)
-    lines.push(`Chitanțe generate: ${asociatie._count.chitante}`)
+
+    // Financial stats
+    const fonduri = await db.fond.findMany({
+      where: { asociatieId: asociatie.id }
+    })
+    const totalSoldFonduri = fonduri.reduce((sum, f) => sum + f.soldCurent, 0)
+    lines.push(`Fonduri: ${fonduri.length} (sold total: ${formatCurrency(totalSoldFonduri)})`)
+
+    // Recent chitante stats
+    const currentMonth = new Date().getMonth() + 1
+    const currentYear = new Date().getFullYear()
+    const chitanteThisMonth = await db.chitanta.findMany({
+      where: {
+        apartament: { asociatieId: asociatie.id },
+        luna: currentMonth,
+        an: currentYear
+      },
+      include: { plati: true }
+    })
+
+    const totalIncasariLuna = chitanteThisMonth.reduce((sum, c) => {
+      const platit = c.plati
+        .filter(p => p.status === 'CONFIRMED')
+        .reduce((s, p) => s + p.suma, 0)
+      return sum + platit
+    }, 0)
+
+    const totalRestante = chitanteThisMonth.reduce((sum, c) => {
+      const platit = c.plati
+        .filter(p => p.status === 'CONFIRMED')
+        .reduce((s, p) => s + p.suma, 0)
+      return sum + Math.max(0, c.sumaTotal - platit)
+    }, 0)
+
+    lines.push(`Încasări luna curentă: ${formatCurrency(totalIncasariLuna)}`)
+    lines.push(`Restanțe active: ${formatCurrency(totalRestante)}`)
+
+    // Recent cheltuieli
+    const recentCheltuieli = await db.cheltuiala.findMany({
+      where: { asociatieId: asociatie.id },
+      orderBy: { createdAt: 'desc' },
+      take: 3
+    })
+    if (recentCheltuieli.length > 0) {
+      lines.push(`\nUltime cheltuieli:`)
+      for (const ch of recentCheltuieli) {
+        lines.push(`- ${ch.tip}: ${formatCurrency(ch.sumaTotal)} (${formatMonth(ch.luna, ch.an)})`)
+      }
+    }
+
+    lines.push(`\nChitanțe generate: ${asociatie._count.chitante}`)
     lines.push(`Cheltuieli înregistrate: ${asociatie._count.cheltuieli}`)
-    lines.push(`Scări configurate: ${asociatie.scari?.length || 0}`)
 
     return lines.join('\n')
   }
