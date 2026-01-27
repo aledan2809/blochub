@@ -202,4 +202,70 @@ export const emailTemplates = {
 </html>
     `
   }),
+
+  passwordReset: (data: {
+    email: string
+    resetToken: string
+    expiresInHours: number
+  }) => {
+    const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${data.resetToken}`
+
+    return {
+      subject: 'BlocHub - Resetare Parolă',
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #374151; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center; }
+    .content { background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px; }
+    .btn { display: inline-block; background: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
+    .warning { background: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0; }
+    .link { word-break: break-all; color: #2563eb; font-size: 14px; background: white; padding: 12px; border-radius: 6px; margin: 16px 0; }
+    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0; font-size: 28px;">🔐 Resetare Parolă</h1>
+      <p style="margin: 8px 0 0 0; opacity: 0.95; font-size: 14px;">BlocHub</p>
+    </div>
+    <div class="content">
+      <h2 style="margin-top: 0; color: #111827;">Salut!</h2>
+      <p>Ai solicitat resetarea parolei pentru contul tău BlocHub asociat cu adresa <strong>${data.email}</strong>.</p>
+
+      <p>Apasă butonul de mai jos pentru a-ți reseta parola:</p>
+
+      <div style="text-align: center;">
+        <a href="${resetUrl}" class="btn">Resetează Parola</a>
+      </div>
+
+      <p style="margin-top: 24px;">Sau copiază și lipește acest link în browser:</p>
+      <div class="link">${resetUrl}</div>
+
+      <div class="warning">
+        <strong>⏰ Atenție:</strong> Acest link este valabil doar pentru <strong>${data.expiresInHours} oră</strong>. După expirare, va trebui să soliciți un nou link de resetare.
+      </div>
+
+      <p style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
+        <strong>Nu ai solicitat resetarea parolei?</strong><br>
+        Dacă nu ai fost tu, ignoră acest email. Parola ta va rămâne neschimbată și nimeni nu va putea accesa contul tău.
+      </p>
+    </div>
+    <div class="footer">
+      <p><strong>BlocHub</strong> - Administrare inteligentă</p>
+      <p>© ${new Date().getFullYear()} BlocHub. Toate drepturile rezervate.</p>
+      <p style="margin-top: 12px;">Acest email a fost trimis automat. Te rugăm să nu răspunzi.</p>
+    </div>
+  </div>
+</body>
+</html>
+      `
+    }
+  },
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { createPasswordResetToken } from '@/lib/password-reset'
+import { sendEmail, emailTemplates } from '@/lib/email'
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Adresa de email invalidă'),
@@ -17,21 +19,34 @@ export async function POST(request: NextRequest) {
     })
 
     // Always return success to prevent email enumeration
-    // In production, send actual email if user exists
+    // But actually send email if user exists
     if (user) {
-      // TODO: Generate reset token and send email
-      // For now, just log that we would send an email
-      console.log(`[Password Reset] Would send email to: ${email}`)
+      try {
+        // Generate and store reset token
+        const resetToken = await createPasswordResetToken(user.email)
 
-      // In production, you would:
-      // 1. Generate a secure token
-      // 2. Store it in DB with expiration
-      // 3. Send email with reset link
-      // Example: await sendPasswordResetEmail(user.email, token)
+        // Send password reset email
+        const emailTemplate = emailTemplates.passwordReset({
+          email: user.email,
+          resetToken: resetToken.token,
+          expiresInHours: 1,
+        })
+
+        await sendEmail({
+          to: user.email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        })
+
+        console.log(`[Password Reset] Email sent to: ${email}`)
+      } catch (emailError) {
+        // Log error but don't reveal to user
+        console.error('[Password Reset] Failed to send email:', emailError)
+      }
+    } else {
+      // Still wait to prevent timing attacks
+      await new Promise(resolve => setTimeout(resolve, 1000))
     }
-
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
 
     return NextResponse.json({
       success: true,
