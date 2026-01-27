@@ -106,22 +106,28 @@ export async function GET(request: Request) {
       },
     })
 
-    // Calculate all confirmed payments
+    // Calculate all confirmed payments with chitanță info for month attribution
     const allPayments = await db.plata.findMany({
       where: {
         apartament: { asociatieId: asociatie.id },
         status: 'CONFIRMED',
       },
       include: {
-        apartament: { select: { id: true } }
+        apartament: { select: { id: true } },
+        chitanta: { select: { luna: true, an: true } }
       }
     })
 
-    // Group payments by apartment
+    // Group payments by apartment - only count payments for previous months (for restanță calculation)
     const paymentsByApartment: Record<string, number> = {}
     allPayments.forEach(plata => {
-      paymentsByApartment[plata.apartament.id] =
-        (paymentsByApartment[plata.apartament.id] || 0) + plata.suma
+      // Only count payments for previous months (not current month)
+      const isPreviousMonth = plata.chitanta.an < an ||
+        (plata.chitanta.an === an && plata.chitanta.luna < luna)
+      if (isPreviousMonth) {
+        paymentsByApartment[plata.apartament.id] =
+          (paymentsByApartment[plata.apartament.id] || 0) + plata.suma
+      }
     })
 
     // Calculate total owed per apartment from previous months
@@ -183,13 +189,13 @@ export async function GET(request: Request) {
 
       // Only calculate penalties if there's an outstanding balance
       if (restantaByApartment[apt.id] > 0) {
-        // Group payments by month to see what was paid when
+        // Group payments by chitanță month (the month they're paying for)
         const paymentsByMonth: Record<string, number> = {}
         allPayments
           .filter(p => p.apartament.id === apt.id && p.status === 'CONFIRMED')
           .forEach(plata => {
-            const plataDate = new Date(plata.createdAt)
-            const key = `${plataDate.getFullYear()}-${plataDate.getMonth() + 1}`
+            // Use chitanță's luna/an (which month the payment is for)
+            const key = `${plata.chitanta.an}-${plata.chitanta.luna}`
             paymentsByMonth[key] = (paymentsByMonth[key] || 0) + plata.suma
           })
 
