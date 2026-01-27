@@ -235,7 +235,7 @@ export default function AvizierPage() {
           <h1 className="text-2xl font-bold text-gray-900">Avizier</h1>
           <p className="text-gray-500">{data.asociatie.nume}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={prevMonth}>
               <ChevronLeft className="h-4 w-4" />
@@ -247,31 +247,34 @@ export default function AvizierPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleGenerateChitante} disabled={generating}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleGenerateChitante} disabled={generating} className="text-xs sm:text-sm">
               {generating ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generează...
+                  <Loader2 className="h-4 w-4 mr-1 sm:mr-2 animate-spin" />
+                  <span className="hidden sm:inline">Generează...</span>
+                  <span className="sm:hidden">...</span>
                 </>
               ) : (
                 <>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Generează chitanțe
+                  <FileText className="h-4 w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Generează chitanțe</span>
+                  <span className="sm:hidden">Chitanțe</span>
                 </>
               )}
             </Button>
-            <Button variant="outline" onClick={() => handleExport('xlsx')}>
-              <Download className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={() => handleExport('xlsx')} className="text-xs sm:text-sm">
+              <Download className="h-4 w-4 mr-1" />
               Excel
             </Button>
-            <Button variant="outline" onClick={() => handleExport('csv')}>
-              <Download className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={() => handleExport('csv')} className="text-xs sm:text-sm">
+              <Download className="h-4 w-4 mr-1" />
               CSV
             </Button>
-            <Button onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" />
-              Printează A3
+            <Button size="sm" onClick={handlePrint} className="text-xs sm:text-sm">
+              <Printer className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Printează A3</span>
+              <span className="sm:hidden">Print</span>
             </Button>
           </div>
         </div>
