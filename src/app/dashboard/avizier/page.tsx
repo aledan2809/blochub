@@ -87,6 +87,27 @@ export default function AvizierPage() {
     window.print()
   }
 
+  const handleExport = async (format: 'xlsx' | 'csv') => {
+    try {
+      const res = await fetch(`/api/avizier/export?luna=${selectedMonth}&an=${selectedYear}&format=${format}`)
+      if (!res.ok) {
+        throw new Error('Export failed')
+      }
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `avizier-${selectedMonth}-${selectedYear}.${format}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Export error:', err)
+      alert('Eroare la export. Încearcă din nou.')
+    }
+  }
+
   const handleGenerateChitante = async () => {
     if (!confirm(`Sigur vrei să generezi chitanțe pentru ${months[selectedMonth - 1]} ${selectedYear}?\n\nAceastă operațiune va crea chitanțe pentru toate apartamentele bazate pe calculul din avizier.`)) {
       return
@@ -239,6 +260,14 @@ export default function AvizierPage() {
                   Generează chitanțe
                 </>
               )}
+            </Button>
+            <Button variant="outline" onClick={() => handleExport('xlsx')}>
+              <Download className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+            <Button variant="outline" onClick={() => handleExport('csv')}>
+              <Download className="h-4 w-4 mr-2" />
+              CSV
             </Button>
             <Button onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
