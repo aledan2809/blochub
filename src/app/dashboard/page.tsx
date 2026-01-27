@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { AnalyticsCharts } from '@/components/dashboard/AnalyticsCharts'
 import Link from 'next/link'
 
 interface DashboardData {
@@ -418,6 +419,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Analytics Charts */}
+      <AnalyticsCharts stats={stats} agentActivity={data.agentActivity} />
     </div>
   )
 }
