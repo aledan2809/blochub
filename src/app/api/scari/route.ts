@@ -84,19 +84,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'cladireId necesar' }, { status: 400 })
     }
 
+    if (!body.numar) {
+      return NextResponse.json({ error: 'Numărul scării este necesar' }, { status: 400 })
+    }
+
+    // Check if scara with same number already exists in this cladire
+    const existingScara = await db.scara.findFirst({
+      where: {
+        cladireId: body.cladireId,
+        numar: body.numar
+      }
+    })
+
+    if (existingScara) {
+      return NextResponse.json({ error: `Scara ${body.numar} există deja în această clădire` }, { status: 400 })
+    }
+
     const scara = await db.scara.create({
       data: {
         numar: body.numar,
         etaje: body.etaje || 10,
         cladireId: body.cladireId,
-        asociatieId: body.asociatieId, // Păstrat pentru compatibilitate
+        asociatieId: body.asociatieId,
       }
     })
 
+    console.log('Scara created successfully:', scara)
     return NextResponse.json({ scara }, { status: 201 })
   } catch (error) {
     console.error('POST scara error:', error)
-    return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
+    return NextResponse.json({ error: 'Eroare la crearea scării: ' + (error as Error).message }, { status: 500 })
   }
 }
 

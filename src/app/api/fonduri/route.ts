@@ -9,6 +9,7 @@ const createFondSchema = z.object({
   denumire: z.string().min(2, 'Denumirea trebuie să aibă minim 2 caractere'),
   sumaLunara: z.number().min(0, 'Suma trebuie să fie pozitivă'),
   descriere: z.string().optional(),
+  asociatieId: z.string().optional(), // Optional - will use first asociatie if not provided
 })
 
 const updateFondSchema = z.object({
@@ -28,13 +29,24 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = (session.user as { id: string }).id
+    const { searchParams } = new URL(request.url)
+    const asociatieId = searchParams.get('asociatieId')
 
-    const asociatie = await db.asociatie.findFirst({
-      where: { adminId: userId }
-    })
+    let asociatie
+    if (asociatieId) {
+      // Get specific asociatie by ID (verify user is admin)
+      asociatie = await db.asociatie.findFirst({
+        where: { id: asociatieId, adminId: userId }
+      })
+    } else {
+      // Fallback: get first asociatie for user
+      asociatie = await db.asociatie.findFirst({
+        where: { adminId: userId }
+      })
+    }
 
     if (!asociatie) {
-      return NextResponse.json({ error: 'Nu ai asociație' }, { status: 404 })
+      return NextResponse.json({ fonduri: [], stats: { totalLunar: 0, totalSold: 0, count: 0 } })
     }
 
     const fonduri = await db.fond.findMany({
@@ -72,9 +84,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const data = createFondSchema.parse(body)
 
-    const asociatie = await db.asociatie.findFirst({
-      where: { adminId: userId }
-    })
+    let asociatie
+    if (data.asociatieId) {
+      // Use provided asociatieId (verify user is admin)
+      asociatie = await db.asociatie.findFirst({
+        where: { id: data.asociatieId, adminId: userId }
+      })
+    } else {
+      // Fallback: get first asociatie for user
+      asociatie = await db.asociatie.findFirst({
+        where: { adminId: userId }
+      })
+    }
 
     if (!asociatie) {
       return NextResponse.json({ error: 'Nu ai asociație' }, { status: 404 })

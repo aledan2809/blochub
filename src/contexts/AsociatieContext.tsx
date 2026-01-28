@@ -29,24 +29,33 @@ export function AsociatieProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Log initial localStorage state
+    const initialSavedId = localStorage.getItem('currentAsociatieId')
+    console.log('AsociatieContext - INIT - localStorage currentAsociatieId:', initialSavedId)
     fetchAsociatii()
   }, [])
 
   async function fetchAsociatii() {
     try {
-      const res = await fetch('/api/asociatii')
+      const res = await fetch('/api/asociatii', { cache: 'no-store' })
       const data = await res.json()
+
+      console.log('AsociatieContext - fetched asociatii:', data.asociatii?.map((a: Asociatie) => ({ id: a.id, nume: a.nume })))
 
       if (data.asociatii && data.asociatii.length > 0) {
         setAsociatii(data.asociatii)
 
         // Check localStorage for last selected
         const savedId = localStorage.getItem('currentAsociatieId')
+        console.log('AsociatieContext - savedId from localStorage:', savedId)
+
         const savedAsociatie = data.asociatii.find((a: Asociatie) => a.id === savedId)
 
         if (savedAsociatie) {
+          console.log('AsociatieContext - setting currentAsociatie to saved:', savedAsociatie.id, savedAsociatie.nume)
           setCurrentAsociatieState(savedAsociatie)
         } else {
+          console.log('AsociatieContext - savedId not found, using first:', data.asociatii[0].id, data.asociatii[0].nume)
           setCurrentAsociatieState(data.asociatii[0])
           localStorage.setItem('currentAsociatieId', data.asociatii[0].id)
         }
@@ -59,8 +68,10 @@ export function AsociatieProvider({ children }: { children: ReactNode }) {
   }
 
   function setCurrentAsociatie(asociatie: Asociatie) {
+    console.log('setCurrentAsociatie - switching to:', asociatie.id, asociatie.nume)
     setCurrentAsociatieState(asociatie)
     localStorage.setItem('currentAsociatieId', asociatie.id)
+    console.log('setCurrentAsociatie - localStorage updated, reloading...')
     // Trigger page refresh to load new data
     window.location.reload()
   }

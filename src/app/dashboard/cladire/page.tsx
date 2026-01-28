@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { exportFinancialReportToPDF, exportFinancialReportToExcel } from '@/lib/export-utils'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface Asociatie {
   id: string
@@ -94,6 +95,7 @@ const tipFondIcons: Record<string, React.ReactNode> = {
 
 export default function CladirePage() {
   const toast = useToast()
+  const { currentAsociatie } = useAsociatie()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [asociatie, setAsociatie] = useState<Asociatie | null>(null)
@@ -113,13 +115,22 @@ export default function CladirePage() {
   const [showExportMenu, setShowExportMenu] = useState(false)
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (currentAsociatie) {
+      fetchData()
+    }
+  }, [currentAsociatie])
 
   async function fetchData() {
+    if (!currentAsociatie) return
+
+    setLoading(true)
+    console.log('fetchData - currentAsociatie:', { id: currentAsociatie.id, nume: currentAsociatie.nume })
+
     try {
-      const cladireRes = await fetch('/api/cladire')
+      // Pass the current asociatie ID to the API
+      const cladireRes = await fetch(`/api/cladire?asociatieId=${currentAsociatie.id}`, { cache: 'no-store' })
       const cladireData = await cladireRes.json()
+      console.log('fetchData - API response:', { asociatieId: cladireData.asociatie?.id, asociatieNume: cladireData.asociatie?.nume, cladiriCount: cladireData.cladiri?.length })
 
       if (cladireData.asociatie) {
         setAsociatie(cladireData.asociatie)
@@ -128,8 +139,8 @@ export default function CladirePage() {
 
         // Fetch fonduri and tipuri apartament with asociatieId
         const [fonduriRes, tipuriRes] = await Promise.all([
-          fetch('/api/fonduri'),
-          fetch(`/api/tipuri-apartament?asociatieId=${cladireData.asociatie.id}`)
+          fetch(`/api/fonduri?asociatieId=${cladireData.asociatie.id}`, { cache: 'no-store' }),
+          fetch(`/api/tipuri-apartament?asociatieId=${cladireData.asociatie.id}`, { cache: 'no-store' })
         ])
 
         const fonduriData = await fonduriRes.json()
@@ -141,6 +152,12 @@ export default function CladirePage() {
         if (tipuriData.tipuri) {
           setTipuriApartament(tipuriData.tipuri)
         }
+      } else {
+        // New asociatie - no data yet
+        setAsociatie(null)
+        setCladiri([])
+        setFonduri([])
+        setTipuriApartament([])
       }
     } catch (err) {
       console.error('Error:', err)
@@ -178,7 +195,8 @@ export default function CladirePage() {
   }
 
   async function handleAddCladire() {
-    if (!asociatie) return
+    const asociatieId = asociatie?.id || currentAsociatie?.id
+    if (!asociatieId) return
 
     try {
       const res = await fetch('/api/cladire', {
@@ -186,7 +204,7 @@ export default function CladirePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nume: newCladire.nume || 'Clădire nouă',
-          asociatieId: asociatie.id
+          asociatieId
         })
       })
 
@@ -206,21 +224,31 @@ export default function CladirePage() {
   }
 
   async function handleAddScara() {
-    if (!asociatie || !newScara.numar || !showAddScara) return
+    const asociatieId = asociatie?.id || currentAsociatie?.id
+    if (!asociatieId || !newScara.numar || !showAddScara) {
+      console.log('Validation failed:', { asociatieId, numar: newScara.numar, showAddScara })
+      return
+    }
+
+    const requestBody = {
+      numar: newScara.numar,
+      etaje: newScara.etaje,
+      cladireId: showAddScara,
+      asociatieId
+    }
+    console.log('Adding scara with body:', requestBody)
 
     try {
       const res = await fetch('/api/scari', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newScara,
-          cladireId: showAddScara,
-          asociatieId: asociatie.id
-        })
+        body: JSON.stringify(requestBody)
       })
 
-      if (res.ok) {
-        const data = await res.json()
+      const data = await res.json()
+      console.log('API response:', { ok: res.ok, status: res.status, data })
+
+      if (res.ok && data.scara) {
         // Update the cladiri state with the new scara
         setCladiri(cladiri.map(c =>
           c.id === showAddScara
@@ -231,7 +259,8 @@ export default function CladirePage() {
         setShowAddScara(null)
         toast.success('Scară adăugată cu succes')
       } else {
-        toast.error('Eroare la adăugarea scării')
+        console.error('API error:', data)
+        toast.error(data.error || 'Eroare la adăugarea scării')
       }
     } catch (err) {
       console.error('Error adding scara:', err)
@@ -287,13 +316,14 @@ export default function CladirePage() {
   }
 
   async function handleAddFond() {
-    if (!newFond.denumire || newFond.sumaLunara <= 0) return
+    const asociatieId = asociatie?.id || currentAsociatie?.id
+    if (!asociatieId || !newFond.denumire || newFond.sumaLunara <= 0) return
 
     try {
       const res = await fetch('/api/fonduri', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newFond)
+        body: JSON.stringify({ ...newFond, asociatieId })
       })
 
       if (res.ok) {
@@ -329,7 +359,8 @@ export default function CladirePage() {
   }
 
   async function handleAddTipApartament() {
-    if (!asociatie || !newTip.denumire) return
+    const asociatieId = asociatie?.id || currentAsociatie?.id
+    if (!asociatieId || !newTip.denumire) return
 
     try {
       const res = await fetch('/api/tipuri-apartament', {
@@ -337,7 +368,7 @@ export default function CladirePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newTip,
-          asociatieId: asociatie.id
+          asociatieId
         })
       })
 
@@ -374,7 +405,7 @@ export default function CladirePage() {
     }
   }
 
-  if (loading) {
+  if (loading || !currentAsociatie) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -382,23 +413,22 @@ export default function CladirePage() {
     )
   }
 
-  if (!asociatie) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Building2 className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Nu ai configurat încă asociația
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Folosește selectorul de clădiri din meniul lateral pentru a adăuga prima clădire.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // Use asociatie from API for detailed data, but fall back to currentAsociatie
+  const displayAsociatie = asociatie || {
+    id: currentAsociatie.id,
+    nume: currentAsociatie.nume,
+    adresa: currentAsociatie.adresa,
+    oras: currentAsociatie.oras,
+    cui: null,
+    judet: '',
+    codPostal: null,
+    email: null,
+    telefon: null,
+    contBancar: null,
+    banca: null,
+    ziScadenta: 25,
+    penalizareZi: 0.0002,
+  } as Asociatie
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -415,7 +445,7 @@ export default function CladirePage() {
           </Button>
         ) : (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setEditMode(false); setFormData(asociatie) }}>
+            <Button variant="outline" onClick={() => { setEditMode(false); setFormData(displayAsociatie) }}>
               Anulează
             </Button>
             <Button onClick={handleSave} disabled={saving}>
@@ -545,12 +575,12 @@ export default function CladirePage() {
               <div className="space-y-4">
                 <div>
                   <div className="text-sm text-gray-500">Denumire</div>
-                  <div className="font-medium">{asociatie.nume}</div>
+                  <div className="font-medium">{displayAsociatie.nume}</div>
                 </div>
-                {asociatie.cui && (
+                {displayAsociatie.cui && (
                   <div>
                     <div className="text-sm text-gray-500">CUI</div>
-                    <div className="font-medium">{asociatie.cui}</div>
+                    <div className="font-medium">{displayAsociatie.cui}</div>
                   </div>
                 )}
                 <div>
@@ -558,36 +588,36 @@ export default function CladirePage() {
                     <MapPin className="h-3 w-3" /> Adresă
                   </div>
                   <div className="font-medium">
-                    {asociatie.adresa}, {asociatie.oras}, {asociatie.judet}
-                    {asociatie.codPostal && `, ${asociatie.codPostal}`}
+                    {displayAsociatie.adresa}, {displayAsociatie.oras}, {displayAsociatie.judet}
+                    {displayAsociatie.codPostal && `, ${displayAsociatie.codPostal}`}
                   </div>
                 </div>
               </div>
               <div className="space-y-4">
-                {asociatie.email && (
+                {displayAsociatie.email && (
                   <div>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
                       <Mail className="h-3 w-3" /> Email
                     </div>
-                    <div className="font-medium">{asociatie.email}</div>
+                    <div className="font-medium">{displayAsociatie.email}</div>
                   </div>
                 )}
-                {asociatie.telefon && (
+                {displayAsociatie.telefon && (
                   <div>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
                       <Phone className="h-3 w-3" /> Telefon
                     </div>
-                    <div className="font-medium">{asociatie.telefon}</div>
+                    <div className="font-medium">{displayAsociatie.telefon}</div>
                   </div>
                 )}
-                {asociatie.contBancar && (
+                {displayAsociatie.contBancar && (
                   <div>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
                       <CreditCard className="h-3 w-3" /> Cont bancar
                     </div>
                     <div className="font-medium font-mono text-sm">
-                      {asociatie.contBancar}
-                      {asociatie.banca && <span className="text-gray-500"> ({asociatie.banca})</span>}
+                      {displayAsociatie.contBancar}
+                      {displayAsociatie.banca && <span className="text-gray-500"> ({displayAsociatie.banca})</span>}
                     </div>
                   </div>
                 )}
@@ -645,14 +675,14 @@ export default function CladirePage() {
                 <Calendar className="h-8 w-8 text-blue-600" />
                 <div>
                   <div className="text-sm text-gray-500">Zi scadență</div>
-                  <div className="font-semibold text-lg">{asociatie.ziScadenta}</div>
+                  <div className="font-semibold text-lg">{displayAsociatie.ziScadenta}</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
                 <Percent className="h-8 w-8 text-orange-600" />
                 <div>
                   <div className="text-sm text-gray-500">Penalizare/zi</div>
-                  <div className="font-semibold text-lg">{(asociatie.penalizareZi * 100).toFixed(2)}%</div>
+                  <div className="font-semibold text-lg">{(displayAsociatie.penalizareZi * 100).toFixed(2)}%</div>
                 </div>
               </div>
             </div>

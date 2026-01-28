@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -11,12 +11,28 @@ export async function GET() {
     }
 
     const userId = (session.user as { id: string }).id
+    const { searchParams } = new URL(request.url)
+    const asociatieId = searchParams.get('asociatieId')
 
-    const asociatie = await db.asociatie.findFirst({
-      where: { adminId: userId }
-    })
+    console.log('GET /api/cladire - params:', { asociatieId, userId })
+
+    let asociatie
+    if (asociatieId) {
+      // Get specific asociatie by ID (if user is admin)
+      asociatie = await db.asociatie.findFirst({
+        where: { id: asociatieId, adminId: userId }
+      })
+      console.log('GET /api/cladire - found by ID:', asociatie?.id, asociatie?.nume)
+    } else {
+      // Fallback: get first asociatie for user
+      asociatie = await db.asociatie.findFirst({
+        where: { adminId: userId }
+      })
+      console.log('GET /api/cladire - fallback (first):', asociatie?.id, asociatie?.nume)
+    }
 
     if (!asociatie) {
+      console.log('GET /api/cladire - no asociatie found, returning null')
       return NextResponse.json({ asociatie: null, cladiri: [] })
     }
 
