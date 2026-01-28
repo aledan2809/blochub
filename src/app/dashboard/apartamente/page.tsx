@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { exportApartamenteToPDF, exportApartamenteToExcel } from '@/lib/export-utils'
 import Link from 'next/link'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface Apartament {
   id: string
@@ -59,6 +60,7 @@ interface TipApartament {
 
 export default function ApartamentePage() {
   const toast = useToast()
+  const { currentAsociatie } = useAsociatie()
   const [apartamente, setApartamente] = useState<Apartament[]>([])
   const [scari, setScari] = useState<Scara[]>([])
   const [tipuriApartament, setTipuriApartament] = useState<TipApartament[]>([])
@@ -73,13 +75,17 @@ export default function ApartamentePage() {
   const [showExportMenu, setShowExportMenu] = useState(false)
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (currentAsociatie) {
+      fetchData()
+    }
+  }, [currentAsociatie])
 
   async function fetchData() {
+    if (!currentAsociatie) return
+
     try {
-      // Get association info and scari
-      const cladireRes = await fetch('/api/cladire')
+      // Get association info and cladiri (with scari inside)
+      const cladireRes = await fetch(`/api/cladire?asociatieId=${currentAsociatie.id}`, { cache: 'no-store' })
       const cladireData = await cladireRes.json()
 
       if (!cladireData.asociatie) {
@@ -89,15 +95,25 @@ export default function ApartamentePage() {
 
       setAsociatieId(cladireData.asociatie.id)
       setAsociatie(cladireData.asociatie)
-      setScari(cladireData.scari || [])
+
+      // Extract scari from all cladiri (they are nested inside each cladire)
+      const allScari: Scara[] = []
+      if (cladireData.cladiri) {
+        for (const cladire of cladireData.cladiri) {
+          if (cladire.scari) {
+            allScari.push(...cladire.scari.map((s: any) => ({ id: s.id, numar: s.numar })))
+          }
+        }
+      }
+      setScari(allScari)
 
       // Fetch tipuri apartament
-      const tipuriRes = await fetch(`/api/tipuri-apartament?asociatieId=${cladireData.asociatie.id}`)
+      const tipuriRes = await fetch(`/api/tipuri-apartament?asociatieId=${cladireData.asociatie.id}`, { cache: 'no-store' })
       const tipuriData = await tipuriRes.json()
       setTipuriApartament(tipuriData.tipuri || [])
 
       // Get apartments
-      const res = await fetch(`/api/apartamente?asociatieId=${cladireData.asociatie.id}`)
+      const res = await fetch(`/api/apartamente?asociatieId=${cladireData.asociatie.id}`, { cache: 'no-store' })
       const data = await res.json()
       // Add asociatieId to each apartment for edit modal
       setApartamente((data.apartamente || []).map((apt: Apartament) => ({
@@ -154,7 +170,7 @@ export default function ApartamentePage() {
     }
   }
 
-  if (loading) {
+  if (loading || !currentAsociatie) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
