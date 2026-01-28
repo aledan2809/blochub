@@ -58,6 +58,27 @@ const months = [
   'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'
 ]
 
+// Unique short codes for expense categories
+const categoryShortCodes: Record<string, string> = {
+  'Apă rece': 'AR',
+  'Apă caldă': 'AC',
+  'Canalizare': 'CN',
+  'Gaz': 'G',
+  'Curent comun': 'CC',
+  'Gunoi': 'GN',
+  'Lift': 'LF',
+  'Salubritate': 'SL',
+  'Întreținere': 'ÎN',
+  'Administrator': 'AD',
+  'Fond reparații': 'FR',
+  'Fond rulment': 'FRL',
+  'Alte cheltuieli': 'ALT',
+}
+
+function getCategoryShortCode(category: string): string {
+  return categoryShortCodes[category] || category.substring(0, 2).toUpperCase()
+}
+
 export default function AvizierPage() {
   const [data, setData] = useState<AvizierData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -447,7 +468,7 @@ export default function AvizierPage() {
                     {data.categoriiCheltuieli.map(cat => (
                       <th key={cat} className="px-2 py-2 text-right font-semibold border-b print:px-1 print:py-1">
                         <span className="truncate block max-w-[80px]" title={cat}>
-                          {cat.split('_').map(w => w[0]).join('')}
+                          {getCategoryShortCode(cat)}
                         </span>
                       </th>
                     ))}
@@ -568,7 +589,7 @@ export default function AvizierPage() {
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {data.categoriiCheltuieli.map(cat => (
               <span key={cat}>
-                <strong>{cat.split('_').map(w => w[0]).join('')}</strong> = {cat.replace(/_/g, ' ')}
+                <strong>{getCategoryShortCode(cat)}</strong> = {cat}
               </span>
             ))}
           </div>
