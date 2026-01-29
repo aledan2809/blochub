@@ -326,7 +326,13 @@ const navigation = [
     name: 'Încasări',
     href: '/dashboard/incasari',
     icon: Wallet,
-    description: 'Plăți primite'
+    description: 'Încasări de la locatari'
+  },
+  {
+    name: 'Plăți',
+    href: '/dashboard/plati',
+    icon: CreditCard,
+    description: 'Plăți către furnizori'
   },
   {
     name: 'Sesizări',

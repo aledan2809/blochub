@@ -74,6 +74,14 @@ export async function GET(request: NextRequest) {
       orderBy: { dataPlata: 'desc' }
     })
 
+    // Get receipt book settings
+    const asociatieData = {
+      id: association.id,
+      serieChitantier: association.serieChitantier,
+      numarChitantierStart: association.numarChitantierStart,
+      ultimulNumarChitanta: association.ultimulNumarChitanta
+    }
+
     // Get summary stats
     const stats = await db.plata.aggregate({
       where: {
@@ -87,6 +95,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       plati,
       asociatieId: association.id,
+      asociatie: asociatieData,
       stats: {
         totalIncasat: stats._sum.suma || 0,
         numarPlati: stats._count
@@ -121,13 +130,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Chitanță negăsită' }, { status: 404 })
     }
 
-    // Create payment
+    // Get next receipt number and update counter atomically
+    const asociatie = chitanta.asociatie
+    const nextReceiptNumber = (asociatie.ultimulNumarChitanta || 0) + 1
+
+    // Update the counter first
+    await db.asociatie.update({
+      where: { id: asociatie.id },
+      data: { ultimulNumarChitanta: nextReceiptNumber }
+    })
+
+    // Create payment with receipt number
     const plata = await db.plata.create({
       data: {
         suma: body.suma,
         metodaPlata: body.metodaPlata || 'CASH',
         status: 'CONFIRMED',
         referinta: body.referinta || null,
+        serieChitantaIncasare: asociatie.serieChitantier || null,
+        numarChitantaIncasare: nextReceiptNumber,
         chitantaId: body.chitantaId,
         apartamentId: chitanta.apartamentId,
         dataPlata: body.dataPlata ? new Date(body.dataPlata) : new Date()

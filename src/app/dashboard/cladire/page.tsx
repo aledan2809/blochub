@@ -24,6 +24,7 @@ import {
   FileSpreadsheet,
   FileText,
   ChevronDown,
+  Receipt,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,9 @@ interface Asociatie {
   banca: string | null
   ziScadenta: number
   penalizareZi: number
+  serieChitantier: string | null
+  numarChitantierStart: number
+  ultimulNumarChitanta: number
 }
 
 interface Scara {
@@ -428,6 +432,9 @@ export default function CladirePage() {
     banca: null,
     ziScadenta: 25,
     penalizareZi: 0.0002,
+    serieChitantier: null,
+    numarChitantierStart: 1,
+    ultimulNumarChitanta: 0,
   } as Asociatie
 
   return (
@@ -683,6 +690,94 @@ export default function CladirePage() {
                 <div>
                   <div className="text-sm text-gray-500">Penalizare/zi</div>
                   <div className="font-semibold text-lg">{(displayAsociatie.penalizareZi * 100).toFixed(2)}%</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Receipt Book Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-green-600" />
+            Chitanțier
+          </CardTitle>
+          <CardDescription>Configurează seria și numerotarea chitanțelor emise la încasări</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {editMode ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Serie chitanțier
+                </label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase"
+                  value={formData.serieChitantier || ''}
+                  onChange={(e) => setFormData({ ...formData, serieChitantier: e.target.value.toUpperCase() })}
+                  placeholder="ex: CHT, ABC"
+                />
+                <p className="text-xs text-gray-500 mt-1">Prefixul seriei (opțional)</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Număr de început
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={formData.numarChitantierStart || 1}
+                  onChange={(e) => setFormData({ ...formData, numarChitantierStart: parseInt(e.target.value) || 1 })}
+                />
+                <p className="text-xs text-gray-500 mt-1">Prima chitanță din serie</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ultima chitanță emisă
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                  value={formData.ultimulNumarChitanta || 0}
+                  onChange={(e) => setFormData({ ...formData, ultimulNumarChitanta: parseInt(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-gray-500 mt-1">Următoarea va fi {(formData.ultimulNumarChitanta || 0) + 1}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                <Receipt className="h-8 w-8 text-green-600" />
+                <div>
+                  <div className="text-sm text-gray-500">Serie</div>
+                  <div className="font-semibold text-lg">{displayAsociatie.serieChitantier || '(nesetat)'}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">
+                  #
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Începe de la</div>
+                  <div className="font-semibold text-lg">{displayAsociatie.numarChitantierStart}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
+                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                  →
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500">Următoarea chitanță</div>
+                  <div className="font-semibold text-lg">
+                    {displayAsociatie.serieChitantier ? `${displayAsociatie.serieChitantier}-` : ''}
+                    {Math.max(displayAsociatie.ultimulNumarChitanta + 1, displayAsociatie.numarChitantierStart)}
+                  </div>
                 </div>
               </div>
             </div>

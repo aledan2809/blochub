@@ -119,6 +119,11 @@ model Asociatie {
   ziScadenta      Int      @default(25)
   penalizareZi    Float    @default(0.02) // 0.02% pe zi
 
+  // Chitanțier (Receipt Book)
+  serieChitantier       String?   // ex: "CHT", "ABC"
+  numarChitantierStart  Int       @default(1)
+  ultimulNumarChitanta  Int       @default(0)
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -428,6 +433,12 @@ model Cheltuiala {
 
   repartizari     Repartizare[]
 
+  // Payment status (to supplier)
+  platita         Boolean        @default(false)
+  dataPlata       DateTime?
+  metodaPlataFurnizor MetodaPlata?
+  referintaPlata  String?        // Bank reference / receipt number
+
   createdAt       DateTime       @default(now())
 
   @@map("cheltuieli")
@@ -516,6 +527,10 @@ model Plata {
   dataPlata       DateTime    @default(now())
   metodaPlata     MetodaPlata
   status          StatusPlata @default(CONFIRMED)
+
+  // Receipt issued by association (chitanța de încasare)
+  serieChitantaIncasare  String?
+  numarChitantaIncasare  Int?
 
   // Payment gateway
   stripePaymentId String?

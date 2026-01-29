@@ -12,11 +12,13 @@ import {
   X,
   Check,
   AlertCircle,
-  Trash2
+  Trash2,
+  Receipt
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface Plata {
   id: string
@@ -25,6 +27,8 @@ interface Plata {
   metodaPlata: 'CASH' | 'CARD' | 'TRANSFER' | 'ALTELE'
   status: 'PENDING' | 'CONFIRMED' | 'FAILED' | 'REFUNDED'
   referinta: string | null
+  serieChitantaIncasare: string | null
+  numarChitantaIncasare: number | null
   apartament: {
     numar: string
     scara: { numar: string } | null
@@ -54,6 +58,13 @@ interface Chitanta {
   }
 }
 
+interface Asociatie {
+  id: string
+  serieChitantier: string | null
+  numarChitantierStart: number
+  ultimulNumarChitanta: number
+}
+
 const metodaPlataLabels: Record<string, string> = {
   CASH: 'Numerar',
   CARD: 'Card',
@@ -81,10 +92,11 @@ const months = [
 ]
 
 export default function IncasariPage() {
+  const { currentAsociatie } = useAsociatie()
   const [plati, setPlati] = useState<Plata[]>([])
   const [chitante, setChitante] = useState<Chitanta[]>([])
   const [loading, setLoading] = useState(true)
-  const [asociatieId, setAsociatieId] = useState<string | null>(null)
+  const [asociatieData, setAsociatieData] = useState<Asociatie | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
@@ -101,37 +113,34 @@ export default function IncasariPage() {
   })
 
   useEffect(() => {
-    fetchData()
-  }, [selectedMonth, selectedYear])
+    if (currentAsociatie?.id) {
+      fetchData()
+    }
+  }, [selectedMonth, selectedYear, currentAsociatie?.id])
 
   const fetchData = async () => {
+    if (!currentAsociatie?.id) return
+
     try {
-      const [platiRes, statsRes] = await Promise.all([
-        fetch(`/api/incasari?luna=${selectedMonth}&an=${selectedYear}`),
-        fetch('/api/dashboard/stats')
+      const [platiRes, chitRes] = await Promise.all([
+        fetch(`/api/incasari?asociatieId=${currentAsociatie.id}&luna=${selectedMonth}&an=${selectedYear}`),
+        fetch(`/api/chitante?asociatieId=${currentAsociatie.id}`)
       ])
 
       if (platiRes.ok) {
         const data = await platiRes.json()
         setPlati(data.plati || [])
-        setAsociatieId(data.asociatieId)
+        setAsociatieData(data.asociatie)
         setStats(data.stats || { totalIncasat: 0, numarPlati: 0 })
       }
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json()
-        if (statsData.hasAsociatie) {
-          // Fetch unpaid chitante
-          const chitRes = await fetch(`/api/chitante?asociatieId=${statsData.asociatie.id}`)
-          if (chitRes.ok) {
-            const chitData = await chitRes.json()
-            // Filter to only unpaid/partially paid
-            const unpaid = (chitData.chitante || []).filter((c: Chitanta) =>
-              ['GENERATA', 'TRIMISA', 'PARTIAL_PLATITA', 'RESTANTA'].includes(c.status)
-            )
-            setChitante(unpaid)
-          }
-        }
+      if (chitRes.ok) {
+        const chitData = await chitRes.json()
+        // Filter to only unpaid/partially paid
+        const unpaid = (chitData.chitante || []).filter((c: Chitanta) =>
+          ['GENERATA', 'TRIMISA', 'PARTIAL_PLATITA', 'RESTANTA'].includes(c.status)
+        )
+        setChitante(unpaid)
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -140,8 +149,17 @@ export default function IncasariPage() {
     }
   }
 
+  // Next receipt number calculation
+  const nextReceiptNumber = asociatieData
+    ? (asociatieData.ultimulNumarChitanta || 0) + 1
+    : 1
+
+  const nextReceiptDisplay = asociatieData?.serieChitantier
+    ? `${asociatieData.serieChitantier}-${String(nextReceiptNumber).padStart(6, '0')}`
+    : `#${nextReceiptNumber}`
+
   const handleAdd = async () => {
-    if (!formData.chitantaId || !formData.suma) return
+    if (!formData.chitantaId || !formData.suma || !currentAsociatie?.id) return
 
     try {
       const res = await fetch('/api/incasari', {
@@ -149,6 +167,7 @@ export default function IncasariPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          asociatieId: currentAsociatie.id,
           suma: parseFloat(formData.suma)
         })
       })
@@ -239,7 +258,7 @@ export default function IncasariPage() {
         </div>
         <Button onClick={() => setShowAddModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Înregistrează plată
+          Înregistrează încasare
         </Button>
       </div>
 
@@ -330,7 +349,7 @@ export default function IncasariPage() {
           {!searchTerm && (
             <Button onClick={() => setShowAddModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Înregistrează plată
+              Înregistrează încasare
             </Button>
           )}
         </div>
@@ -340,8 +359,9 @@ export default function IncasariPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Nr. Chitanță</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Apartament</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Chitanță</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Factură</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Sumă</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Metodă</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Data</th>
@@ -352,6 +372,16 @@ export default function IncasariPage() {
               <tbody className="divide-y">
                 {filtered.map((plata) => (
                   <tr key={plata.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Receipt className="h-4 w-4 text-green-600" />
+                        <span className="font-medium text-green-700">
+                          {plata.serieChitantaIncasare
+                            ? `${plata.serieChitantaIncasare}-${String(plata.numarChitantaIncasare).padStart(6, '0')}`
+                            : `#${plata.numarChitantaIncasare || '-'}`}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="font-medium">
                         Apt. {plata.apartament.numar}
@@ -426,7 +456,7 @@ export default function IncasariPage() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
           <div className="relative bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Înregistrează plată</h2>
+              <h2 className="text-lg font-semibold">Înregistrează încasare</h2>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg"
@@ -435,26 +465,44 @@ export default function IncasariPage() {
               </button>
             </div>
 
+            {/* Next Receipt Number Display */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Receipt className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-green-600">Următorul număr chitanță</p>
+                  <p className="text-xl font-bold text-green-700">{nextReceiptDisplay}</p>
+                </div>
+              </div>
+              {!asociatieData?.serieChitantier && (
+                <p className="text-xs text-orange-600 mt-2">
+                  Configurați seria chitanțier în Setări Asociație pentru numerotare completă
+                </p>
+              )}
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chitanță *
+                  Factură de plătit *
                 </label>
                 <select
                   value={formData.chitantaId}
                   onChange={(e) => handleChitantaSelect(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Selectează chitanță</option>
+                  <option value="">Selectează factură</option>
                   {chitante.map(ch => (
                     <option key={ch.id} value={ch.id}>
-                      Apt. {ch.apartament.numar} - #{ch.numar} ({months[ch.luna - 1]} {ch.an}) - {ch.sumaTotal.toLocaleString('ro-RO')} lei
+                      Apt. {ch.apartament.numar}{ch.apartament.scara ? ` (Sc. ${ch.apartament.scara.numar})` : ''} - #{ch.numar} ({months[ch.luna - 1]} {ch.an}) - {ch.sumaTotal.toLocaleString('ro-RO')} lei
                     </option>
                   ))}
                 </select>
                 {chitante.length === 0 && (
                   <p className="text-xs text-orange-600 mt-1">
-                    Nu există chitanțe neachitate
+                    Nu există facturi neachitate
                   </p>
                 )}
               </div>
@@ -529,11 +577,12 @@ export default function IncasariPage() {
                 Anulează
               </Button>
               <Button
-                className="flex-1"
+                className="flex-1 bg-green-600 hover:bg-green-700"
                 onClick={handleAdd}
                 disabled={!formData.chitantaId || !formData.suma}
               >
-                Înregistrează
+                <Receipt className="h-4 w-4 mr-2" />
+                Emite chitanță
               </Button>
             </div>
           </div>

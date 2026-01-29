@@ -126,6 +126,10 @@ export async function PUT(request: NextRequest) {
         banca: body.banca || null,
         ziScadenta: body.ziScadenta || 25,
         penalizareZi: body.penalizareZi || 0.0002,
+        // Receipt book settings
+        serieChitantier: body.serieChitantier || null,
+        numarChitantierStart: body.numarChitantierStart || 1,
+        ultimulNumarChitanta: body.ultimulNumarChitanta ?? 0,
       }
     })
 
