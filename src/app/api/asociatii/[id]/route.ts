@@ -6,7 +6,7 @@ import { db } from '@/lib/db'
 // GET individual association
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -15,7 +15,7 @@ export async function GET(
     }
 
     const userId = (session.user as { id: string }).id
-    const { id } = params
+    const { id } = await params
 
     const asociatie = await db.asociatie.findFirst({
       where: { id, adminId: userId }
@@ -35,7 +35,7 @@ export async function GET(
 // PUT update association
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -44,7 +44,7 @@ export async function PUT(
     }
 
     const userId = (session.user as { id: string }).id
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
 
     // Verify ownership
@@ -76,7 +76,7 @@ export async function PUT(
 // DELETE association
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -85,7 +85,7 @@ export async function DELETE(
     }
 
     const userId = (session.user as { id: string }).id
-    const { id } = params
+    const { id } = await params
 
     // Verify ownership
     const existing = await db.asociatie.findFirst({
