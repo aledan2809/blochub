@@ -9,7 +9,6 @@ import {
   Building2,
   LayoutDashboard,
   Users,
-  FileText,
   CreditCard,
   Settings,
   Bell,
@@ -496,12 +495,6 @@ const navigation = [
     href: '/dashboard/cheltuieli',
     icon: Receipt,
     description: 'Facturi și cheltuieli'
-  },
-  {
-    name: 'Chitanțe',
-    href: '/dashboard/chitante',
-    icon: FileText,
-    description: 'Facturi către locatari'
   },
   {
     name: 'Avizier',
