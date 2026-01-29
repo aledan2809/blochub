@@ -501,7 +501,7 @@ const navigation = [
     name: 'Chitanțe',
     href: '/dashboard/chitante',
     icon: FileText,
-    description: 'Liste de întreținere'
+    description: 'Facturi către locatari'
   },
   {
     name: 'Avizier',
