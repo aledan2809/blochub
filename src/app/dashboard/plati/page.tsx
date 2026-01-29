@@ -92,6 +92,7 @@ export default function PlatiPage() {
   const [showPayModal, setShowPayModal] = useState(false)
   const [selectedCheltuiala, setSelectedCheltuiala] = useState<Cheltuiala | null>(null)
   const [formData, setFormData] = useState({
+    suma: '',
     metodaPlata: 'TRANSFER',
     referinta: '',
     dataPlata: new Date().toISOString().split('T')[0]
@@ -131,6 +132,7 @@ export default function PlatiPage() {
   const handleOpenPayModal = (cheltuiala: Cheltuiala) => {
     setSelectedCheltuiala(cheltuiala)
     setFormData({
+      suma: cheltuiala.suma.toString(),
       metodaPlata: 'TRANSFER',
       referinta: '',
       dataPlata: new Date().toISOString().split('T')[0]
@@ -480,14 +482,36 @@ export default function PlatiPage() {
                   )}
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-bold text-gray-900">
-                    {selectedCheltuiala.suma.toLocaleString('ro-RO')} lei
+                  <p className="text-lg font-semibold text-gray-600">
+                    Total: {selectedCheltuiala.suma.toLocaleString('ro-RO')} lei
                   </p>
                   <p className="text-sm text-gray-500">
                     {months[selectedCheltuiala.luna - 1]} {selectedCheltuiala.an}
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Editable amount */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sumă plată (lei) *
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max={selectedCheltuiala.suma}
+                value={formData.suma}
+                onChange={(e) => setFormData({ ...formData, suma: e.target.value })}
+                className="text-lg font-semibold"
+                placeholder="0.00"
+              />
+              {parseFloat(formData.suma) < selectedCheltuiala.suma && parseFloat(formData.suma) > 0 && (
+                <p className="text-xs text-orange-600 mt-1">
+                  Plată parțială - rest de plată: {(selectedCheltuiala.suma - parseFloat(formData.suma)).toLocaleString('ro-RO')} lei
+                </p>
+              )}
             </div>
 
             <div className="space-y-4">
