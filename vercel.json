@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "prisma generate && next build",
+  "buildCommand": "prisma generate && next build --webpack",
   "framework": "nextjs",
   "regions": ["fra1"],
   "functions": {
