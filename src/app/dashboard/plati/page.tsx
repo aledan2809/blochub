@@ -136,8 +136,22 @@ export default function PlatiPage() {
   // Export modal
   const [showExportModal, setShowExportModal] = useState(false)
   const [exportContId, setExportContId] = useState('')
-  const [exportFormat, setExportFormat] = useState<'csv' | 'xml'>('csv')
+  const [exportFormat, setExportFormat] = useState('bt') // Default to BT format
   const [exporting, setExporting] = useState(false)
+
+  // Bank format options for export
+  const bankFormats = [
+    { value: 'bt', label: 'Banca Transilvania (BT)', description: 'Format CSV specific BT' },
+    { value: 'bcr', label: 'BCR', description: 'Format CSV specific BCR' },
+    { value: 'ing', label: 'ING Bank', description: 'Format CSV specific ING' },
+    { value: 'raiffeisen', label: 'Raiffeisen Bank', description: 'Format MultiCash' },
+    { value: 'brd', label: 'BRD', description: 'Format CSV specific BRD' },
+    { value: 'cec', label: 'CEC Bank', description: 'Format CSV specific CEC' },
+    { value: 'unicredit', label: 'UniCredit', description: 'Format CSV specific UniCredit' },
+    { value: 'alpha', label: 'Alpha Bank', description: 'Format CSV specific Alpha Bank' },
+    { value: 'xml', label: 'SEPA XML', description: 'Format standard european pain.001' },
+    { value: 'csv', label: 'CSV Generic', description: 'Format universal CSV' },
+  ]
 
   useEffect(() => {
     if (currentAsociatie?.id) {
@@ -998,36 +1012,21 @@ export default function PlatiPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Format fișier
+                  Format bancă
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setExportFormat('csv')}
-                    className={cn(
-                      'px-3 py-2 border rounded-lg transition-colors',
-                      exportFormat === 'csv'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    )}
-                  >
-                    CSV
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setExportFormat('xml')}
-                    className={cn(
-                      'px-3 py-2 border rounded-lg transition-colors',
-                      exportFormat === 'xml'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    )}
-                  >
-                    SEPA XML
-                  </button>
-                </div>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {bankFormats.map(format => (
+                    <option key={format.value} value={format.value}>
+                      {format.label}
+                    </option>
+                  ))}
+                </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  CSV: Format universal | SEPA XML: Format standard european
+                  {bankFormats.find(f => f.value === exportFormat)?.description}
                 </p>
               </div>
 

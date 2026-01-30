@@ -3,8 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
-// Helper: Generate CSV content
-function generateCSV(plati: Array<{
+// Type definitions
+interface Plata {
+  id: string
   beneficiarNume: string
   beneficiarIban: string
   beneficiarBanca: string | null
@@ -12,11 +13,290 @@ function generateCSV(plati: Array<{
   suma: number
   descriere: string
   referinta: string | null
-}>, contBancar: {
+}
+
+interface ContBancar {
   iban: string
   banca: string
   nume: string
-}): string {
+  codBic: string | null
+}
+
+interface Asociatie {
+  nume: string
+  cui: string | null
+}
+
+// Format date as DD.MM.YYYY (Romanian format)
+function formatDateRO(date: Date): string {
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}.${month}.${year}`
+}
+
+// Remove diacritics for bank compatibility
+function removeDiacritics(str: string): string {
+  return str
+    .replace(/[ăâ]/g, 'a')
+    .replace(/[ĂÂ]/g, 'A')
+    .replace(/[îï]/g, 'i')
+    .replace(/[ÎÏ]/g, 'I')
+    .replace(/[șş]/g, 's')
+    .replace(/[ȘŞ]/g, 'S')
+    .replace(/[țţ]/g, 't')
+    .replace(/[ȚŢ]/g, 'T')
+}
+
+// ============================================
+// BANCA TRANSILVANIA (BT) FORMAT
+// ============================================
+function generateBT(plati: Plata[], contBancar: ContBancar): string {
+  // BT uses semicolon separator, Windows-1250 encoding
+  const header = [
+    'Cont platitor',
+    'Nume beneficiar',
+    'Cont beneficiar',
+    'Banca beneficiar',
+    'Suma',
+    'Moneda',
+    'Detalii plata',
+    'CUI beneficiar',
+    'Data platii'
+  ].join(';')
+
+  const today = formatDateRO(new Date())
+  const rows = plati.map(p => [
+    contBancar.iban,
+    removeDiacritics(p.beneficiarNume),
+    p.beneficiarIban,
+    removeDiacritics(p.beneficiarBanca || ''),
+    p.suma.toFixed(2),
+    'RON',
+    removeDiacritics(p.descriere),
+    p.beneficiarCui || '',
+    today
+  ].join(';'))
+
+  return [header, ...rows].join('\r\n')
+}
+
+// ============================================
+// BCR FORMAT
+// ============================================
+function generateBCR(plati: Plata[], contBancar: ContBancar): string {
+  // BCR uses semicolon separator
+  const header = [
+    'IBAN Platitor',
+    'IBAN Beneficiar',
+    'Nume Beneficiar',
+    'CIF/CNP Beneficiar',
+    'Suma',
+    'Moneda',
+    'Referinta',
+    'Detalii'
+  ].join(';')
+
+  const rows = plati.map(p => [
+    contBancar.iban,
+    p.beneficiarIban,
+    `"${removeDiacritics(p.beneficiarNume)}"`,
+    p.beneficiarCui || '',
+    p.suma.toFixed(2),
+    'RON',
+    p.referinta || '',
+    `"${removeDiacritics(p.descriere)}"`
+  ].join(';'))
+
+  return [header, ...rows].join('\r\n')
+}
+
+// ============================================
+// ING FORMAT
+// ============================================
+function generateING(plati: Plata[], contBancar: ContBancar): string {
+  // ING accepts standard CSV with specific columns
+  const header = [
+    'Debit account',
+    'Beneficiary name',
+    'Beneficiary account',
+    'Amount',
+    'Currency',
+    'Payment details',
+    'Beneficiary address'
+  ].join(',')
+
+  const rows = plati.map(p => [
+    contBancar.iban,
+    `"${removeDiacritics(p.beneficiarNume)}"`,
+    p.beneficiarIban,
+    p.suma.toFixed(2),
+    'RON',
+    `"${removeDiacritics(p.descriere)}"`,
+    '""'
+  ].join(','))
+
+  return [header, ...rows].join('\r\n')
+}
+
+// ============================================
+// RAIFFEISEN FORMAT
+// ============================================
+function generateRaiffeisen(plati: Plata[], contBancar: ContBancar): string {
+  // Raiffeisen MultiCash-like format
+  const header = [
+    'Cont ordonator',
+    'Nume beneficiar',
+    'Cont beneficiar',
+    'Cod BIC beneficiar',
+    'Suma',
+    'Valuta',
+    'Detalii plata 1',
+    'Detalii plata 2',
+    'Cod fiscal beneficiar',
+    'Urgent'
+  ].join(';')
+
+  const rows = plati.map(p => {
+    const descriere = removeDiacritics(p.descriere)
+    const detalii1 = descriere.substring(0, 35)
+    const detalii2 = descriere.substring(35, 70)
+    return [
+      contBancar.iban,
+      removeDiacritics(p.beneficiarNume),
+      p.beneficiarIban,
+      '',
+      p.suma.toFixed(2),
+      'RON',
+      detalii1,
+      detalii2,
+      p.beneficiarCui || '',
+      'N'
+    ].join(';')
+  })
+
+  return [header, ...rows].join('\r\n')
+}
+
+// ============================================
+// BRD FORMAT
+// ============================================
+function generateBRD(plati: Plata[], contBancar: ContBancar): string {
+  // BRD uses semicolon separator
+  const header = [
+    'Cont debitor',
+    'Cont creditor',
+    'Nume creditor',
+    'Adresa creditor',
+    'CUI creditor',
+    'Suma',
+    'Moneda',
+    'Explicatie plata',
+    'Referinta'
+  ].join(';')
+
+  const rows = plati.map(p => [
+    contBancar.iban,
+    p.beneficiarIban,
+    `"${removeDiacritics(p.beneficiarNume)}"`,
+    '""',
+    p.beneficiarCui || '',
+    p.suma.toFixed(2),
+    'RON',
+    `"${removeDiacritics(p.descriere)}"`,
+    p.referinta || ''
+  ].join(';'))
+
+  return [header, ...rows].join('\r\n')
+}
+
+// ============================================
+// CEC BANK FORMAT
+// ============================================
+function generateCEC(plati: Plata[], contBancar: ContBancar): string {
+  // CEC Bank format
+  const header = [
+    'IBAN Platitor',
+    'IBAN Beneficiar',
+    'Denumire Beneficiar',
+    'CUI Beneficiar',
+    'Suma',
+    'Descriere',
+    'Data executare'
+  ].join(';')
+
+  const today = formatDateRO(new Date())
+  const rows = plati.map(p => [
+    contBancar.iban,
+    p.beneficiarIban,
+    `"${removeDiacritics(p.beneficiarNume)}"`,
+    p.beneficiarCui || '',
+    p.suma.toFixed(2),
+    `"${removeDiacritics(p.descriere)}"`,
+    today
+  ].join(';'))
+
+  return [header, ...rows].join('\r\n')
+}
+
+// ============================================
+// UNICREDIT FORMAT
+// ============================================
+function generateUniCredit(plati: Plata[], contBancar: ContBancar): string {
+  const header = [
+    'Account',
+    'Beneficiary Account',
+    'Beneficiary Name',
+    'Amount',
+    'Currency',
+    'Details',
+    'Beneficiary Tax ID'
+  ].join(';')
+
+  const rows = plati.map(p => [
+    contBancar.iban,
+    p.beneficiarIban,
+    `"${removeDiacritics(p.beneficiarNume)}"`,
+    p.suma.toFixed(2),
+    'RON',
+    `"${removeDiacritics(p.descriere)}"`,
+    p.beneficiarCui || ''
+  ].join(';'))
+
+  return [header, ...rows].join('\r\n')
+}
+
+// ============================================
+// ALPHA BANK FORMAT
+// ============================================
+function generateAlphaBank(plati: Plata[], contBancar: ContBancar): string {
+  const header = [
+    'Cont sursa',
+    'IBAN Destinatar',
+    'Nume Destinatar',
+    'Suma',
+    'Valuta',
+    'Descriere',
+    'CIF Destinatar'
+  ].join(';')
+
+  const rows = plati.map(p => [
+    contBancar.iban,
+    p.beneficiarIban,
+    `"${removeDiacritics(p.beneficiarNume)}"`,
+    p.suma.toFixed(2),
+    'RON',
+    `"${removeDiacritics(p.descriere)}"`,
+    p.beneficiarCui || ''
+  ].join(';'))
+
+  return [header, ...rows].join('\r\n')
+}
+
+// ============================================
+// GENERIC CSV FORMAT
+// ============================================
+function generateCSV(plati: Plata[], contBancar: ContBancar): string {
   const header = [
     'Nr.',
     'IBAN Platitor',
@@ -46,23 +326,10 @@ function generateCSV(plati: Array<{
   return [header, ...rows].join('\n')
 }
 
-// Helper: Generate SEPA XML (pain.001.001.03)
-function generateSEPAXML(plati: Array<{
-  id: string
-  beneficiarNume: string
-  beneficiarIban: string
-  beneficiarBanca: string | null
-  suma: number
-  descriere: string
-  referinta: string | null
-}>, contBancar: {
-  iban: string
-  banca: string
-  codBic: string | null
-}, asociatie: {
-  nume: string
-  cui: string | null
-}): string {
+// ============================================
+// SEPA XML (pain.001.001.03)
+// ============================================
+function generateSEPAXML(plati: Plata[], contBancar: ContBancar, asociatie: Asociatie): string {
   const now = new Date()
   const msgId = `MSG-${now.toISOString().replace(/[-:T]/g, '').slice(0, 14)}`
   const pmtInfId = `PMT-${now.toISOString().replace(/[-:T]/g, '').slice(0, 14)}`
@@ -157,8 +424,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Date incomplete' }, { status: 400 })
     }
 
-    if (!['csv', 'xml'].includes(format)) {
-      return NextResponse.json({ error: 'Format invalid (csv sau xml)' }, { status: 400 })
+    const validFormats = ['csv', 'xml', 'bt', 'bcr', 'ing', 'raiffeisen', 'brd', 'cec', 'unicredit', 'alpha']
+    if (!validFormats.includes(format)) {
+      return NextResponse.json({ error: 'Format invalid' }, { status: 400 })
     }
 
     // Verify user owns the association
@@ -193,7 +461,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nu există plăți în așteptare' }, { status: 400 })
     }
 
-    // Generate file content
+    // Generate file content based on format
     let content: string
     let filename: string
     let contentType: string
@@ -201,14 +469,70 @@ export async function POST(request: NextRequest) {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
     const bankName = contBancar.banca.replace(/\s+/g, '_')
 
-    if (format === 'csv') {
-      content = generateCSV(plati, contBancar)
-      filename = `plati_${bankName}_${date}.csv`
-      contentType = 'text/csv; charset=utf-8'
-    } else {
-      content = generateSEPAXML(plati, contBancar, asociatie)
-      filename = `plati_${bankName}_${date}.xml`
-      contentType = 'application/xml; charset=utf-8'
+    // Bank-specific format labels for filename
+    const formatLabels: Record<string, string> = {
+      csv: 'generic',
+      xml: 'SEPA',
+      bt: 'BT',
+      bcr: 'BCR',
+      ing: 'ING',
+      raiffeisen: 'Raiffeisen',
+      brd: 'BRD',
+      cec: 'CEC',
+      unicredit: 'UniCredit',
+      alpha: 'AlphaBank'
+    }
+
+    switch (format) {
+      case 'bt':
+        content = generateBT(plati, contBancar)
+        filename = `plati_${formatLabels[format]}_${date}.csv`
+        contentType = 'text/csv; charset=windows-1250'
+        break
+      case 'bcr':
+        content = generateBCR(plati, contBancar)
+        filename = `plati_${formatLabels[format]}_${date}.csv`
+        contentType = 'text/csv; charset=utf-8'
+        break
+      case 'ing':
+        content = generateING(plati, contBancar)
+        filename = `plati_${formatLabels[format]}_${date}.csv`
+        contentType = 'text/csv; charset=utf-8'
+        break
+      case 'raiffeisen':
+        content = generateRaiffeisen(plati, contBancar)
+        filename = `plati_${formatLabels[format]}_${date}.csv`
+        contentType = 'text/csv; charset=utf-8'
+        break
+      case 'brd':
+        content = generateBRD(plati, contBancar)
+        filename = `plati_${formatLabels[format]}_${date}.csv`
+        contentType = 'text/csv; charset=utf-8'
+        break
+      case 'cec':
+        content = generateCEC(plati, contBancar)
+        filename = `plati_${formatLabels[format]}_${date}.csv`
+        contentType = 'text/csv; charset=utf-8'
+        break
+      case 'unicredit':
+        content = generateUniCredit(plati, contBancar)
+        filename = `plati_${formatLabels[format]}_${date}.csv`
+        contentType = 'text/csv; charset=utf-8'
+        break
+      case 'alpha':
+        content = generateAlphaBank(plati, contBancar)
+        filename = `plati_${formatLabels[format]}_${date}.csv`
+        contentType = 'text/csv; charset=utf-8'
+        break
+      case 'xml':
+        content = generateSEPAXML(plati, contBancar, asociatie)
+        filename = `plati_${formatLabels[format]}_${date}.xml`
+        contentType = 'application/xml; charset=utf-8'
+        break
+      default: // csv
+        content = generateCSV(plati, contBancar)
+        filename = `plati_${bankName}_${date}.csv`
+        contentType = 'text/csv; charset=utf-8'
     }
 
     // Mark payments as exported if requested
