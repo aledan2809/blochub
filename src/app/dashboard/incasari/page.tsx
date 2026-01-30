@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useAsociatie } from '@/contexts/AsociatieContext'
+import Link from 'next/link'
 
 interface Plata {
   id: string
@@ -478,7 +479,10 @@ export default function IncasariPage() {
               </div>
               {!asociatieData?.serieChitantier && (
                 <p className="text-xs text-orange-600 mt-2">
-                  Configurați seria chitanțier în Setări Asociație pentru numerotare completă
+                  Configurați seria chitanțier în{' '}
+                  <Link href="/dashboard/setari?tab=asociatie" target="_blank" className="font-medium underline hover:text-orange-700">
+                    Setări Asociație →
+                  </Link>
                 </p>
               )}
             </div>

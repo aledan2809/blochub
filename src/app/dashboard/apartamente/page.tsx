@@ -187,7 +187,11 @@ export default function ApartamentePage() {
             Configurează mai întâi clădirea
           </h3>
           <p className="text-gray-500 mb-4">
-            Mergi la Dashboard pentru a crea asociația.
+            Mergi la{' '}
+            <Link href="/dashboard" className="text-blue-600 hover:underline font-medium">
+              Dashboard →
+            </Link>
+            {' '}pentru a crea asociația.
           </p>
         </CardContent>
       </Card>

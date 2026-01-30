@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Settings,
   Bell,
@@ -62,12 +63,22 @@ interface ContBancar {
 }
 
 export default function SetariPage() {
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [savingAsociatie, setSavingAsociatie] = useState(false)
   const [savedAsociatie, setSavedAsociatie] = useState(false)
-  const [activeTab, setActiveTab] = useState<'profil' | 'notificari' | 'asociatie' | 'conturi' | 'date' | 'cont'>('profil')
+
+  // Get initial tab from URL query parameter
+  const validTabs = ['profil', 'notificari', 'asociatie', 'conturi', 'date', 'cont'] as const
+  const [activeTab, setActiveTab] = useState<typeof validTabs[number]>(
+    tabParam && validTabs.includes(tabParam as typeof validTabs[number])
+      ? tabParam as typeof validTabs[number]
+      : 'profil'
+  )
 
   // Bank accounts state
   const [conturiBancare, setConturiBancare] = useState<ContBancar[]>([])

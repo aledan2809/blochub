@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useAsociatie } from '@/contexts/AsociatieContext'
+import Link from 'next/link'
 
 interface Cheltuiala {
   id: string
@@ -705,11 +706,17 @@ export default function PlatiPage() {
                 Nu aveți conturi bancare configurate
               </h3>
               <p className="text-gray-500 mb-4">
-                Adăugați un cont bancar în Setări pentru a genera fișiere de plată
+                Adăugați un cont bancar în{' '}
+                <Link href="/dashboard/setari?tab=conturi" target="_blank" className="text-blue-600 hover:underline font-medium">
+                  Setări
+                </Link>
+                {' '}pentru a genera fișiere de plată
               </p>
-              <Button onClick={() => window.location.href = '/dashboard/setari'}>
-                Mergi la Setări
-              </Button>
+              <Link href="/dashboard/setari?tab=conturi" target="_blank">
+                <Button>
+                  Deschide Setări →
+                </Button>
+              </Link>
             </div>
           ) : platiPending.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl border">
@@ -858,7 +865,10 @@ export default function PlatiPage() {
                   {conturiBancare.length === 0 ? (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                       <p className="text-sm text-orange-700">
-                        Nu aveți conturi bancare configurate. Adăugați un cont în Setări.
+                        Nu aveți conturi bancare configurate.{' '}
+                        <Link href="/dashboard/setari?tab=conturi" target="_blank" className="font-medium underline hover:text-orange-800">
+                          Adăugați un cont în Setări →
+                        </Link>
                       </p>
                     </div>
                   ) : (
@@ -891,7 +901,10 @@ export default function PlatiPage() {
                         />
                         {!formData.beneficiarIban && (
                           <p className="text-xs text-orange-600 mt-1">
-                            Adăugați IBAN-ul furnizorului în secțiunea Cheltuieli
+                            Adăugați IBAN-ul furnizorului în{' '}
+                            <Link href="/dashboard/cheltuieli" target="_blank" className="font-medium underline hover:text-orange-700">
+                              Cheltuieli →
+                            </Link>
                           </p>
                         )}
                       </div>
