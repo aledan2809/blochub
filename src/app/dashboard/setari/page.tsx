@@ -16,7 +16,12 @@ import {
   User,
   Building2,
   CreditCard,
-  FileText
+  FileText,
+  Landmark,
+  Plus,
+  Pencil,
+  X,
+  Star
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,13 +52,35 @@ interface AsociatieSettings {
   banca: string
 }
 
+interface ContBancar {
+  id: string
+  nume: string
+  iban: string
+  banca: string
+  codBic: string | null
+  esteImplicit: boolean
+}
+
 export default function SetariPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [savingAsociatie, setSavingAsociatie] = useState(false)
   const [savedAsociatie, setSavedAsociatie] = useState(false)
-  const [activeTab, setActiveTab] = useState<'profil' | 'notificari' | 'asociatie' | 'date' | 'cont'>('profil')
+  const [activeTab, setActiveTab] = useState<'profil' | 'notificari' | 'asociatie' | 'conturi' | 'date' | 'cont'>('profil')
+
+  // Bank accounts state
+  const [conturiBancare, setConturiBancare] = useState<ContBancar[]>([])
+  const [showContModal, setShowContModal] = useState(false)
+  const [editingCont, setEditingCont] = useState<ContBancar | null>(null)
+  const [savingCont, setSavingCont] = useState(false)
+  const [contForm, setContForm] = useState({
+    nume: '',
+    iban: '',
+    banca: '',
+    codBic: '',
+    esteImplicit: false
+  })
 
   const [settings, setSettings] = useState<UserSettings>({
     name: '',
@@ -116,10 +143,129 @@ export default function SetariPage() {
           banca: asociatieData.banca || ''
         })
       }
+
+      // Get bank accounts
+      const statsResCheck = await fetch('/api/dashboard/stats')
+      if (statsResCheck.ok) {
+        const statsData = await statsResCheck.json()
+        if (statsData.hasAsociatie) {
+          const conturiRes = await fetch(`/api/conturi-bancare?asociatieId=${statsData.asociatie.id}`)
+          if (conturiRes.ok) {
+            const conturiData = await conturiRes.json()
+            setConturiBancare(conturiData.conturi || [])
+          }
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch settings:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchConturiBancare = async () => {
+    if (!asociatie?.id) return
+    try {
+      const res = await fetch(`/api/conturi-bancare?asociatieId=${asociatie.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setConturiBancare(data.conturi || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch bank accounts:', error)
+    }
+  }
+
+  const handleOpenContModal = (cont?: ContBancar) => {
+    if (cont) {
+      setEditingCont(cont)
+      setContForm({
+        nume: cont.nume,
+        iban: cont.iban,
+        banca: cont.banca,
+        codBic: cont.codBic || '',
+        esteImplicit: cont.esteImplicit
+      })
+    } else {
+      setEditingCont(null)
+      setContForm({
+        nume: '',
+        iban: '',
+        banca: '',
+        codBic: '',
+        esteImplicit: conturiBancare.length === 0 // First account is default
+      })
+    }
+    setShowContModal(true)
+  }
+
+  const handleSaveCont = async () => {
+    if (!asociatie?.id || !contForm.nume || !contForm.iban || !contForm.banca) {
+      alert('Completează toate câmpurile obligatorii')
+      return
+    }
+
+    setSavingCont(true)
+    try {
+      const url = '/api/conturi-bancare'
+      const method = editingCont ? 'PUT' : 'POST'
+      const body = editingCont
+        ? { id: editingCont.id, ...contForm }
+        : { asociatieId: asociatie.id, ...contForm }
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+
+      if (res.ok) {
+        setShowContModal(false)
+        fetchConturiBancare()
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Eroare la salvare')
+      }
+    } catch (error) {
+      console.error('Failed to save bank account:', error)
+      alert('Eroare la salvare')
+    } finally {
+      setSavingCont(false)
+    }
+  }
+
+  const handleDeleteCont = async (id: string) => {
+    if (!confirm('Sigur doriți să ștergeți acest cont bancar?')) return
+
+    try {
+      const res = await fetch(`/api/conturi-bancare?id=${id}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        fetchConturiBancare()
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Eroare la ștergere')
+      }
+    } catch (error) {
+      console.error('Failed to delete bank account:', error)
+    }
+  }
+
+  const handleSetDefault = async (id: string) => {
+    try {
+      const res = await fetch('/api/conturi-bancare', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, esteImplicit: true })
+      })
+
+      if (res.ok) {
+        fetchConturiBancare()
+      }
+    } catch (error) {
+      console.error('Failed to set default:', error)
     }
   }
 
@@ -195,9 +341,28 @@ export default function SetariPage() {
   const tabs = [
     { id: 'profil', label: 'Profil', icon: User },
     { id: 'asociatie', label: 'Asociație', icon: Building2 },
+    { id: 'conturi', label: 'Conturi Bancare', icon: Landmark },
     { id: 'notificari', label: 'Notificări', icon: Bell },
     { id: 'date', label: 'Date', icon: Database },
     { id: 'cont', label: 'Cont', icon: Shield },
+  ]
+
+  // Romanian banks list for dropdown
+  const romanianBanks = [
+    'Banca Transilvania',
+    'BCR',
+    'BRD - Groupe Societe Generale',
+    'ING Bank',
+    'Raiffeisen Bank',
+    'CEC Bank',
+    'UniCredit Bank',
+    'Alpha Bank',
+    'OTP Bank',
+    'Garanti BBVA',
+    'Intesa Sanpaolo',
+    'First Bank',
+    'Libra Internet Bank',
+    'Altă bancă'
   ]
 
   if (loading) {
@@ -454,6 +619,228 @@ export default function SetariPage() {
                 )}
                 {savedAsociatie ? 'Salvat!' : 'Salvează setările'}
               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Conturi Bancare Tab */}
+        {activeTab === 'conturi' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Conturi Bancare</h2>
+                <p className="text-gray-600 text-sm">
+                  Gestionează conturile bancare pentru plăți furnizori
+                </p>
+              </div>
+              <Button onClick={() => handleOpenContModal()} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Adaugă cont
+              </Button>
+            </div>
+
+            {conturiBancare.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed">
+                <Landmark className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nu ai conturi bancare configurate
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Adaugă cel puțin un cont bancar pentru a putea genera fișiere de plată
+                </p>
+                <Button onClick={() => handleOpenContModal()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adaugă primul cont
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {conturiBancare.map(cont => (
+                  <div
+                    key={cont.id}
+                    className={cn(
+                      'p-4 rounded-lg border',
+                      cont.esteImplicit ? 'bg-blue-50 border-blue-200' : 'bg-white'
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className={cn(
+                          'h-10 w-10 rounded-lg flex items-center justify-center',
+                          cont.esteImplicit ? 'bg-blue-100' : 'bg-gray-100'
+                        )}>
+                          <Landmark className={cn(
+                            'h-5 w-5',
+                            cont.esteImplicit ? 'text-blue-600' : 'text-gray-500'
+                          )} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{cont.nume}</p>
+                            {cont.esteImplicit && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                                Implicit
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 font-mono">{cont.iban}</p>
+                          <p className="text-sm text-gray-500">{cont.banca}</p>
+                          {cont.codBic && (
+                            <p className="text-xs text-gray-400">BIC: {cont.codBic}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!cont.esteImplicit && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSetDefault(cont.id)}
+                            title="Setează ca implicit"
+                          >
+                            <Star className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenContModal(cont)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteCont(cont.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="pt-4 border-t">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-amber-900">Sfat</p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Contul marcat ca &quot;Implicit&quot; va fi selectat automat când adaugi plăți noi.
+                      Poți avea mai multe conturi pentru diferite tipuri de plăți.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bank Account Modal */}
+        {showContModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setShowContModal(false)} />
+            <div className="relative bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">
+                  {editingCont ? 'Editează cont bancar' : 'Adaugă cont bancar'}
+                </h2>
+                <button
+                  onClick={() => setShowContModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Denumire cont *
+                  </label>
+                  <Input
+                    value={contForm.nume}
+                    onChange={(e) => setContForm({ ...contForm, nume: e.target.value })}
+                    placeholder="ex: Cont BT Principal"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    IBAN *
+                  </label>
+                  <Input
+                    value={contForm.iban}
+                    onChange={(e) => setContForm({ ...contForm, iban: e.target.value.toUpperCase() })}
+                    placeholder="RO49AAAA1B31007593840000"
+                    className="font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bancă *
+                  </label>
+                  <select
+                    value={contForm.banca}
+                    onChange={(e) => setContForm({ ...contForm, banca: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Selectează banca</option>
+                    {romanianBanks.map(bank => (
+                      <option key={bank} value={bank}>{bank}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cod BIC/SWIFT (opțional)
+                  </label>
+                  <Input
+                    value={contForm.codBic}
+                    onChange={(e) => setContForm({ ...contForm, codBic: e.target.value.toUpperCase() })}
+                    placeholder="BTRLRO22"
+                    className="font-mono"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={contForm.esteImplicit}
+                    onChange={(e) => setContForm({ ...contForm, esteImplicit: e.target.checked })}
+                    className="h-4 w-4 rounded text-blue-600"
+                  />
+                  <span className="text-sm">Setează ca cont implicit pentru plăți</span>
+                </label>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowContModal(false)}
+                >
+                  Anulează
+                </Button>
+                <Button
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  onClick={handleSaveCont}
+                  disabled={savingCont || !contForm.nume || !contForm.iban || !contForm.banca}
+                >
+                  {savingCont ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  {editingCont ? 'Salvează' : 'Adaugă'}
+                </Button>
+              </div>
             </div>
           </div>
         )}
