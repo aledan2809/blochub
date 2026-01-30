@@ -150,6 +150,10 @@ model Asociatie {
   // Tichete
   tichete         Tichet[]
 
+  // Conturi bancare si plati
+  conturiBancare  ContBancarAsociatie[]
+  platiBancare    PlataBancaraPending[]
+
   @@map("asociatii")
 }
 
@@ -722,6 +726,67 @@ model ComentariuTichet {
   createdAt   DateTime @default(now())
 
   @@map("comentarii_tichete")
+}
+
+// ============================================
+// CONTURI BANCARE & PLATI BANCARE
+// ============================================
+
+model ContBancarAsociatie {
+  id           String   @id @default(cuid())
+  nume         String   // "Cont BT Principal", "Cont ING Cheltuieli"
+  iban         String
+  banca        String   // "Banca Transilvania", "ING Bank"
+  codBic       String?  // BIC/SWIFT code
+  esteImplicit Boolean  @default(false)
+
+  asociatieId  String
+  asociatie    Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  platiPending PlataBancaraPending[]
+
+  createdAt    DateTime @default(now())
+
+  @@map("conturi_bancare_asociatie")
+}
+
+enum StatusPlataBancara {
+  PENDING     // In asteptare export
+  EXPORTED    // Exportat in fisier
+  PAID        // Confirmat platit
+}
+
+model PlataBancaraPending {
+  id                String   @id @default(cuid())
+
+  // Beneficiary (furnizor)
+  beneficiarNume    String
+  beneficiarIban    String
+  beneficiarBanca   String?
+  beneficiarCui     String?
+
+  suma              Float
+  descriere         String   // Payment description
+  referinta         String?  // Reference for the payment
+
+  // Source bank account
+  contBancarId      String
+  contBancar        ContBancarAsociatie @relation(fields: [contBancarId], references: [id])
+
+  // Link to expense
+  cheltuialaId      String?
+
+  // Status
+  status            StatusPlataBancara @default(PENDING)
+  exportedAt        DateTime?
+  paidAt            DateTime?
+
+  asociatieId       String
+  asociatie         Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime @default(now())
+
+  @@map("plati_bancare_pending")
 }
 
 // ============================================
