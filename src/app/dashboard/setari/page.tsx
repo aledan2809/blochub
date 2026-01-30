@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Settings,
@@ -62,7 +62,7 @@ interface ContBancar {
   esteImplicit: boolean
 }
 
-export default function SetariPage() {
+function SetariContent() {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
 
@@ -1032,5 +1032,18 @@ export default function SetariPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Wrapper with Suspense for useSearchParams
+export default function SetariPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <SetariContent />
+    </Suspense>
   )
 }
