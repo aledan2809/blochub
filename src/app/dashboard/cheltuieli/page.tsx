@@ -10,12 +10,14 @@ import {
   Sparkles,
   Upload,
   CheckCircle,
-  Pencil,
   Trash2,
   X,
   Building2,
   AlertCircle,
   CheckCircle2,
+  CreditCard,
+  Banknote,
+  Wallet,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,6 +28,14 @@ interface Furnizor {
   nume: string
   cui: string | null
   contBancar: string | null
+}
+
+interface PlataFurnizor {
+  id: string
+  suma: number
+  dataPlata: string
+  metodaPlata: 'CASH' | 'TRANSFER' | 'CARD' | 'ALTELE'
+  referinta: string | null
 }
 
 interface Cheltuiala {
@@ -40,6 +50,10 @@ interface Cheltuiala {
   modRepartizare: string
   furnizorId: string | null
   furnizor?: Furnizor | null
+  platiFurnizor?: PlataFurnizor[]
+  sumaPlatita?: number
+  restDePlata?: number
+  esteAchitatIntegral?: boolean
 }
 
 const tipCheltuialaLabels: Record<string, string> = {
@@ -66,13 +80,22 @@ const modRepartizareLabels: Record<string, string> = {
   MANUAL: 'Manual',
 }
 
+const metodaPlataLabels: Record<string, string> = {
+  CASH: 'Numerar',
+  TRANSFER: 'Transfer bancar',
+  CARD: 'Card',
+  ALTELE: 'Altele',
+}
+
 export default function CheltuieliPage() {
   const [cheltuieli, setCheltuieli] = useState<Cheltuiala[]>([])
   const [furnizori, setFurnizori] = useState<Furnizor[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [editingCheltuiala, setEditingCheltuiala] = useState<Cheltuiala | null>(null)
+  const [payingCheltuiala, setPayingCheltuiala] = useState<Cheltuiala | null>(null)
   const [asociatieId, setAsociatieId] = useState<string | null>(null)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
@@ -89,12 +112,17 @@ export default function CheltuieliPage() {
 
       setAsociatieId(statsData.asociatie.id)
 
-      // Fetch cheltuieli
+      // Fetch cheltuieli with payment info
       const res = await fetch(
-        `/api/cheltuieli?asociatieId=${statsData.asociatie.id}&luna=${selectedMonth}&an=${selectedYear}`
+        `/api/plati-furnizori?asociatieId=${statsData.asociatie.id}&showPaid=true`
       )
       const data = await res.json()
-      setCheltuieli(data.cheltuieli || [])
+
+      // Filter by selected month/year
+      const filtered = (data.cheltuieli || []).filter((ch: Cheltuiala) =>
+        ch.luna === selectedMonth && ch.an === selectedYear
+      )
+      setCheltuieli(filtered)
 
       // Fetch furnizori
       const furnizoriRes = await fetch(`/api/furnizori?asociatieId=${statsData.asociatie.id}`)
@@ -127,6 +155,8 @@ export default function CheltuieliPage() {
   }
 
   const totalCheltuieli = cheltuieli.reduce((sum, ch) => sum + ch.suma, 0)
+  const totalPlatit = cheltuieli.reduce((sum, ch) => sum + (ch.sumaPlatita || 0), 0)
+  const totalRestDePlata = cheltuieli.reduce((sum, ch) => sum + (ch.restDePlata || ch.suma), 0)
 
   const filteredCheltuieli = cheltuieli.filter(ch =>
     tipCheltuialaLabels[ch.tip]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -161,6 +191,28 @@ export default function CheltuieliPage() {
           <Plus className="h-4 w-4 mr-2" />
           Adaugă Cheltuială
         </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="py-4">
+            <div className="text-sm text-gray-500">Total facturi</div>
+            <div className="text-2xl font-bold">{totalCheltuieli.toLocaleString('ro-RO')} lei</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <div className="text-sm text-gray-500">Plătit</div>
+            <div className="text-2xl font-bold text-green-600">{totalPlatit.toLocaleString('ro-RO')} lei</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <div className="text-sm text-gray-500">Rest de plată</div>
+            <div className="text-2xl font-bold text-orange-600">{totalRestDePlata.toLocaleString('ro-RO')} lei</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -220,61 +272,123 @@ export default function CheltuieliPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredCheltuieli.map((ch) => (
-            <Card
-              key={ch.id}
-              className="hover:shadow-md transition-shadow cursor-pointer group"
-              onClick={() => { setEditingCheltuiala(ch); setShowAddModal(true) }}
-            >
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Receipt className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{tipCheltuialaLabels[ch.tip] || ch.tip}</h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        {ch.furnizor ? (
-                          <>
-                            <span className="font-medium text-gray-700">{ch.furnizor.nume}</span>
-                            {ch.furnizor.contBancar && (
-                              <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
-                                IBAN
-                              </span>
-                            )}
-                          </>
+          {filteredCheltuieli.map((ch) => {
+            const restDePlata = ch.restDePlata ?? ch.suma
+            const sumaPlatita = ch.sumaPlatita ?? 0
+            const esteAchitat = restDePlata <= 0
+
+            return (
+              <Card
+                key={ch.id}
+                className={`hover:shadow-md transition-shadow group ${esteAchitat ? 'bg-green-50/50' : ''}`}
+              >
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div
+                      className="flex items-center gap-4 flex-1 cursor-pointer"
+                      onClick={() => { setEditingCheltuiala(ch); setShowAddModal(true) }}
+                    >
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${esteAchitat ? 'bg-green-100' : 'bg-blue-100'}`}>
+                        {esteAchitat ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
                         ) : (
-                          <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                            Fără furnizor!
-                          </span>
+                          <Receipt className="h-5 w-5 text-blue-600" />
                         )}
-                        {ch.nrFactura && <span>• Factura #{ch.nrFactura}</span>}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">{tipCheltuialaLabels[ch.tip] || ch.tip}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          {ch.furnizor ? (
+                            <>
+                              <span className="font-medium text-gray-700">{ch.furnizor.nume}</span>
+                              {ch.furnizor.contBancar && (
+                                <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                                  IBAN
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                              Fără furnizor!
+                            </span>
+                          )}
+                          {ch.nrFactura && <span>• Factura #{ch.nrFactura}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-bold text-lg">{ch.suma.toLocaleString('ro-RO')} lei</p>
+                        {sumaPlatita > 0 && (
+                          <div className="text-sm">
+                            <span className="text-green-600">Plătit: {sumaPlatita.toLocaleString('ro-RO')}</span>
+                            {restDePlata > 0 && (
+                              <span className="text-orange-600 ml-2">Rest: {restDePlata.toLocaleString('ro-RO')}</span>
+                            )}
+                          </div>
+                        )}
+                        {sumaPlatita === 0 && (
+                          <p className="text-sm text-orange-600">Neplătit</p>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        {!esteAchitat && ch.furnizor && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPayingCheltuiala(ch)
+                              setShowPaymentModal(true)
+                            }}
+                            title="Înregistrează plată"
+                          >
+                            <Wallet className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(ch.id) }}
+                          title="Șterge"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-bold text-lg">{ch.suma.toLocaleString('ro-RO')} lei</p>
-                      <p className="text-sm text-gray-500">{modRepartizareLabels[ch.modRepartizare]}</p>
+                  {ch.descriere && (
+                    <p className="mt-2 text-sm text-gray-600 pl-14">{ch.descriere}</p>
+                  )}
+                  {/* Payment history */}
+                  {ch.platiFurnizor && ch.platiFurnizor.length > 0 && (
+                    <div className="mt-3 pl-14 border-t pt-2">
+                      <p className="text-xs text-gray-500 mb-1">Istoric plăți:</p>
+                      <div className="space-y-1">
+                        {ch.platiFurnizor.map((plata) => (
+                          <div key={plata.id} className="flex items-center gap-2 text-xs text-gray-600">
+                            <span className="font-medium">{plata.suma.toLocaleString('ro-RO')} lei</span>
+                            <span className="text-gray-400">•</span>
+                            <span>{metodaPlataLabels[plata.metodaPlata]}</span>
+                            {plata.referinta && (
+                              <>
+                                <span className="text-gray-400">•</span>
+                                <span>Ref: {plata.referinta}</span>
+                              </>
+                            )}
+                            <span className="text-gray-400">•</span>
+                            <span>{new Date(plata.dataPlata).toLocaleDateString('ro-RO')}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(ch.id) }}
-                      title="Șterge"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {ch.descriere && (
-                  <p className="mt-2 text-sm text-gray-600 pl-14">{ch.descriere}</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
 
@@ -287,19 +401,192 @@ export default function CheltuieliPage() {
           furnizori={furnizori}
           editingCheltuiala={editingCheltuiala}
           onClose={() => { setShowAddModal(false); setEditingCheltuiala(null) }}
-          onSuccess={(newCh) => {
-            if (editingCheltuiala) {
-              setCheltuieli(cheltuieli.map(ch => ch.id === newCh.id ? newCh : ch))
-            } else {
-              setCheltuieli([...cheltuieli, newCh])
-            }
+          onSuccess={() => {
             setShowAddModal(false)
             setEditingCheltuiala(null)
-            // Refresh furnizori list in case new one was added
             fetchData()
           }}
         />
       )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && payingCheltuiala && asociatieId && (
+        <PaymentModal
+          cheltuiala={payingCheltuiala}
+          onClose={() => { setShowPaymentModal(false); setPayingCheltuiala(null) }}
+          onSuccess={() => {
+            setShowPaymentModal(false)
+            setPayingCheltuiala(null)
+            fetchData()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Payment Modal Component
+function PaymentModal({
+  cheltuiala,
+  onClose,
+  onSuccess,
+}: {
+  cheltuiala: Cheltuiala
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const restDePlata = cheltuiala.restDePlata ?? cheltuiala.suma
+  const [formData, setFormData] = useState({
+    suma: restDePlata.toString(),
+    metodaPlata: 'CASH' as 'CASH' | 'TRANSFER' | 'CARD' | 'ALTELE',
+    referinta: '',
+    dataPlata: new Date().toISOString().split('T')[0],
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/plati-furnizori', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cheltuialaId: cheltuiala.id,
+          suma: parseFloat(formData.suma),
+          metodaPlata: formData.metodaPlata,
+          referinta: formData.referinta || null,
+          dataPlata: formData.dataPlata,
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Eroare la înregistrarea plății')
+      }
+
+      onSuccess()
+    } catch (err) {
+      alert('Eroare: ' + (err instanceof Error ? err.message : 'Necunoscută'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Înregistrează Plată</h2>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">{tipCheltuialaLabels[cheltuiala.tip]}</span>
+              {cheltuiala.furnizor && <span> - {cheltuiala.furnizor.nume}</span>}
+            </p>
+            <p className="text-sm">
+              Factură: <span className="font-medium">{cheltuiala.suma.toLocaleString('ro-RO')} lei</span>
+              {(cheltuiala.sumaPlatita ?? 0) > 0 && (
+                <span className="text-green-600 ml-2">
+                  (Plătit: {(cheltuiala.sumaPlatita ?? 0).toLocaleString('ro-RO')} lei)
+                </span>
+              )}
+            </p>
+            <p className="text-sm font-medium text-orange-600">
+              Rest de plată: {restDePlata.toLocaleString('ro-RO')} lei
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sumă plătită (lei) *
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={restDePlata}
+                value={formData.suma}
+                onChange={(e) => setFormData({ ...formData, suma: e.target.value })}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">Max: {restDePlata.toLocaleString('ro-RO')} lei</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Metodă plată *
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'CASH', label: 'Numerar', icon: Banknote },
+                  { value: 'TRANSFER', label: 'Transfer', icon: CreditCard },
+                  { value: 'CARD', label: 'Card', icon: CreditCard },
+                  { value: 'ALTELE', label: 'Altele', icon: Wallet },
+                ].map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, metodaPlata: value as typeof formData.metodaPlata })}
+                    className={`flex items-center gap-2 p-3 border rounded-lg transition-colors ${
+                      formData.metodaPlata === value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="text-sm font-medium">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {formData.metodaPlata === 'CASH' ? 'Nr. chitanță furnizor' : 'Referință bancară / Nr. OP'}
+              </label>
+              <Input
+                type="text"
+                value={formData.referinta}
+                onChange={(e) => setFormData({ ...formData, referinta: e.target.value })}
+                placeholder={formData.metodaPlata === 'CASH' ? 'ex: CHT-001234' : 'ex: OP-123456'}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.metodaPlata === 'CASH'
+                  ? 'Numărul chitanței primite de la furnizor'
+                  : 'Referința din extrasul de cont'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Data plății
+              </label>
+              <Input
+                type="date"
+                value={formData.dataPlata}
+                onChange={(e) => setFormData({ ...formData, dataPlata: e.target.value })}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+                Anulează
+              </Button>
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Înregistrează Plata'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }
@@ -319,7 +606,7 @@ function CheltuialaModal({
   furnizori: Furnizor[]
   editingCheltuiala: Cheltuiala | null
   onClose: () => void
-  onSuccess: (ch: Cheltuiala) => void
+  onSuccess: () => void
 }) {
   const [loading, setLoading] = useState(false)
   const [scanning, setScanning] = useState(false)
@@ -345,7 +632,6 @@ function CheltuialaModal({
     nrFactura: editingCheltuiala?.nrFactura || '',
     modRepartizare: editingCheltuiala?.modRepartizare || 'COTA_INDIVIZA',
     furnizorId: editingCheltuiala?.furnizorId || '',
-    // New furnizor fields
     furnizorNume: '',
     furnizorCui: '',
     furnizorIban: '',
@@ -353,7 +639,6 @@ function CheltuialaModal({
 
   const isEditing = !!editingCheltuiala
 
-  // Verificare ANAF
   const handleVerifyAnaf = async () => {
     if (!formData.furnizorCui) {
       alert('Introdu CUI-ul pentru verificare')
@@ -379,7 +664,6 @@ function CheltuialaModal({
 
       setAnafResult(data)
 
-      // Auto-completează datele dacă firma a fost găsită
       if (data.found && data.firma) {
         setFormData(prev => ({
           ...prev,
@@ -395,7 +679,6 @@ function CheltuialaModal({
     }
   }
 
-  // OCR scan invoice
   const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -404,7 +687,6 @@ function CheltuialaModal({
     setOcrSuccess(false)
 
     try {
-      // Convert to base64
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => {
@@ -415,7 +697,6 @@ function CheltuialaModal({
         reader.readAsDataURL(file)
       })
 
-      // Send to OCR API
       const res = await fetch('/api/agents/ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -429,7 +710,6 @@ function CheltuialaModal({
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.data) {
-          // Check if furnizor exists
           const existingFurnizor = furnizori.find(
             f => f.nume.toLowerCase() === data.data.furnizor?.toLowerCase() ||
                  f.cui === data.data.cui
@@ -467,18 +747,16 @@ function CheltuialaModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate furnizor
     if (!formData.furnizorId && !formData.furnizorNume) {
       alert('Furnizorul este obligatoriu!')
       return
     }
 
-    // If new furnizor and no IBAN, warn (but still allow - IBAN required only for bank payments)
     if (showNewFurnizor && !formData.furnizorIban) {
-      const confirm = window.confirm(
+      const confirmed = window.confirm(
         'Nu ai completat IBAN-ul furnizorului. Fără IBAN nu vei putea face plăți bancare către acest furnizor. Continui?'
       )
-      if (!confirm) return
+      if (!confirmed) return
     }
 
     setLoading(true)
@@ -501,7 +779,6 @@ function CheltuialaModal({
           an,
           dataFactura: new Date().toISOString(),
           furnizorId: formData.furnizorId || null,
-          // New furnizor data
           furnizorNume: showNewFurnizor ? formData.furnizorNume : null,
           furnizorCui: showNewFurnizor ? formData.furnizorCui : null,
           furnizorIban: showNewFurnizor ? formData.furnizorIban : null,
@@ -513,8 +790,7 @@ function CheltuialaModal({
         throw new Error(error.error || 'Eroare la salvare')
       }
 
-      const data = await res.json()
-      onSuccess(data.cheltuiala)
+      onSuccess()
     } catch (err) {
       alert('Eroare: ' + (err instanceof Error ? err.message : 'Necunoscută'))
     } finally {
@@ -536,7 +812,6 @@ function CheltuialaModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* OCR Scanner - only for new expenses */}
             {!isEditing && (
               <>
                 <div className="mb-6">
@@ -605,7 +880,7 @@ function CheltuialaModal({
               </>
             )}
 
-            {/* Furnizor Selection - MANDATORY */}
+            {/* Furnizor Selection */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">
                 Furnizor * <span className="text-red-500 text-xs">(obligatoriu)</span>
@@ -647,11 +922,8 @@ function CheltuialaModal({
                     </button>
                   </div>
 
-                  {/* CUI cu verificare ANAF */}
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      CUI / Cod Fiscal
-                    </label>
+                    <label className="block text-xs text-gray-600 mb-1">CUI / Cod Fiscal</label>
                     <div className="flex gap-2">
                       <Input
                         value={formData.furnizorCui}
@@ -684,7 +956,6 @@ function CheltuialaModal({
                     </p>
                   </div>
 
-                  {/* Rezultat verificare ANAF */}
                   {anafResult && (
                     <div className={`p-3 rounded-lg ${anafResult.found ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                       {anafResult.found && anafResult.firma ? (
@@ -725,9 +996,7 @@ function CheltuialaModal({
                   )}
 
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Nume furnizor *
-                    </label>
+                    <label className="block text-xs text-gray-600 mb-1">Nume furnizor *</label>
                     <Input
                       value={formData.furnizorNume}
                       onChange={(e) => setFormData({ ...formData, furnizorNume: e.target.value })}
@@ -757,9 +1026,7 @@ function CheltuialaModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tip cheltuială *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tip cheltuială *</label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 value={formData.tip}
@@ -772,9 +1039,7 @@ function CheltuialaModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sumă (lei) *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sumă (lei) *</label>
               <Input
                 type="number"
                 step="0.01"
@@ -786,9 +1051,7 @@ function CheltuialaModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mod repartizare
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mod repartizare</label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 value={formData.modRepartizare}
@@ -801,9 +1064,7 @@ function CheltuialaModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nr. Factură
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nr. Factură</label>
               <Input
                 type="text"
                 value={formData.nrFactura}
@@ -812,9 +1073,7 @@ function CheltuialaModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descriere
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descriere</label>
               <textarea
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 rows={2}

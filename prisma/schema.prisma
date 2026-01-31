@@ -384,6 +384,7 @@ model Furnizor {
   asociatie   Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
 
   cheltuieli  Cheltuiala[]
+  plati       PlataFurnizor[]
 
   @@map("furnizori")
 }
@@ -436,8 +437,9 @@ model Cheltuiala {
   furnizor        Furnizor?      @relation(fields: [furnizorId], references: [id])
 
   repartizari     Repartizare[]
+  platiFurnizor   PlataFurnizor[]
 
-  // Payment status (to supplier)
+  // Legacy fields (kept for backwards compatibility, use platiFurnizor relation instead)
   platita         Boolean        @default(false)
   dataPlata       DateTime?
   metodaPlataFurnizor MetodaPlata?
@@ -446,6 +448,25 @@ model Cheltuiala {
   createdAt       DateTime       @default(now())
 
   @@map("cheltuieli")
+}
+
+// Plăți către furnizori (pentru tracking plăți parțiale)
+model PlataFurnizor {
+  id              String      @id @default(cuid())
+  suma            Float       // Suma plătită
+  dataPlata       DateTime    @default(now())
+  metodaPlata     MetodaPlata
+  referinta       String?     // Nr. chitanță furnizor / referință bancară / nr. OP
+
+  cheltuialaId    String
+  cheltuiala      Cheltuiala  @relation(fields: [cheltuialaId], references: [id], onDelete: Cascade)
+
+  furnizorId      String
+  furnizor        Furnizor    @relation(fields: [furnizorId], references: [id])
+
+  createdAt       DateTime    @default(now())
+
+  @@map("plati_furnizori")
 }
 
 model Repartizare {
