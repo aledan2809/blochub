@@ -11,18 +11,18 @@ const cheltuialaSchema = z.object({
     'FOND_REPARATII', 'ADMINISTRARE', 'ALTE_CHELTUIELI'
   ]),
   suma: z.number().positive(),
-  descriere: z.string().optional(),
-  nrFactura: z.string().optional(),
+  descriere: z.string().nullish(),
+  nrFactura: z.string().nullish(),
   modRepartizare: z.enum(['CONSUM', 'COTA_INDIVIZA', 'PERSOANE', 'APARTAMENT', 'MANUAL']).default('COTA_INDIVIZA'),
   asociatieId: z.string(),
   luna: z.number().min(1).max(12),
   an: z.number().min(2020).max(2100),
   dataFactura: z.string(),
-  furnizorId: z.string().optional(),
+  furnizorId: z.string().nullish(), // Allow null when creating new furnizor
   // New furnizor creation fields (when furnizorId is not provided)
-  furnizorNume: z.string().optional(),
-  furnizorCui: z.string().optional(),
-  furnizorIban: z.string().optional(),
+  furnizorNume: z.string().nullish(),
+  furnizorCui: z.string().nullish(),
+  furnizorIban: z.string().nullish(),
 })
 
 export async function GET(request: NextRequest) {
