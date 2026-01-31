@@ -25,6 +25,14 @@ import { cn } from '@/lib/utils'
 import { useAsociatie } from '@/contexts/AsociatieContext'
 import Link from 'next/link'
 
+interface PlataFurnizor {
+  id: string
+  suma: number
+  dataPlata: string
+  metodaPlata: string
+  referinta: string | null
+}
+
 interface Cheltuiala {
   id: string
   tip: string
@@ -44,6 +52,11 @@ interface Cheltuiala {
     nume: string
     contBancar?: string | null
   } | null
+  // Câmpuri noi pentru plăți parțiale
+  sumaPlatita: number
+  restDePlata: number
+  esteAchitatIntegral: boolean
+  platiFurnizor: PlataFurnizor[]
 }
 
 interface ContBancar {
@@ -227,8 +240,10 @@ export default function PlatiPage() {
   const handleOpenPayModal = (cheltuiala: Cheltuiala) => {
     setSelectedCheltuiala(cheltuiala)
     const defaultCont = conturiBancare.find(c => c.esteImplicit) || conturiBancare[0]
+    // Folosește restDePlata în loc de suma totală
+    const sumaDeAchitat = cheltuiala.restDePlata > 0 ? cheltuiala.restDePlata : cheltuiala.suma
     setFormData({
-      suma: cheltuiala.suma.toString(),
+      suma: sumaDeAchitat.toString(),
       metodaPlata: 'TRANSFER',
       contBancarId: defaultCont?.id || '',
       beneficiarIban: cheltuiala.furnizor?.contBancar || '',
@@ -277,8 +292,9 @@ export default function PlatiPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             cheltuialaId: selectedCheltuiala.id,
+            suma: parseFloat(formData.suma),
             metodaPlata: formData.metodaPlata,
-            referinta: formData.referinta,
+            referinta: formData.referinta || null,
             dataPlata: formData.dataPlata
           })
         })
@@ -381,7 +397,7 @@ export default function PlatiPage() {
 
   // Check if expense is overdue
   const isOverdue = (cheltuiala: Cheltuiala) => {
-    if (cheltuiala.platita || !cheltuiala.dataScadenta) return false
+    if (cheltuiala.esteAchitatIntegral || !cheltuiala.dataScadenta) return false
     return new Date(cheltuiala.dataScadenta) < new Date()
   }
 
@@ -617,6 +633,16 @@ export default function PlatiPage() {
                           <div className="font-semibold text-gray-900">
                             {cheltuiala.suma.toLocaleString('ro-RO')} lei
                           </div>
+                          {cheltuiala.sumaPlatita > 0 && !cheltuiala.esteAchitatIntegral && (
+                            <div className="text-xs text-orange-600 font-medium">
+                              Plătit: {cheltuiala.sumaPlatita.toLocaleString('ro-RO')} lei
+                            </div>
+                          )}
+                          {cheltuiala.restDePlata > 0 && (
+                            <div className="text-xs text-red-600 font-medium">
+                              Rest: {cheltuiala.restDePlata.toLocaleString('ro-RO')} lei
+                            </div>
+                          )}
                           <div className="text-xs text-gray-500">
                             {months[cheltuiala.luna - 1]} {cheltuiala.an}
                           </div>
@@ -637,20 +663,37 @@ export default function PlatiPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {cheltuiala.platita ? (
+                          {cheltuiala.esteAchitatIntegral ? (
                             <div>
                               <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                Plătită
+                                Plătită integral
                               </span>
-                              {cheltuiala.dataPlata && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {new Date(cheltuiala.dataPlata).toLocaleDateString('ro-RO')}
+                              {cheltuiala.platiFurnizor && cheltuiala.platiFurnizor.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {cheltuiala.platiFurnizor.map((plata) => (
+                                    <div key={plata.id} className="flex items-center gap-1 text-xs text-gray-500">
+                                      {metodaPlataIcons[plata.metodaPlata]}
+                                      <span>{plata.suma.toLocaleString('ro-RO')} lei</span>
+                                      <span>- {new Date(plata.dataPlata).toLocaleDateString('ro-RO')}</span>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
-                              {cheltuiala.metodaPlataFurnizor && (
-                                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                                  {metodaPlataIcons[cheltuiala.metodaPlataFurnizor]}
-                                  {metodaPlataLabels[cheltuiala.metodaPlataFurnizor]}
+                            </div>
+                          ) : cheltuiala.sumaPlatita > 0 ? (
+                            <div>
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                                Parțial plătită
+                              </span>
+                              {cheltuiala.platiFurnizor && cheltuiala.platiFurnizor.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {cheltuiala.platiFurnizor.map((plata) => (
+                                    <div key={plata.id} className="flex items-center gap-1 text-xs text-gray-500">
+                                      {metodaPlataIcons[plata.metodaPlata]}
+                                      <span>{plata.suma.toLocaleString('ro-RO')} lei</span>
+                                      <span>- {new Date(plata.dataPlata).toLocaleDateString('ro-RO')}</span>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </div>
@@ -666,26 +709,37 @@ export default function PlatiPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {cheltuiala.platita ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => handleRevertPayment(cheltuiala.id)}
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Anulează
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleOpenPayModal(cheltuiala)}
-                            >
-                              <Check className="h-4 w-4 mr-1" />
-                              Plătește
-                            </Button>
-                          )}
+                          <div className="flex flex-col gap-2 items-end">
+                            {/* Buton plătește dacă mai e rest de plată */}
+                            {cheltuiala.restDePlata > 0 && (
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleOpenPayModal(cheltuiala)}
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                {cheltuiala.sumaPlatita > 0 ? 'Plătește restul' : 'Plătește'}
+                              </Button>
+                            )}
+                            {/* Butoane pentru ștergere plăți individuale */}
+                            {cheltuiala.platiFurnizor && cheltuiala.platiFurnizor.length > 0 && (
+                              <div className="flex flex-wrap gap-1 justify-end">
+                                {cheltuiala.platiFurnizor.map((plata) => (
+                                  <Button
+                                    key={plata.id}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs px-2 py-1"
+                                    onClick={() => handleRevertPayment(plata.id)}
+                                    title={`Anulează plata de ${plata.suma.toLocaleString('ro-RO')} lei`}
+                                  >
+                                    <X className="h-3 w-3 mr-1" />
+                                    {plata.suma.toLocaleString('ro-RO')}
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -802,34 +856,73 @@ export default function PlatiPage() {
                   )}
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-semibold text-gray-600">
-                    Total: {selectedCheltuiala.suma.toLocaleString('ro-RO')} lei
+                  <p className="text-lg font-semibold text-gray-900">
+                    Total factură: {selectedCheltuiala.suma.toLocaleString('ro-RO')} lei
                   </p>
-                  <p className="text-sm text-gray-500">
+                  {selectedCheltuiala.sumaPlatita > 0 && (
+                    <p className="text-sm text-green-600">
+                      Plătit: {selectedCheltuiala.sumaPlatita.toLocaleString('ro-RO')} lei
+                    </p>
+                  )}
+                  {selectedCheltuiala.restDePlata > 0 && (
+                    <p className="text-sm font-semibold text-red-600">
+                      Rest de plată: {selectedCheltuiala.restDePlata.toLocaleString('ro-RO')} lei
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
                     {months[selectedCheltuiala.luna - 1]} {selectedCheltuiala.an}
                   </p>
                 </div>
               </div>
+
+              {/* Istoric plăți existente */}
+              {selectedCheltuiala.platiFurnizor && selectedCheltuiala.platiFurnizor.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-xs font-medium text-gray-500 mb-2">Plăți înregistrate:</p>
+                  <div className="space-y-1">
+                    {selectedCheltuiala.platiFurnizor.map((plata) => (
+                      <div key={plata.id} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          {metodaPlataIcons[plata.metodaPlata]}
+                          <span>{metodaPlataLabels[plata.metodaPlata]}</span>
+                          {plata.referinta && <span className="text-gray-400">({plata.referinta})</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-600 font-medium">{plata.suma.toLocaleString('ro-RO')} lei</span>
+                          <span className="text-gray-400">{new Date(plata.dataPlata).toLocaleDateString('ro-RO')}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Editable amount */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sumă plată (lei) *
+                Sumă plată (lei) * {selectedCheltuiala.restDePlata > 0 && selectedCheltuiala.restDePlata < selectedCheltuiala.suma && (
+                  <span className="text-gray-500 font-normal">(max: {selectedCheltuiala.restDePlata.toLocaleString('ro-RO')})</span>
+                )}
               </label>
               <Input
                 type="number"
                 step="0.01"
-                min="0"
-                max={selectedCheltuiala.suma}
+                min="0.01"
+                max={selectedCheltuiala.restDePlata || selectedCheltuiala.suma}
                 value={formData.suma}
                 onChange={(e) => setFormData({ ...formData, suma: e.target.value })}
                 className="text-lg font-semibold"
                 placeholder="0.00"
               />
-              {parseFloat(formData.suma) < selectedCheltuiala.suma && parseFloat(formData.suma) > 0 && (
+              {parseFloat(formData.suma) < selectedCheltuiala.restDePlata && parseFloat(formData.suma) > 0 && (
                 <p className="text-xs text-orange-600 mt-1">
-                  Plată parțială - rest de plată: {(selectedCheltuiala.suma - parseFloat(formData.suma)).toLocaleString('ro-RO')} lei
+                  Plată parțială - va rămâne de plată: {(selectedCheltuiala.restDePlata - parseFloat(formData.suma)).toLocaleString('ro-RO')} lei
+                </p>
+              )}
+              {parseFloat(formData.suma) > selectedCheltuiala.restDePlata + 0.01 && (
+                <p className="text-xs text-red-600 mt-1">
+                  Suma depășește restul de plată!
                 </p>
               )}
             </div>
