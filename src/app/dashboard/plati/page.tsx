@@ -73,8 +73,10 @@ interface PlataPending {
   beneficiarIban: string
   suma: number
   descriere: string
-  status: string
+  status: 'PENDING' | 'EXPORTED' | 'PAID'
   createdAt: string
+  exportedAt: string | null
+  paidAt: string | null
   contBancar: {
     id: string
     nume: string
@@ -227,13 +229,47 @@ export default function PlatiPage() {
     if (!currentAsociatie?.id) return
 
     try {
-      const res = await fetch(`/api/plati-bancare?asociatieId=${currentAsociatie.id}&status=PENDING`)
-      if (res.ok) {
-        const data = await res.json()
-        setPlatiPending(data.plati || [])
-      }
+      // Fetch both PENDING and EXPORTED payments (not PAID)
+      const [resPending, resExported] = await Promise.all([
+        fetch(`/api/plati-bancare?asociatieId=${currentAsociatie.id}&status=PENDING`),
+        fetch(`/api/plati-bancare?asociatieId=${currentAsociatie.id}&status=EXPORTED`)
+      ])
+
+      const dataPending = resPending.ok ? await resPending.json() : { plati: [] }
+      const dataExported = resExported.ok ? await resExported.json() : { plati: [] }
+
+      // Combine and sort by createdAt
+      const allPlati = [...(dataPending.plati || []), ...(dataExported.plati || [])]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+      setPlatiPending(allPlati)
     } catch (error) {
       console.error('Failed to fetch pending payments:', error)
+    }
+  }
+
+  const handleMarkAsPaid = async (plataId: string) => {
+    if (!confirm('Marcați această plată ca efectuată? Soldul va fi scăzut din cheltuială.')) return
+
+    try {
+      const res = await fetch('/api/plati-bancare', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: plataId,
+          status: 'PAID'
+        })
+      })
+
+      if (res.ok) {
+        fetchPlatiPending()
+        fetchData() // Refresh expenses to show updated balance
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Eroare la marcarea plății')
+      }
+    } catch (error) {
+      console.error('Failed to mark payment as paid:', error)
     }
   }
 
@@ -526,7 +562,7 @@ export default function PlatiPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           )}
         >
-          Plăți în așteptare
+          Plăți bancare
           {platiPending.length > 0 && (
             <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
               {platiPending.length}
@@ -779,14 +815,29 @@ export default function PlatiPage() {
             <div className="text-center py-12 bg-white rounded-xl border">
               <Send className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Nu există plăți în așteptare
+                Nu există plăți bancare de procesat
               </h3>
               <p className="text-gray-500">
                 Adăugați plăți prin transfer bancar pentru a le exporta în fișier bancă
               </p>
             </div>
           ) : (
-            Object.entries(pendingByBank).map(([bankId, { cont, plati, total }]) => (
+            <>
+              {/* Summary of pending vs exported */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">
+                      Plăți de procesat: {platiPending.filter(p => p.status === 'PENDING').length} în așteptare export, {platiPending.filter(p => p.status === 'EXPORTED').length} exportate
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Apăsați butonul verde &quot;Plătită&quot; după ce plata a fost efectuată în bancă pentru a scădea soldul din cheltuială.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {Object.entries(pendingByBank).map(([bankId, { cont, plati, total }]) => (
               <div key={bankId} className="bg-white rounded-xl border overflow-hidden">
                 <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -805,26 +856,56 @@ export default function PlatiPage() {
                   {plati.map((plata) => (
                     <div key={plata.id} className="px-4 py-3 flex items-center justify-between">
                       <div>
-                        <p className="font-medium">{plata.beneficiarNume}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{plata.beneficiarNume}</p>
+                          {plata.status === 'EXPORTED' && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                              Exportat
+                            </span>
+                          )}
+                          {plata.status === 'PENDING' && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 rounded-full">
+                              În așteptare
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">{plata.beneficiarIban}</p>
                         <p className="text-xs text-gray-500">{plata.descriere}</p>
+                        {plata.exportedAt && (
+                          <p className="text-xs text-blue-600">
+                            Exportat: {new Date(plata.exportedAt).toLocaleDateString('ro-RO')}
+                          </p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
                         <p className="font-semibold">{plata.suma.toLocaleString('ro-RO')} lei</p>
                         <Button
-                          variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDeletePending(plata.id)}
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleMarkAsPaid(plata.id)}
+                          title="Marchează ca plătită - soldul va fi scăzut din cheltuială"
                         >
-                          <X className="h-4 w-4" />
+                          <Check className="h-4 w-4 mr-1" />
+                          Plătită
                         </Button>
+                        {plata.status === 'PENDING' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeletePending(plata.id)}
+                            title="Șterge din listă"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            ))
+            ))}
+            </>
           )}
         </div>
       )}

@@ -184,6 +184,45 @@ export async function PUT(request: NextRequest) {
       updateData.exportedAt = new Date()
     } else if (status === 'PAID') {
       updateData.paidAt = new Date()
+
+      // Creează PlataFurnizor pentru a scădea soldul din cheltuială
+      if (existing.cheltuialaId) {
+        const cheltuiala = await db.cheltuiala.findUnique({
+          where: { id: existing.cheltuialaId },
+          include: { furnizor: true }
+        })
+
+        if (cheltuiala?.furnizorId) {
+          await db.plataFurnizor.create({
+            data: {
+              suma: existing.suma,
+              metodaPlata: 'TRANSFER',
+              referinta: existing.referinta || `Export bancar - ${existing.beneficiarIban}`,
+              dataPlata: new Date(),
+              cheltuialaId: existing.cheltuialaId,
+              furnizorId: cheltuiala.furnizorId,
+            }
+          })
+
+          // Verifică dacă cheltuiala e achitată integral
+          const platiFurnizor = await db.plataFurnizor.findMany({
+            where: { cheltuialaId: existing.cheltuialaId }
+          })
+          const totalPlatit = platiFurnizor.reduce((sum, p) => sum + p.suma, 0)
+
+          if (totalPlatit >= cheltuiala.suma - 0.01) {
+            await db.cheltuiala.update({
+              where: { id: existing.cheltuialaId },
+              data: {
+                platita: true,
+                dataPlata: new Date(),
+                metodaPlataFurnizor: 'TRANSFER',
+                referintaPlata: existing.referinta
+              }
+            })
+          }
+        }
+      }
     }
 
     const plata = await db.plataBancaraPending.update({
