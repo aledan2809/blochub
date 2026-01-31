@@ -303,6 +303,9 @@ export default function PlatiPage() {
           setShowPayModal(false)
           setSelectedCheltuiala(null)
           fetchData()
+        } else {
+          const error = await res.json()
+          alert(error.error || 'Eroare la înregistrarea plății')
         }
       }
     } catch (error) {
@@ -841,6 +844,29 @@ export default function PlatiPage() {
               </button>
             </div>
 
+            {/* Avertisment dacă lipsește furnizorul */}
+            {!selectedCheltuiala.furnizor && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-red-700">Furnizor lipsă!</p>
+                    <p className="text-xs text-red-600 mt-1">
+                      Pentru a înregistra plăți, cheltuiala trebuie să aibă un furnizor asociat.
+                    </p>
+                    <Link
+                      href="/dashboard/cheltuieli"
+                      className="inline-flex items-center gap-1 mt-2 text-sm font-medium text-red-700 hover:text-red-800 underline"
+                      onClick={() => setShowPayModal(false)}
+                    >
+                      <Building2 className="h-4 w-4" />
+                      Editează cheltuiala pentru a adăuga furnizor →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Selected expense info */}
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <div className="flex justify-between items-start">
@@ -1059,7 +1085,11 @@ export default function PlatiPage() {
                     : 'bg-green-600 hover:bg-green-700'
                 )}
                 onClick={handleSubmitPayment}
-                disabled={submitting || (formData.metodaPlata === 'TRANSFER' && (!formData.contBancarId || !formData.beneficiarIban))}
+                disabled={
+                  submitting ||
+                  !selectedCheltuiala.furnizor ||
+                  (formData.metodaPlata === 'TRANSFER' && (!formData.contBancarId || !formData.beneficiarIban))
+                }
               >
                 {submitting ? (
                   'Se procesează...'
