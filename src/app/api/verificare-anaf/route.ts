@@ -81,7 +81,7 @@ interface ANAFResponse {
       dcod_Postal: string
     }
   }>
-  notfound: number[]
+  notFound: number[]
 }
 
 export async function POST(request: NextRequest) {
@@ -103,8 +103,8 @@ export async function POST(request: NextRequest) {
     // Format dată pentru ANAF (YYYY-MM-DD)
     const today = new Date().toISOString().slice(0, 10)
 
-    // Apel API ANAF
-    const anafResponse = await fetch('https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva', {
+    // Apel API ANAF v9 (endpoint actualizat 2025)
+    const anafResponse = await fetch('https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     const data: ANAFResponse = await anafResponse.json()
 
     // Verifică dacă firma a fost găsită
-    if (data.notfound && data.notfound.includes(parseInt(cuiClean))) {
+    if (data.notFound && data.notFound.includes(parseInt(cuiClean))) {
       return NextResponse.json({
         found: false,
         message: 'Firma nu a fost găsită în baza de date ANAF'
