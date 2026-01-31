@@ -139,6 +139,7 @@ model Asociatie {
   chitante        Chitanta[]
   fonduri         Fond[]
   furnizori       Furnizor[]
+  tipuriCheltuieliCustom TipCheltuialaCustom[]
   contoare        ContorComun[]
   documente       Document[]
   anunturi        Anunt[]
@@ -405,6 +406,24 @@ enum TipCheltuiala {
   ALTE_CHELTUIELI
 }
 
+// Tipuri de cheltuieli personalizate (custom)
+model TipCheltuialaCustom {
+  id              String       @id @default(cuid())
+  nume            String       // Ex: "Deratizare", "Dezinsecție", "Întreținere lift"
+  descriere       String?
+  activ           Boolean      @default(true)
+
+  asociatieId     String
+  asociatie       Asociatie    @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  cheltuieli      Cheltuiala[]
+
+  createdAt       DateTime     @default(now())
+
+  @@unique([asociatieId, nume])
+  @@map("tipuri_cheltuieli_custom")
+}
+
 enum ModRepartizare {
   CONSUM          // pe baza indexurilor
   COTA_INDIVIZA   // pe mp/cota
@@ -435,6 +454,10 @@ model Cheltuiala {
 
   furnizorId      String?
   furnizor        Furnizor?      @relation(fields: [furnizorId], references: [id])
+
+  // Tip cheltuială personalizat (folosit când tip = ALTE_CHELTUIELI)
+  tipCustomId     String?
+  tipCustom       TipCheltuialaCustom? @relation(fields: [tipCustomId], references: [id])
 
   repartizari     Repartizare[]
   platiFurnizor   PlataFurnizor[]

@@ -18,6 +18,8 @@ import {
   CreditCard,
   Banknote,
   Wallet,
+  Settings,
+  Edit,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -54,6 +56,16 @@ interface Cheltuiala {
   sumaPlatita?: number
   restDePlata?: number
   esteAchitatIntegral?: boolean
+  tipCustomId?: string | null
+  tipCustom?: TipCheltuialaCustom | null
+}
+
+interface TipCheltuialaCustom {
+  id: string
+  nume: string
+  descriere: string | null
+  activ: boolean
+  cheltuieliCount: number
 }
 
 const tipCheltuialaLabels: Record<string, string> = {
@@ -100,6 +112,14 @@ export default function CheltuieliPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
+  // Tipuri cheltuieli custom
+  const [tipuriCustom, setTipuriCustom] = useState<TipCheltuialaCustom[]>([])
+  const [showTipuriModal, setShowTipuriModal] = useState(false)
+  const [editingTip, setEditingTip] = useState<TipCheltuialaCustom | null>(null)
+  const [tipFormData, setTipFormData] = useState({ nume: '', descriere: '' })
+  const [savingTip, setSavingTip] = useState(false)
+  const [deletingTipId, setDeletingTipId] = useState<string | null>(null)
+
   const fetchData = async () => {
     try {
       const statsRes = await fetch('/api/dashboard/stats')
@@ -129,6 +149,13 @@ export default function CheltuieliPage() {
       if (furnizoriRes.ok) {
         const furnizoriData = await furnizoriRes.json()
         setFurnizori(furnizoriData.furnizori || [])
+      }
+
+      // Fetch tipuri custom
+      const tipuriRes = await fetch(`/api/tipuri-cheltuieli?asociatieId=${statsData.asociatie.id}`)
+      if (tipuriRes.ok) {
+        const tipuriData = await tipuriRes.json()
+        setTipuriCustom(tipuriData.tipuri || [])
       }
     } catch (err) {
       console.error('Error fetching expenses:', err)
@@ -187,10 +214,23 @@ export default function CheltuieliPage() {
             {months[selectedMonth - 1]} {selectedYear} - Total: {totalCheltuieli.toLocaleString('ro-RO')} lei
           </p>
         </div>
-        <Button onClick={() => { setEditingCheltuiala(null); setShowAddModal(true) }}>
-          <Plus className="h-4 w-4 mr-2" />
-          Adaugă Cheltuială
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setEditingTip(null)
+              setTipFormData({ nume: '', descriere: '' })
+              setShowTipuriModal(true)
+            }}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Tipuri
+          </Button>
+          <Button onClick={() => { setEditingCheltuiala(null); setShowAddModal(true) }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Adaugă Cheltuială
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -296,7 +336,9 @@ export default function CheltuieliPage() {
                         )}
                       </div>
                       <div>
-                        <h3 className="font-semibold">{tipCheltuialaLabels[ch.tip] || ch.tip}</h3>
+                        <h3 className="font-semibold">
+                          {ch.tipCustom?.nume || tipCheltuialaLabels[ch.tip] || ch.tip}
+                        </h3>
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           {ch.furnizor ? (
                             <>
@@ -399,6 +441,7 @@ export default function CheltuieliPage() {
           luna={selectedMonth}
           an={selectedYear}
           furnizori={furnizori}
+          tipuriCustom={tipuriCustom}
           editingCheltuiala={editingCheltuiala}
           onClose={() => { setShowAddModal(false); setEditingCheltuiala(null) }}
           onSuccess={() => {
@@ -420,6 +463,184 @@ export default function CheltuieliPage() {
             fetchData()
           }}
         />
+      )}
+
+      {/* Modal Gestionare Tipuri Cheltuieli */}
+      {showTipuriModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Tipuri de cheltuieli personalizate
+              </h2>
+              <button
+                onClick={() => {
+                  setShowTipuriModal(false)
+                  setEditingTip(null)
+                  setTipFormData({ nume: '', descriere: '' })
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* Formular adăugare/editare tip */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  {editingTip ? 'Editează tip' : 'Adaugă tip nou'}
+                </h3>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Nume tip (ex: Deratizare)"
+                    value={tipFormData.nume}
+                    onChange={(e) => setTipFormData({ ...tipFormData, nume: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Descriere (opțional)"
+                    value={tipFormData.descriere}
+                    onChange={(e) => setTipFormData({ ...tipFormData, descriere: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="flex gap-2">
+                    {editingTip && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setEditingTip(null)
+                          setTipFormData({ nume: '', descriere: '' })
+                        }}
+                      >
+                        Anulează
+                      </Button>
+                    )}
+                    <Button
+                      onClick={async () => {
+                        if (!tipFormData.nume.trim() || !asociatieId) return
+                        setSavingTip(true)
+                        try {
+                          const url = editingTip
+                            ? `/api/tipuri-cheltuieli?id=${editingTip.id}`
+                            : '/api/tipuri-cheltuieli'
+                          const res = await fetch(url, {
+                            method: editingTip ? 'PUT' : 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              nume: tipFormData.nume,
+                              descriere: tipFormData.descriere || null,
+                              asociatieId,
+                            })
+                          })
+                          if (res.ok) {
+                            // Refresh tipuri
+                            const tipuriRes = await fetch(`/api/tipuri-cheltuieli?asociatieId=${asociatieId}`)
+                            if (tipuriRes.ok) {
+                              const data = await tipuriRes.json()
+                              setTipuriCustom(data.tipuri || [])
+                            }
+                            setEditingTip(null)
+                            setTipFormData({ nume: '', descriere: '' })
+                          } else {
+                            const err = await res.json()
+                            alert(err.error || 'Eroare la salvare')
+                          }
+                        } catch (err) {
+                          console.error(err)
+                          alert('Eroare la salvare')
+                        } finally {
+                          setSavingTip(false)
+                        }
+                      }}
+                      disabled={!tipFormData.nume.trim() || savingTip}
+                    >
+                      {savingTip ? <Loader2 className="h-4 w-4 animate-spin" /> : (editingTip ? 'Salvează' : 'Adaugă')}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista tipuri existente */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Tipuri existente</h3>
+                {tipuriCustom.length === 0 ? (
+                  <p className="text-gray-500 text-sm text-center py-4">
+                    Nu există tipuri personalizate. Adaugă unul nou mai sus.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {tipuriCustom.map((tip) => (
+                      <div
+                        key={tip.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900">{tip.nume}</p>
+                          {tip.descriere && (
+                            <p className="text-sm text-gray-500">{tip.descriere}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            {tip.cheltuieliCount} cheltuieli asociate
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingTip(tip)
+                              setTipFormData({ nume: tip.nume, descriere: tip.descriere || '' })
+                            }}
+                            className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                            title="Editează"
+                          >
+                            <Edit className="h-4 w-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (tip.cheltuieliCount > 0) {
+                                alert(`Nu se poate șterge. Există ${tip.cheltuieliCount} cheltuieli asociate.`)
+                                return
+                              }
+                              if (!confirm(`Ștergi tipul "${tip.nume}"?`)) return
+                              setDeletingTipId(tip.id)
+                              try {
+                                const res = await fetch(`/api/tipuri-cheltuieli?id=${tip.id}`, {
+                                  method: 'DELETE'
+                                })
+                                if (res.ok) {
+                                  setTipuriCustom(prev => prev.filter(t => t.id !== tip.id))
+                                } else {
+                                  const err = await res.json()
+                                  alert(err.error || 'Eroare la ștergere')
+                                }
+                              } catch (err) {
+                                console.error(err)
+                                alert('Eroare la ștergere')
+                              } finally {
+                                setDeletingTipId(null)
+                              }
+                            }}
+                            className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                            title={tip.cheltuieliCount > 0 ? 'Nu se poate șterge - are cheltuieli' : 'Șterge'}
+                            disabled={deletingTipId === tip.id}
+                          >
+                            {deletingTipId === tip.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                            ) : (
+                              <Trash2 className={`h-4 w-4 ${tip.cheltuieliCount > 0 ? 'text-gray-300' : 'text-red-500'}`} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -596,6 +817,7 @@ function CheltuialaModal({
   luna,
   an,
   furnizori,
+  tipuriCustom,
   editingCheltuiala,
   onClose,
   onSuccess,
@@ -604,6 +826,7 @@ function CheltuialaModal({
   luna: number
   an: number
   furnizori: Furnizor[]
+  tipuriCustom: TipCheltuialaCustom[]
   editingCheltuiala: Cheltuiala | null
   onClose: () => void
   onSuccess: () => void
@@ -625,8 +848,13 @@ function CheltuialaModal({
     }
     message?: string
   } | null>(null)
+  // Detectează tipul pentru formular: dacă e tip custom, setează CUSTOM_<id>
+  const initialTip = editingCheltuiala?.tipCustomId
+    ? `CUSTOM_${editingCheltuiala.tipCustomId}`
+    : (editingCheltuiala?.tip || 'APA_RECE')
+
   const [formData, setFormData] = useState({
-    tip: editingCheltuiala?.tip || 'APA_RECE',
+    tip: initialTip,
     suma: editingCheltuiala?.suma?.toString() || '',
     descriere: editingCheltuiala?.descriere || '',
     nrFactura: editingCheltuiala?.nrFactura || '',
@@ -765,11 +993,17 @@ function CheltuialaModal({
       const url = isEditing ? `/api/cheltuieli?id=${editingCheltuiala.id}` : '/api/cheltuieli'
       const method = isEditing ? 'PUT' : 'POST'
 
+      // Detectare tip custom (format: CUSTOM_<id>)
+      const isCustomTip = formData.tip.startsWith('CUSTOM_')
+      const tipCustomId = isCustomTip ? formData.tip.replace('CUSTOM_', '') : null
+      const actualTip = isCustomTip ? 'ALTE_CHELTUIELI' : formData.tip
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tip: formData.tip,
+          tip: actualTip,
+          tipCustomId,
           suma: parseFloat(formData.suma),
           descriere: formData.descriere || null,
           nrFactura: formData.nrFactura || null,
@@ -1032,9 +1266,23 @@ function CheltuialaModal({
                 value={formData.tip}
                 onChange={(e) => setFormData({ ...formData, tip: e.target.value })}
               >
-                {Object.entries(tipCheltuialaLabels).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
+                <optgroup label="Tipuri standard">
+                  {Object.entries(tipCheltuialaLabels).filter(([v]) => v !== 'ALTE_CHELTUIELI').map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </optgroup>
+                {tipuriCustom.length > 0 && (
+                  <optgroup label="Tipuri personalizate">
+                    {tipuriCustom.filter(t => t.activ).map((tip) => (
+                      <option key={`custom_${tip.id}`} value={`CUSTOM_${tip.id}`}>
+                        {tip.nume}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="Altele">
+                  <option value="ALTE_CHELTUIELI">Alte cheltuieli</option>
+                </optgroup>
               </select>
             </div>
 

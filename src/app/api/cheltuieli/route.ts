@@ -10,6 +10,7 @@ const cheltuialaSchema = z.object({
     'CALDURA', 'ASCENSOR', 'CURATENIE', 'GUNOI', 'FOND_RULMENT',
     'FOND_REPARATII', 'ADMINISTRARE', 'ALTE_CHELTUIELI'
   ]),
+  tipCustomId: z.string().nullish(), // ID tip personalizat (folosit când tip = ALTE_CHELTUIELI)
   suma: z.number().positive(),
   descriere: z.string().nullish(),
   nrFactura: z.string().nullish(),
@@ -59,7 +60,8 @@ export async function GET(request: NextRequest) {
     const cheltuieli = await db.cheltuiala.findMany({
       where,
       include: {
-        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } }
+        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } },
+        tipCustom: { select: { id: true, nume: true } }
       },
       orderBy: { dataFactura: 'desc' }
     })
@@ -116,6 +118,7 @@ export async function POST(request: NextRequest) {
     const cheltuiala = await db.cheltuiala.create({
       data: {
         tip: validatedData.tip,
+        tipCustomId: validatedData.tipCustomId || null,
         suma: validatedData.suma,
         descriere: validatedData.descriere || null,
         nrFactura: validatedData.nrFactura || null,
@@ -127,7 +130,8 @@ export async function POST(request: NextRequest) {
         furnizorId: furnizorId,
       },
       include: {
-        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } }
+        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } },
+        tipCustom: { select: { id: true, nume: true } }
       }
     })
 
@@ -193,6 +197,7 @@ export async function PUT(request: NextRequest) {
       where: { id },
       data: {
         ...(validatedData.tip && { tip: validatedData.tip }),
+        ...(validatedData.tipCustomId !== undefined && { tipCustomId: validatedData.tipCustomId || null }),
         ...(validatedData.suma && { suma: validatedData.suma }),
         ...(validatedData.descriere !== undefined && { descriere: validatedData.descriere || null }),
         ...(validatedData.nrFactura !== undefined && { nrFactura: validatedData.nrFactura || null }),
@@ -203,7 +208,8 @@ export async function PUT(request: NextRequest) {
         ...(furnizorId !== undefined && { furnizorId: furnizorId || null }),
       },
       include: {
-        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } }
+        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } },
+        tipCustom: { select: { id: true, nume: true } }
       }
     })
 

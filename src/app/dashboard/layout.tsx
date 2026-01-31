@@ -26,6 +26,7 @@ import {
   Plus,
   Check,
   Pencil,
+  Truck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -495,6 +496,12 @@ const navigation = [
     href: '/dashboard/cheltuieli',
     icon: Receipt,
     description: 'Facturi și cheltuieli'
+  },
+  {
+    name: 'Furnizori',
+    href: '/dashboard/furnizori',
+    icon: Truck,
+    description: 'Gestionare furnizori'
   },
   {
     name: 'Avizier',

@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         where: { id: cheltuialaId },
         include: {
           furnizor: { select: { id: true, nume: true, contBancar: true } },
+          tipCustom: { select: { id: true, nume: true } },
           platiFurnizor: {
             orderBy: { dataPlata: 'desc' }
           }
@@ -74,6 +75,7 @@ export async function GET(request: NextRequest) {
       where: { asociatieId },
       include: {
         furnizor: { select: { id: true, nume: true, contBancar: true } },
+        tipCustom: { select: { id: true, nume: true } },
         platiFurnizor: true
       },
       orderBy: [
