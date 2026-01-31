@@ -5,7 +5,9 @@ const config: Config = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{jsx,tsx,mdx}',
+    // Exclude API routes (*.ts files) from content scanning - they contain regexes that confuse Tailwind
+    '!./src/app/api/**/*',
   ],
   theme: {
     extend: {

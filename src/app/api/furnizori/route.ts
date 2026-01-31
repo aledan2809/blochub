@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db'
 import { z } from 'zod'
 
 // Schema for creating a new furnizor
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const furnizori = await prisma.furnizor.findMany({
+    const furnizori = await db.furnizor.findMany({
       where: { asociatieId },
       orderBy: { nume: 'asc' },
       select: {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = furnizorSchema.parse(body)
 
-    const furnizor = await prisma.furnizor.create({
+    const furnizor = await db.furnizor.create({
       data: {
         nume: validatedData.nume,
         cui: validatedData.cui || null,
@@ -106,7 +106,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const furnizor = await prisma.furnizor.update({
+    const furnizor = await db.furnizor.update({
       where: { id },
       data: {
         nume: data.nume,
@@ -151,7 +151,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if furnizor has associated cheltuieli
-    const cheltuieliCount = await prisma.cheltuiala.count({
+    const cheltuieliCount = await db.cheltuiala.count({
       where: { furnizorId: id },
     })
 
@@ -162,7 +162,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    await prisma.furnizor.delete({
+    await db.furnizor.delete({
       where: { id },
     })
 
