@@ -980,6 +980,15 @@ function CheltuialaModal({
       return
     }
 
+    // Verifică că suma nu e mai mică decât totalul plătit
+    if (isEditing && editingCheltuiala?.sumaPlatita) {
+      const newSuma = parseFloat(formData.suma)
+      if (newSuma < editingCheltuiala.sumaPlatita) {
+        alert(`Suma nu poate fi mai mică de ${editingCheltuiala.sumaPlatita.toLocaleString('ro-RO')} lei (totalul plătit deja).`)
+        return
+      }
+    }
+
     if (showNewFurnizor && !formData.furnizorIban) {
       const confirmed = window.confirm(
         'Nu ai completat IBAN-ul furnizorului. Fără IBAN nu vei putea face plăți bancare către acest furnizor. Continui?'
@@ -1291,11 +1300,17 @@ function CheltuialaModal({
               <Input
                 type="number"
                 step="0.01"
-                min="0"
+                min={isEditing && editingCheltuiala?.sumaPlatita ? editingCheltuiala.sumaPlatita : 0}
                 value={formData.suma}
                 onChange={(e) => setFormData({ ...formData, suma: e.target.value })}
                 required
               />
+              {isEditing && editingCheltuiala?.sumaPlatita && editingCheltuiala.sumaPlatita > 0 && (
+                <div className="mt-1 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
+                  <strong>Atenție:</strong> Există plăți înregistrate ({editingCheltuiala.sumaPlatita.toLocaleString('ro-RO')} lei).
+                  Suma nu poate fi mai mică decât totalul plătit.
+                </div>
+              )}
             </div>
 
             <div>
