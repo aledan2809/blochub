@@ -135,7 +135,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('POST cheltuiala error:', error)
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      const messages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+      return NextResponse.json({ error: messages || 'Date invalide' }, { status: 400 })
     }
     return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
   }
@@ -210,7 +211,8 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('PUT cheltuiala error:', error)
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      const messages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+      return NextResponse.json({ error: messages || 'Date invalide' }, { status: 400 })
     }
     return NextResponse.json({ error: 'Eroare server' }, { status: 500 })
   }
