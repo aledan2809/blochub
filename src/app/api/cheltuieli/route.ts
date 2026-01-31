@@ -19,6 +19,10 @@ const cheltuialaSchema = z.object({
   an: z.number().min(2020).max(2100),
   dataFactura: z.string(),
   furnizorId: z.string().optional(),
+  // New furnizor creation fields (when furnizorId is not provided)
+  furnizorNume: z.string().optional(),
+  furnizorCui: z.string().optional(),
+  furnizorIban: z.string().optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -55,7 +59,7 @@ export async function GET(request: NextRequest) {
     const cheltuieli = await db.cheltuiala.findMany({
       where,
       include: {
-        furnizor: { select: { nume: true } }
+        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } }
       },
       orderBy: { dataFactura: 'desc' }
     })
@@ -88,6 +92,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Asociație negăsită' }, { status: 404 })
     }
 
+    // Furnizor is mandatory - either existing or new
+    let furnizorId = validatedData.furnizorId
+
+    // If no furnizorId but furnizorNume provided, create new furnizor
+    if (!furnizorId && validatedData.furnizorNume) {
+      const newFurnizor = await db.furnizor.create({
+        data: {
+          nume: validatedData.furnizorNume,
+          cui: validatedData.furnizorCui || null,
+          contBancar: validatedData.furnizorIban || null,
+          asociatieId: validatedData.asociatieId,
+        }
+      })
+      furnizorId = newFurnizor.id
+    }
+
+    // Validate that furnizor is provided
+    if (!furnizorId) {
+      return NextResponse.json({ error: 'Furnizorul este obligatoriu' }, { status: 400 })
+    }
+
     const cheltuiala = await db.cheltuiala.create({
       data: {
         tip: validatedData.tip,
@@ -99,10 +124,10 @@ export async function POST(request: NextRequest) {
         luna: validatedData.luna,
         an: validatedData.an,
         dataFactura: new Date(validatedData.dataFactura),
-        furnizorId: validatedData.furnizorId || null,
+        furnizorId: furnizorId,
       },
       include: {
-        furnizor: { select: { nume: true } }
+        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } }
       }
     })
 
@@ -149,6 +174,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Neautorizat' }, { status: 403 })
     }
 
+    // Handle new furnizor creation during edit
+    let furnizorId = validatedData.furnizorId
+    if (!furnizorId && validatedData.furnizorNume) {
+      const newFurnizor = await db.furnizor.create({
+        data: {
+          nume: validatedData.furnizorNume,
+          cui: validatedData.furnizorCui || null,
+          contBancar: validatedData.furnizorIban || null,
+          asociatieId: existing.asociatieId,
+        }
+      })
+      furnizorId = newFurnizor.id
+    }
+
     const cheltuiala = await db.cheltuiala.update({
       where: { id },
       data: {
@@ -160,10 +199,10 @@ export async function PUT(request: NextRequest) {
         ...(validatedData.luna && { luna: validatedData.luna }),
         ...(validatedData.an && { an: validatedData.an }),
         ...(validatedData.dataFactura && { dataFactura: new Date(validatedData.dataFactura) }),
-        ...(validatedData.furnizorId !== undefined && { furnizorId: validatedData.furnizorId || null }),
+        ...(furnizorId !== undefined && { furnizorId: furnizorId || null }),
       },
       include: {
-        furnizor: { select: { nume: true } }
+        furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } }
       }
     })
 
