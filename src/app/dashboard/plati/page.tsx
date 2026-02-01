@@ -1039,6 +1039,9 @@ export default function PlatiPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Metodă de plată *
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Transfer bancar → se adaugă la lista de export | Altele → plată directă
+                </p>
                 <div className="grid grid-cols-2 gap-2">
                   {Object.entries(metodaPlataLabels).map(([value, label]) => (
                     <button
@@ -1126,16 +1129,29 @@ export default function PlatiPage() {
               )}
 
               {formData.metodaPlata !== 'TRANSFER' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data plății
-                  </label>
-                  <Input
-                    type="date"
-                    value={formData.dataPlata}
-                    onChange={(e) => setFormData({ ...formData, dataPlata: e.target.value })}
-                  />
-                </div>
+                <>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-0.5" />
+                      <div className="text-sm text-green-700">
+                        <p className="font-medium">Plată manuală - se înregistrează direct</p>
+                        <p className="text-xs mt-1">
+                          Soldul va fi scăzut imediat din cheltuială (fără a trece prin lista de export)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Data plății
+                    </label>
+                    <Input
+                      type="date"
+                      value={formData.dataPlata}
+                      onChange={(e) => setFormData({ ...formData, dataPlata: e.target.value })}
+                    />
+                  </div>
+                </>
               )}
 
               <div>
