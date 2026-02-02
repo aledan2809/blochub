@@ -203,6 +203,16 @@ export async function POST(request: NextRequest) {
 
       const bilantResults = await Promise.all(bilantPromises)
 
+      // Helper function to get indicator value with multiple possible codes
+      const getIndicator = (indicators: Record<string, number | null>, ...codes: string[]): number => {
+        for (const code of codes) {
+          if (indicators[code] !== null && indicators[code] !== undefined) {
+            return indicators[code] as number
+          }
+        }
+        return 0
+      }
+
       for (let i = 0; i < bilantResults.length; i++) {
         const bilant: BilantResponse | null = bilantResults[i]
         if (bilant && bilant.i && bilant.i.length > 0) {
@@ -212,24 +222,29 @@ export async function POST(request: NextRequest) {
             indicators[ind.indicator] = ind.val_indicator
           })
 
+          // ANAF uses different codes for normal vs micro companies
+          // Try multiple possible codes for each field
           const yearData = {
             an: bilant.an || years[i],
             caen: bilant.caen,
             caenDenumire: bilant.caen_denumire,
-            activeImobilizate: indicators['I'] || 0,
-            activeCirculante: indicators['II'] || 0,
-            stocuri: indicators['II.1'] || 0,
-            creante: indicators['II.2'] || 0,
-            casaBanca: indicators['II.3'] || 0,
-            datorii: indicators['III'] || 0,
-            capitaluriProprii: indicators['IV'] || 0,
-            capitalSocial: indicators['IV.1'] || 0,
-            cifraAfaceriNeta: indicators['I1'] || 0,
-            venituriTotale: indicators['21'] || 0,
-            cheltuieliTotale: indicators['22'] || 0,
-            profitBrut: indicators['23'] || 0,
-            profitNet: indicators['26'] || 0,
-            nrMediuSalariati: indicators['27'] || 0,
+            // Bilanț - Active
+            activeImobilizate: getIndicator(indicators, 'I', '10', 'A', 'rd01'),
+            activeCirculante: getIndicator(indicators, 'II', '40', 'B', 'rd40'),
+            stocuri: getIndicator(indicators, 'II.1', '41', 'B1'),
+            creante: getIndicator(indicators, 'II.2', '50', 'B2'),
+            casaBanca: getIndicator(indicators, 'II.3', 'II.4', '60', '65', 'B3', 'B4'),
+            // Bilanț - Pasiv
+            datorii: getIndicator(indicators, 'III', 'D', 'G', '100', '140', 'rd100'),
+            capitaluriProprii: getIndicator(indicators, 'IV', 'J', '107', '150', 'rd107'),
+            capitalSocial: getIndicator(indicators, 'IV.1', 'J1', '108', 'rd108'),
+            // Cont de profit și pierdere
+            cifraAfaceriNeta: getIndicator(indicators, 'I1', 'I_01', '1', 'Rd01', 'rd1'),
+            venituriTotale: getIndicator(indicators, '21', 'I_21', 'Rd21', 'rd21', 'I15'),
+            cheltuieliTotale: getIndicator(indicators, '22', 'I_22', 'Rd22', 'rd22', 'I16'),
+            profitBrut: getIndicator(indicators, '23', '24', 'I_23', 'Rd23', 'rd23', 'I17', 'I18'),
+            profitNet: getIndicator(indicators, '26', '27', 'F10', 'I_26', 'Rd26', 'rd26', 'I20', 'I21'),
+            nrMediuSalariati: getIndicator(indicators, '27', '28', 'I_27', 'Rd27', 'rd27', 'I22'),
           }
 
           // Primul an valid devine bilantData (cel mai recent)
