@@ -56,6 +56,15 @@ export async function GET(request: Request) {
             },
           },
         },
+        chiriasi: {
+          where: { esteActiv: true },
+          select: {
+            id: true,
+            nume: true,
+            telefon: true,
+            email: true,
+          },
+        },
         contoare: true,
         _count: {
           select: {
@@ -67,7 +76,28 @@ export async function GET(request: Request) {
       orderBy: { numar: 'asc' },
     })
 
-    return NextResponse.json({ apartamente })
+    // Transform to provide convenient proprietar/chirias shortcuts
+    const transformedApartamente = apartamente.map(apt => {
+      const firstProprietar = apt.proprietari[0]
+      const firstChirias = apt.chiriasi[0]
+
+      return {
+        ...apt,
+        // Add convenient shortcuts for first proprietar/chirias
+        proprietar: firstProprietar ? {
+          id: firstProprietar.user.id,
+          nume: firstProprietar.user.name || '',
+          telefon: firstProprietar.user.phone || null,
+        } : null,
+        chirias: firstChirias ? {
+          id: firstChirias.id,
+          nume: firstChirias.nume,
+          telefon: firstChirias.telefon,
+        } : null,
+      }
+    })
+
+    return NextResponse.json({ apartamente: transformedApartamente })
   } catch (error) {
     console.error('Error fetching apartamente:', error)
     return NextResponse.json(

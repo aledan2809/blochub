@@ -9,6 +9,8 @@ const updateSettingsSchema = z.object({
   penalizareZi: z.number().min(0).max(10),
   contBancar: z.string().optional(),
   banca: z.string().optional(),
+  serieChitantier: z.string().optional(),
+  numarChitantierStart: z.number().int().min(1).optional(),
 })
 
 // GET - Get association settings
@@ -30,6 +32,8 @@ export async function GET(request: NextRequest) {
         penalizareZi: true,
         contBancar: true,
         banca: true,
+        serieChitantier: true,
+        numarChitantierStart: true,
       },
     })
 
@@ -80,12 +84,16 @@ export async function PUT(request: NextRequest) {
         penalizareZi: validatedData.penalizareZi,
         contBancar: validatedData.contBancar || null,
         banca: validatedData.banca || null,
+        serieChitantier: validatedData.serieChitantier || null,
+        numarChitantierStart: validatedData.numarChitantierStart || 1,
       },
       select: {
         ziScadenta: true,
         penalizareZi: true,
         contBancar: true,
         banca: true,
+        serieChitantier: true,
+        numarChitantierStart: true,
       },
     })
 

@@ -76,6 +76,11 @@ export async function POST(request: NextRequest) {
     const userId = (session.user as { id: string }).id
     const body = await request.json()
 
+    // Accept both field name conventions (name/phone or nume/telefon)
+    const name = body.name || body.nume
+    const phone = body.phone || body.telefon
+    const email = body.email
+
     // Verify user owns the association that owns the apartment
     const apartament = await db.apartament.findFirst({
       where: { id: body.apartamentId },
@@ -86,29 +91,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Apartament negăsit' }, { status: 404 })
     }
 
-    // Check if user already exists by email
-    let proprietarUser = await db.user.findUnique({
-      where: { email: body.email }
-    })
+    // If no email provided, generate a placeholder email
+    const userEmail = email && email.trim()
+      ? email.trim()
+      : `proprietar_${apartament.id}_${Date.now()}@placeholder.local`
+
+    // Check if user already exists by email (only if real email provided)
+    let proprietarUser = null
+    if (email && email.trim()) {
+      proprietarUser = await db.user.findUnique({
+        where: { email: email.trim() }
+      })
+    }
 
     if (!proprietarUser) {
       // Create new user
       proprietarUser = await db.user.create({
         data: {
-          email: body.email,
-          name: body.name,
-          phone: body.phone || null,
+          email: userEmail,
+          name: name || null,
+          phone: phone || null,
           role: 'PROPRIETAR'
         }
       })
     } else {
       // Update existing user info if provided
-      if (body.name || body.phone) {
+      if (name || phone) {
         proprietarUser = await db.user.update({
           where: { id: proprietarUser.id },
           data: {
-            name: body.name || proprietarUser.name,
-            phone: body.phone || proprietarUser.phone
+            name: name || proprietarUser.name,
+            phone: phone || proprietarUser.phone
           }
         })
       }

@@ -51,6 +51,8 @@ interface AsociatieSettings {
   penalizareZi: number
   contBancar: string
   banca: string
+  serieChitantier: string
+  numarChitantierStart: number
 }
 
 interface ContBancar {
@@ -107,7 +109,9 @@ function SetariContent() {
     ziScadenta: 25,
     penalizareZi: 0.02,
     contBancar: '',
-    banca: ''
+    banca: '',
+    serieChitantier: '',
+    numarChitantierStart: 1
   })
 
   useEffect(() => {
@@ -151,7 +155,9 @@ function SetariContent() {
           ziScadenta: asociatieData.ziScadenta || 25,
           penalizareZi: asociatieData.penalizareZi || 0.02,
           contBancar: asociatieData.contBancar || '',
-          banca: asociatieData.banca || ''
+          banca: asociatieData.banca || '',
+          serieChitantier: asociatieData.serieChitantier || '',
+          numarChitantierStart: asociatieData.numarChitantierStart || 1
         })
       }
 
@@ -615,6 +621,59 @@ function SetariContent() {
                   <p className="text-xs text-blue-700 mt-2">
                     Aceste date vor apărea pe chitanțe și în avizier pentru plăți.
                   </p>
+                </div>
+
+                {/* Chitanțier Settings */}
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <h3 className="text-sm font-medium text-green-900 mb-3">Configurare Chitanțier</h3>
+                  <p className="text-xs text-green-700 mb-4">
+                    Setează seria și numărul de start pentru chitanțele de încasare emise la plățile în numerar.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-green-800 mb-1">
+                        Serie chitanțier *
+                      </label>
+                      <Input
+                        value={asociatieSettings.serieChitantier}
+                        onChange={(e) => setAsociatieSettings({
+                          ...asociatieSettings,
+                          serieChitantier: e.target.value.toUpperCase()
+                        })}
+                        placeholder="ex: CHT, ABC"
+                        className="bg-white uppercase"
+                        maxLength={10}
+                      />
+                      <p className="text-xs text-green-600 mt-1">
+                        Prefix unic pentru chitanțe (ex: CHT)
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-green-800 mb-1">
+                        Număr start *
+                      </label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={asociatieSettings.numarChitantierStart}
+                        onChange={(e) => setAsociatieSettings({
+                          ...asociatieSettings,
+                          numarChitantierStart: parseInt(e.target.value) || 1
+                        })}
+                        placeholder="1"
+                        className="bg-white"
+                      />
+                      <p className="text-xs text-green-600 mt-1">
+                        Prima chitanță va avea acest număr
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 p-3 bg-white rounded border border-green-300">
+                    <p className="text-xs text-green-800">
+                      <strong>Exemplu:</strong> Cu seria &quot;CHT&quot; și număr start 1,
+                      prima chitanță va fi <strong>CHT-0001</strong>, următoarea <strong>CHT-0002</strong>, etc.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

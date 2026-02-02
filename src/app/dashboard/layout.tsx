@@ -27,6 +27,7 @@ import {
   Check,
   Pencil,
   Truck,
+  Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -616,6 +617,32 @@ function DashboardLayoutContent({
                 </Link>
               )
             })}
+
+            {/* Super Admin link - only shown for SUPER_ADMIN role */}
+            {(session?.user as any)?.role === 'SUPER_ADMIN' && (
+              <>
+                <div className="pt-2 mt-2 border-t">
+                  <Link
+                    href="/dashboard/admin"
+                    onClick={() => setSidebarOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
+                      pathname === '/dashboard/admin'
+                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                        : 'text-purple-600 hover:bg-purple-50 hover:text-purple-900'
+                    )}
+                  >
+                    <Shield className={cn('h-5 w-5', pathname === '/dashboard/admin' ? 'text-purple-600' : 'text-purple-400')} />
+                    <div className="flex-1">
+                      <div>Super Admin</div>
+                      {pathname !== '/dashboard/admin' && (
+                        <div className="text-xs text-purple-400 font-normal">Administrare platformă</div>
+                      )}
+                    </div>
+                  </Link>
+                </div>
+              </>
+            )}
           </nav>
 
           {/* Help Card */}

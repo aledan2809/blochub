@@ -77,3 +77,12 @@ export async function verifyPassword(
 ): Promise<boolean> {
   return compare(password, hashedPassword)
 }
+
+// Role check utilities
+export function isSuperAdmin(session: any): boolean {
+  return session?.user?.role === 'SUPER_ADMIN'
+}
+
+export function isAdmin(session: any): boolean {
+  return session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN'
+}
