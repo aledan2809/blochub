@@ -387,6 +387,95 @@ export const emailTemplates = {
     `
   }),
 
+  weeklySummary: (data: {
+    numeAdmin: string
+    asociatie: string
+    perioada: string
+    totalRestante: number
+    sumaRestante: number
+    chitanteNoi: number
+    sumaIncasata: number
+    topRestantieri: Array<{ apartament: string; suma: number; zile: number }>
+    link: string
+  }) => ({
+    subject: `[BlocHub] Rezumat săptămânal - ${data.asociatie}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #374151; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; padding: 24px; border-radius: 12px 12px 0 0; }
+    .content { background: #f9fafb; padding: 24px; border-radius: 0 0 12px 12px; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+    .stat-card { background: white; padding: 16px; border-radius: 8px; text-align: center; }
+    .stat-value { font-size: 24px; font-weight: bold; color: #111827; }
+    .stat-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    .warning { color: #dc2626; }
+    .success { color: #16a34a; }
+    .top-list { background: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .top-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+    .top-item:last-child { border-bottom: none; }
+    .btn { display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; margin-top: 16px; }
+    .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0; font-size: 24px;">📊 Rezumat Săptămânal</h1>
+      <p style="margin: 8px 0 0 0; opacity: 0.9;">${data.asociatie} • ${data.perioada}</p>
+    </div>
+    <div class="content">
+      <p>Bună ${data.numeAdmin},</p>
+      <p>Iată rezumatul activității asociației din ultima săptămână:</p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value success">${data.sumaIncasata.toLocaleString('ro-RO')} lei</div>
+          <div class="stat-label">Încasat această săptămână</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${data.chitanteNoi}</div>
+          <div class="stat-label">Chitanțe achitate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value warning">${data.sumaRestante.toLocaleString('ro-RO')} lei</div>
+          <div class="stat-label">Total restanțe</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value warning">${data.totalRestante}</div>
+          <div class="stat-label">Apartamente restante</div>
+        </div>
+      </div>
+
+      ${data.topRestantieri.length > 0 ? `
+      <div class="top-list">
+        <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #dc2626;">⚠️ Top Restanțieri</h3>
+        ${data.topRestantieri.map(r => `
+          <div class="top-item">
+            <span><strong>Apt. ${r.apartament}</strong> (${r.zile} zile)</span>
+            <span class="warning"><strong>${r.suma.toLocaleString('ro-RO')} lei</strong></span>
+          </div>
+        `).join('')}
+      </div>
+      ` : '<p style="color: #16a34a;">✅ Nu există restanțe semnificative!</p>'}
+
+      <a href="${data.link}" class="btn">Vezi detalii în dashboard</a>
+    </div>
+    <div class="footer">
+      <p>Ai primit acest email pentru că ești administrator al asociației pe BlocHub.</p>
+      <p>© ${new Date().getFullYear()} BlocHub - Administrare inteligentă</p>
+    </div>
+  </div>
+</body>
+</html>
+    `
+  }),
+
   passwordReset: (data: {
     email: string
     resetToken: string

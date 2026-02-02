@@ -67,6 +67,14 @@ interface DashboardData {
     actiuni: number
     ultimaRulare: string
   }>
+  scadente?: Array<{
+    id: string
+    apartament: string
+    suma: number
+    dataScadenta: string
+    zileRamase: number
+    urgenta: 'critica' | 'inalta' | 'medie' | 'scazuta'
+  }>
 }
 
 export default function DashboardPage() {
@@ -318,6 +326,95 @@ export default function DashboardPage() {
                     Gestionează sesizări
                   </Button>
                 </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Scadențe Widget */}
+        {data.scadente && data.scadente.length > 0 && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-500" />
+                  <CardTitle>Scadențe Apropiate</CardTitle>
+                </div>
+                <Link href="/dashboard/chitante">
+                  <Button variant="ghost" size="sm">
+                    Vezi toate
+                  </Button>
+                </Link>
+              </div>
+              <CardDescription>
+                Chitanțe care necesită atenție
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {data.scadente.slice(0, 5).map((scadenta) => (
+                  <div
+                    key={scadenta.id}
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      scadenta.urgenta === 'critica'
+                        ? 'bg-red-50 border border-red-200'
+                        : scadenta.urgenta === 'inalta'
+                        ? 'bg-orange-50 border border-orange-200'
+                        : scadenta.urgenta === 'medie'
+                        ? 'bg-yellow-50 border border-yellow-200'
+                        : 'bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                        scadenta.urgenta === 'critica'
+                          ? 'bg-red-100'
+                          : scadenta.urgenta === 'inalta'
+                          ? 'bg-orange-100'
+                          : scadenta.urgenta === 'medie'
+                          ? 'bg-yellow-100'
+                          : 'bg-gray-100'
+                      }`}>
+                        <span className={`font-semibold ${
+                          scadenta.urgenta === 'critica'
+                            ? 'text-red-600'
+                            : scadenta.urgenta === 'inalta'
+                            ? 'text-orange-600'
+                            : scadenta.urgenta === 'medie'
+                            ? 'text-yellow-600'
+                            : 'text-gray-600'
+                        }`}>
+                          {scadenta.apartament}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Apt. {scadenta.apartament}</p>
+                        <p className={`text-sm ${
+                          scadenta.zileRamase < 0
+                            ? 'text-red-600 font-medium'
+                            : 'text-gray-500'
+                        }`}>
+                          {scadenta.zileRamase < 0
+                            ? `Restant ${Math.abs(scadenta.zileRamase)} zile`
+                            : scadenta.zileRamase === 0
+                            ? 'Scadent azi!'
+                            : `Scadent în ${scadenta.zileRamase} zile`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-semibold ${
+                        scadenta.urgenta === 'critica'
+                          ? 'text-red-600'
+                          : scadenta.urgenta === 'inalta'
+                          ? 'text-orange-600'
+                          : ''
+                      }`}>
+                        {scadenta.suma.toLocaleString('ro-RO')} lei
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

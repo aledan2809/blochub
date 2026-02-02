@@ -50,6 +50,7 @@ export async function GET() {
       chitanteRecente,
       agentLogsCount,
       predictiiRisc,
+      scadenteData,
       ticheteStats
     ] = await Promise.all([
       // Total apartments
@@ -137,6 +138,23 @@ export async function GET() {
           luna: now.getMonth() + 1,
           an: now.getFullYear()
         }
+      }),
+
+      // Upcoming due dates (next 7 days) and late payments
+      db.chitanta.findMany({
+        where: {
+          asociatieId: asociatie.id,
+          status: { in: ['GENERATA', 'TRIMISA', 'PARTIAL_PLATITA', 'RESTANTA'] },
+          dataScadenta: {
+            lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+          },
+        },
+        include: {
+          apartament: { select: { numar: true } },
+          plati: { where: { status: 'CONFIRMED' }, select: { suma: true } },
+        },
+        orderBy: { dataScadenta: 'asc' },
+        take: 10,
       }),
 
       // Ticket stats - wrapped in try/catch for cases where table doesn't exist yet
@@ -250,6 +268,31 @@ export async function GET() {
       })
     }
 
+    // Format scadente for dashboard widget
+    const scadente = scadenteData.map((ch) => {
+      const platit = ch.plati.reduce((sum, p) => sum + p.suma, 0)
+      const restDePlata = ch.sumaTotal - platit
+      const zileRamase = Math.ceil(
+        (ch.dataScadenta.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      )
+
+      let urgenta: 'critica' | 'inalta' | 'medie' | 'scazuta' = 'scazuta'
+      if (zileRamase < 0) {
+        urgenta = Math.abs(zileRamase) > 7 ? 'critica' : 'inalta'
+      } else if (zileRamase <= 3) {
+        urgenta = 'medie'
+      }
+
+      return {
+        id: ch.id,
+        apartament: ch.apartament.numar,
+        suma: restDePlata,
+        dataScadenta: ch.dataScadenta.toISOString(),
+        zileRamase,
+        urgenta,
+      }
+    }).filter((s) => s.suma > 0)
+
     return NextResponse.json({
       hasAsociatie: true,
       asociatie: {
@@ -268,7 +311,8 @@ export async function GET() {
       },
       alerteAI,
       chitanteRecente: chitanteFormatted,
-      agentActivity
+      agentActivity,
+      scadente
     })
 
   } catch (error) {

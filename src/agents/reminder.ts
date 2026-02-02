@@ -1,19 +1,25 @@
-import { AgentType, TipNotificare } from '@prisma/client'
+import { AgentType, TipNotificare, ReminderType, ReminderChannel } from '@prisma/client'
 import { BaseAgent, AgentInput, AgentOutput } from './base'
 import { db } from '@/lib/db'
 import { formatCurrency, formatMonth, getDaysUntilDue, calculatePenalty } from '@/lib/utils'
+import { sendEmail, emailTemplates } from '@/lib/email'
 
 interface ReminderResult {
   userId: string
   email: string
   phone?: string
   apartament: string
+  apartamentId: string
+  chitantaId: string
+  asociatieId: string
   suma: number
   penalizare: number
   totalCuPenalizare: number
-  tipReminder: 'BEFORE_DUE' | 'ON_DUE' | 'AFTER_DUE'
+  tipReminder: ReminderType
   zileRamase: number
   mesaj: string
+  emailSent: boolean
+  historyId?: string
 }
 
 export class ReminderAgent extends BaseAgent {
@@ -68,21 +74,30 @@ export class ReminderAgent extends BaseAgent {
 
         // Determine reminder type and if should send
         let shouldSend = false
-        let tipReminder: 'BEFORE_DUE' | 'ON_DUE' | 'AFTER_DUE'
+        let tipReminder: ReminderType
 
         if (zileRamase > 0 && zileRamase <= 7) {
           // 7 days before due
-          tipReminder = 'BEFORE_DUE'
+          tipReminder = ReminderType.BEFORE_DUE
           shouldSend = zileRamase === 7 || zileRamase === 3 || zileRamase === 1
         } else if (zileRamase === 0) {
           // On due date
-          tipReminder = 'ON_DUE'
+          tipReminder = ReminderType.ON_DUE
           shouldSend = true
         } else if (zileRamase < 0) {
           // After due date
-          tipReminder = 'AFTER_DUE'
+          tipReminder = ReminderType.AFTER_DUE
           const daysLate = Math.abs(zileRamase)
-          shouldSend = daysLate === 1 || daysLate === 7 || daysLate === 14 || daysLate % 30 === 0
+          // Escalation: more frequent reminders for longer delays
+          if (daysLate <= 7) {
+            shouldSend = true // Daily for first week
+          } else if (daysLate <= 14) {
+            shouldSend = daysLate % 2 === 0 // Every 2 days for second week
+          } else if (daysLate <= 30) {
+            shouldSend = daysLate % 7 === 0 // Weekly for first month
+          } else {
+            shouldSend = daysLate % 14 === 0 // Bi-weekly after first month
+          }
         } else {
           continue // More than 7 days until due
         }
@@ -99,9 +114,28 @@ export class ReminderAgent extends BaseAgent {
         }
         const totalCuPenalizare = restDePlata + penalizare
 
+        // Check if we already sent a reminder today for this chitanta
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const existingReminder = await db.reminderHistory.findFirst({
+          where: {
+            chitantaId: chitanta.id,
+            trimisLa: { gte: today },
+          },
+        })
+
+        if (existingReminder) {
+          continue // Already sent reminder today
+        }
+
         // Get proprietari
         for (const proprietarRel of chitanta.apartament.proprietari) {
           const user = proprietarRel.user
+
+          // Skip if no valid email
+          if (!user.email || user.email.includes('@placeholder.local')) {
+            continue
+          }
 
           // Generate message based on type
           const mesaj = this.generateMessage(
@@ -117,21 +151,47 @@ export class ReminderAgent extends BaseAgent {
             chitanta.asociatie.penalizareZi
           )
 
-          reminders.push({
-            userId: user.id,
-            email: user.email,
-            phone: user.phone || undefined,
-            apartament: chitanta.apartament.numar,
-            suma: restDePlata,
-            penalizare,
-            totalCuPenalizare,
-            tipReminder,
-            zileRamase,
-            mesaj,
-          })
+          let emailSent = false
+          let historyId: string | undefined
 
-          // Create notification in database
+          // Send email if not dry run
           if (!dryRun) {
+            try {
+              // Use appropriate email template based on reminder type
+              const isRestanta = tipReminder === ReminderType.AFTER_DUE
+              const emailData = isRestanta
+                ? emailTemplates.restantaNotification({
+                    nume: user.name || 'Stimate proprietar',
+                    apartament: chitanta.apartament.numar,
+                    sumaRestanta: restDePlata,
+                    penalizare,
+                    totalDePlata: totalCuPenalizare,
+                    zileLate: Math.abs(zileRamase),
+                    penalizareZi: chitanta.asociatie.penalizareZi,
+                    asociatie: chitanta.asociatie.nume,
+                    link: `${process.env.NEXTAUTH_URL || 'https://app.blochub.ro'}/plata/${chitanta.id}`,
+                  })
+                : emailTemplates.paymentReminder({
+                    nume: user.name || 'Stimate proprietar',
+                    apartament: chitanta.apartament.numar,
+                    suma: restDePlata,
+                    scadenta: chitanta.dataScadenta.toLocaleDateString('ro-RO'),
+                    link: `${process.env.NEXTAUTH_URL || 'https://app.blochub.ro'}/plata/${chitanta.id}`,
+                  })
+
+              const result = await sendEmail({
+                to: user.email,
+                subject: emailData.subject,
+                html: emailData.html,
+                asociatieId: chitanta.asociatieId,
+              })
+
+              emailSent = result.success
+            } catch (error) {
+              console.error(`[ReminderAgent] Email error for ${user.email}:`, error)
+            }
+
+            // Create notification in database
             await db.notificare.create({
               data: {
                 tip: TipNotificare.REMINDER_PLATA,
@@ -140,16 +200,48 @@ export class ReminderAgent extends BaseAgent {
                 userId: user.id,
               },
             })
+
+            // Track in reminder history
+            const history = await db.reminderHistory.create({
+              data: {
+                tip: tipReminder,
+                canal: ReminderChannel.EMAIL,
+                mesaj,
+                apartamentId: chitanta.apartamentId,
+                chitantaId: chitanta.id,
+                asociatieId: chitanta.asociatieId,
+              },
+            })
+            historyId = history.id
           }
+
+          reminders.push({
+            userId: user.id,
+            email: user.email,
+            phone: user.phone || undefined,
+            apartament: chitanta.apartament.numar,
+            apartamentId: chitanta.apartamentId,
+            chitantaId: chitanta.id,
+            asociatieId: chitanta.asociatieId,
+            suma: restDePlata,
+            penalizare,
+            totalCuPenalizare,
+            tipReminder,
+            zileRamase,
+            mesaj,
+            emailSent,
+            historyId,
+          })
         }
       }
 
       // Group by type for summary
       const byType = {
-        BEFORE_DUE: reminders.filter((r) => r.tipReminder === 'BEFORE_DUE').length,
-        ON_DUE: reminders.filter((r) => r.tipReminder === 'ON_DUE').length,
-        AFTER_DUE: reminders.filter((r) => r.tipReminder === 'AFTER_DUE').length,
+        BEFORE_DUE: reminders.filter((r) => r.tipReminder === ReminderType.BEFORE_DUE).length,
+        ON_DUE: reminders.filter((r) => r.tipReminder === ReminderType.ON_DUE).length,
+        AFTER_DUE: reminders.filter((r) => r.tipReminder === ReminderType.AFTER_DUE).length,
       }
+      const emailsSent = reminders.filter((r) => r.emailSent).length
 
       return {
         success: true,
@@ -157,6 +249,7 @@ export class ReminderAgent extends BaseAgent {
           reminders,
           summary: {
             total: reminders.length,
+            emailsSent,
             byType,
             totalSuma: reminders.reduce((sum, r) => sum + r.suma, 0),
           },
@@ -172,7 +265,7 @@ export class ReminderAgent extends BaseAgent {
   }
 
   private generateMessage(
-    tip: 'BEFORE_DUE' | 'ON_DUE' | 'AFTER_DUE',
+    tip: ReminderType,
     nume: string,
     apartament: string,
     luna: number,
@@ -187,7 +280,7 @@ export class ReminderAgent extends BaseAgent {
     const sumaFormatata = formatCurrency(suma)
 
     switch (tip) {
-      case 'BEFORE_DUE':
+      case ReminderType.BEFORE_DUE:
         return `Bună ziua, ${nume}!
 
 Vă reamintim că întreținerea pentru ${lunaFormatata} la apartamentul ${apartament} din ${asociatie} are scadența în ${zile} ${zile === 1 ? 'zi' : 'zile'}.
@@ -199,7 +292,7 @@ Puteți plăti online în contul dvs. BlocHub pentru a evita penalitățile.
 Cu respect,
 Echipa BlocHub`
 
-      case 'ON_DUE':
+      case ReminderType.ON_DUE:
         return `Bună ziua, ${nume}!
 
 Astăzi este ultima zi pentru plata întreținerii pentru ${lunaFormatata} la apartamentul ${apartament}.
@@ -211,7 +304,7 @@ Vă rugăm să efectuați plata astăzi pentru a evita penalitățile de întâr
 Cu respect,
 Echipa BlocHub`
 
-      case 'AFTER_DUE':
+      case ReminderType.AFTER_DUE:
         const zileLate = Math.abs(zile)
         const penalizareFormatata = formatCurrency(penalizare)
         const totalFormatat = formatCurrency(suma + penalizare)
@@ -230,17 +323,33 @@ Vă rugăm să efectuați plata cât mai curând posibil pentru a evita acumular
 
 Cu respect,
 Echipa BlocHub`
+
+      default:
+        return `Bună ziua, ${nume}!
+
+Vă notificăm cu privire la plata întreținerii pentru ${lunaFormatata} la apartamentul ${apartament}.
+
+Suma de plată: ${sumaFormatata}
+
+Cu respect,
+Echipa BlocHub`
     }
   }
 
-  private getReminderTitle(tip: 'BEFORE_DUE' | 'ON_DUE' | 'AFTER_DUE', zile: number): string {
+  private getReminderTitle(tip: ReminderType, zile: number): string {
     switch (tip) {
-      case 'BEFORE_DUE':
+      case ReminderType.BEFORE_DUE:
         return `Reminder: Scadență în ${zile} ${zile === 1 ? 'zi' : 'zile'}`
-      case 'ON_DUE':
+      case ReminderType.ON_DUE:
         return 'Reminder: Scadență astăzi!'
-      case 'AFTER_DUE':
+      case ReminderType.AFTER_DUE:
         return `Atenție: Restanță de ${Math.abs(zile)} zile`
+      case ReminderType.ESCALATION:
+        return `⚠️ URGENT: Restanță de ${Math.abs(zile)} zile`
+      case ReminderType.WEEKLY_SUMMARY:
+        return 'Rezumat săptămânal restanțe'
+      default:
+        return 'Notificare plată'
     }
   }
 }
