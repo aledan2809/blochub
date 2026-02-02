@@ -3,6 +3,21 @@ import { NextRequest, NextResponse } from 'next/server'
 // ANAF API pentru verificare date firmă
 // Documentație: https://www.anaf.ro/anaf/internet/ANAF/servicii_online/servicii_oferite_persoane_juridice/
 
+interface BilantIndicator {
+  indicator: string
+  val_indicator: number | null
+  val_den_indicator: string
+}
+
+interface BilantResponse {
+  an: number
+  cui: number
+  dpiP: string  // data_inregistrare
+  caen: number
+  caen_denumire: string
+  i: BilantIndicator[]
+}
+
 interface ANAFResponse {
   cod: number
   message: string
@@ -162,6 +177,91 @@ export async function POST(request: NextRequest) {
       adresaCompleta = dateGenerale.adresa
     }
 
+    // Obține și datele de bilanț (ultimii ani disponibili)
+    let bilantData = null
+    try {
+      const currentYear = new Date().getFullYear()
+      // Încearcă ultimii 3 ani pentru a găsi cel mai recent bilanț
+      for (const an of [currentYear - 1, currentYear - 2, currentYear - 3]) {
+        const bilantResponse = await fetch(
+          `https://webservicesp.anaf.ro/bilant?an=${an}&cui=${cuiClean}`,
+          { method: 'GET' }
+        )
+
+        if (bilantResponse.ok) {
+          const bilant: BilantResponse = await bilantResponse.json()
+          if (bilant && bilant.i && bilant.i.length > 0) {
+            // Mapăm indicatorii la un format mai ușor de folosit
+            const indicators: Record<string, number | null> = {}
+            bilant.i.forEach((ind: BilantIndicator) => {
+              indicators[ind.indicator] = ind.val_indicator
+            })
+
+            bilantData = {
+              an: bilant.an,
+              caen: bilant.caen,
+              caenDenumire: bilant.caen_denumire,
+              // Indicatori cheie din bilanț
+              activeImobilizate: indicators['I'] || 0,
+              activeCirculante: indicators['II'] || 0,
+              stocuri: indicators['II.1'] || 0,
+              creante: indicators['II.2'] || 0,
+              casaBanca: indicators['II.3'] || 0,
+              datorii: indicators['III'] || 0,
+              capitaluriProprii: indicators['IV'] || 0,
+              capitalSocial: indicators['IV.1'] || 0,
+              cifraAfaceriNeta: indicators['I1'] || 0,
+              venituriTotale: indicators['21'] || 0,
+              cheltuieliTotale: indicators['22'] || 0,
+              profitBrut: indicators['23'] || 0,
+              profitNet: indicators['26'] || 0,
+              nrMediuSalariati: indicators['27'] || 0,
+            }
+            break
+          }
+        }
+      }
+    } catch (bilantError) {
+      console.error('Error fetching bilant:', bilantError)
+      // Nu oprește execuția - continuăm fără date de bilanț
+    }
+
+    // Date TVA la încasare
+    const tvaIncasare = firma.inregistrare_RTVAI
+    const splitTVA = firma.inregistrare_SplitTVA
+
+    // Calculăm riscurile
+    const riscuri: string[] = []
+    const avertismente: string[] = []
+
+    // Riscuri majore (roșu)
+    if (stareInactiv?.statusInactivi) {
+      riscuri.push('Contribuabil declarat INACTIV de ANAF')
+    }
+    if (stareInactiv?.dataRadiere) {
+      riscuri.push('Firmă RADIATĂ din Registrul Comerțului')
+    }
+
+    // Avertismente (galben)
+    if (bilantData) {
+      if (bilantData.nrMediuSalariati === 0) {
+        avertismente.push('Fără angajați declarați')
+      }
+      if (bilantData.capitalSocial && bilantData.capitalSocial <= 200) {
+        avertismente.push('Capital social minim')
+      }
+      if (bilantData.profitNet && bilantData.profitNet < 0) {
+        avertismente.push('Profit negativ în ultimul an')
+      }
+      if (bilantData.capitaluriProprii && bilantData.capitaluriProprii < 0) {
+        avertismente.push('Capitaluri proprii negative')
+      }
+      if (bilantData.datorii && bilantData.capitaluriProprii &&
+          bilantData.datorii > bilantData.capitaluriProprii * 3) {
+        avertismente.push('Datorii ridicate vs capitaluri proprii')
+      }
+    }
+
     // Returnează datele într-un format simplificat
     return NextResponse.json({
       found: true,
@@ -177,16 +277,31 @@ export async function POST(request: NextRequest) {
         codCAEN: dateGenerale.cod_CAEN || null,
         stareInregistrare: dateGenerale.stare_inregistrare,
         dataInregistrare: dateGenerale.data_inregistrare,
+        organFiscal: dateGenerale.organFiscalCompetent || null,
+        formaJuridica: dateGenerale.forma_juridica || null,
+        formaProprietate: dateGenerale.forma_de_proprietate || null,
         // Status TVA
         platitorTVA: inregistrareTVA?.scpTVA || false,
+        perioadeVAT: inregistrareTVA?.perioade_TVA || [],
+        // TVA la încasare
+        tvaIncasare: tvaIncasare?.statusTvaIncasare || false,
+        dataInceputTvaInc: tvaIncasare?.dataInceputTvaInc || null,
+        // Split TVA
+        splitTVA: splitTVA?.statusSplitTVA || false,
+        dataInceputSplitTVA: splitTVA?.dataInceputSplitTVA || null,
         // Status inactiv
         esteInactiv: stareInactiv?.statusInactivi || false,
         dataInactivare: stareInactiv?.dataInactivare || null,
+        dataReactivare: stareInactiv?.dataReactivare || null,
+        dataRadiere: stareInactiv?.dataRadiere || null,
         // e-Factura
         eFactura: dateGenerale.statusRO_e_Factura || false,
         // IBAN (dacă e disponibil în baza ANAF)
         iban: dateGenerale.iban || null,
-      }
+      },
+      bilant: bilantData,
+      riscuri,
+      avertismente,
     })
   } catch (error) {
     console.error('Verificare ANAF error:', error)

@@ -17,7 +17,11 @@ import {
   Download,
   Send,
   Landmark,
-  ChevronDown
+  ChevronDown,
+  Pencil,
+  Trash2,
+  Square,
+  CheckSquare
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -71,12 +75,17 @@ interface PlataPending {
   id: string
   beneficiarNume: string
   beneficiarIban: string
+  beneficiarBanca: string | null
+  beneficiarCui: string | null
   suma: number
   descriere: string
+  referinta: string | null
   status: 'PENDING' | 'EXPORTED' | 'PAID'
   createdAt: string
   exportedAt: string | null
   paidAt: string | null
+  cheltuialaId: string | null
+  contBancarId: string
   contBancar: {
     id: string
     nume: string
@@ -154,6 +163,23 @@ export default function PlatiPage() {
   const [exportContId, setExportContId] = useState('')
   const [exportFormat, setExportFormat] = useState('bt') // Default to BT format
   const [exporting, setExporting] = useState(false)
+
+  // Selection state for bulk operations
+  const [selectedPayments, setSelectedPayments] = useState<Set<string>>(new Set())
+  const [deletingBulk, setDeletingBulk] = useState(false)
+
+  // Edit modal for pending payments
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<PlataPending | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    beneficiarNume: '',
+    beneficiarIban: '',
+    suma: '',
+    descriere: '',
+    referinta: '',
+    contBancarId: ''
+  })
+  const [savingEdit, setSavingEdit] = useState(false)
 
   // Bank format options for export
   const bankFormats = [
@@ -377,9 +403,115 @@ export default function PlatiPage() {
 
       if (res.ok) {
         fetchPlatiPending()
+        setSelectedPayments(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(id)
+          return newSet
+        })
       }
     } catch (error) {
       console.error('Failed to delete pending payment:', error)
+    }
+  }
+
+  // Selection handlers
+  const handleSelectPayment = (id: string) => {
+    setSelectedPayments(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAll = () => {
+    if (selectedPayments.size === platiPending.length) {
+      setSelectedPayments(new Set())
+    } else {
+      setSelectedPayments(new Set(platiPending.map(p => p.id)))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedPayments.size === 0) return
+
+    // Check if any selected payment is EXPORTED
+    const selectedList = platiPending.filter(p => selectedPayments.has(p.id))
+    const hasExported = selectedList.some(p => p.status === 'EXPORTED')
+
+    const message = hasExported
+      ? `Sigur doriți să ștergeți ${selectedPayments.size} plăți? Unele au fost deja exportate.`
+      : `Sigur doriți să ștergeți ${selectedPayments.size} plăți din lista de așteptare?`
+
+    if (!confirm(message)) return
+
+    setDeletingBulk(true)
+    try {
+      // Delete each selected payment
+      const deletePromises = Array.from(selectedPayments).map(id =>
+        fetch(`/api/plati-bancare?id=${id}`, { method: 'DELETE' })
+      )
+
+      await Promise.all(deletePromises)
+      setSelectedPayments(new Set())
+      fetchPlatiPending()
+    } catch (error) {
+      console.error('Failed to bulk delete:', error)
+      alert('Eroare la ștergerea plăților')
+    } finally {
+      setDeletingBulk(false)
+    }
+  }
+
+  // Edit handlers
+  const handleOpenEditModal = (payment: PlataPending) => {
+    setEditingPayment(payment)
+    setEditFormData({
+      beneficiarNume: payment.beneficiarNume,
+      beneficiarIban: payment.beneficiarIban,
+      suma: payment.suma.toString(),
+      descriere: payment.descriere,
+      referinta: payment.referinta || '',
+      contBancarId: payment.contBancarId
+    })
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingPayment) return
+    setSavingEdit(true)
+
+    try {
+      const res = await fetch('/api/plati-bancare', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingPayment.id,
+          beneficiarNume: editFormData.beneficiarNume,
+          beneficiarIban: editFormData.beneficiarIban.replace(/\s/g, '').toUpperCase(),
+          suma: parseFloat(editFormData.suma),
+          descriere: editFormData.descriere,
+          referinta: editFormData.referinta || null,
+          contBancarId: editFormData.contBancarId
+        })
+      })
+
+      if (res.ok) {
+        setShowEditModal(false)
+        setEditingPayment(null)
+        fetchPlatiPending()
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Eroare la salvare')
+      }
+    } catch (error) {
+      console.error('Failed to save edit:', error)
+      alert('Eroare la salvare')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -823,20 +955,55 @@ export default function PlatiPage() {
             </div>
           ) : (
             <>
-              {/* Summary of pending vs exported */}
+              {/* Summary and bulk actions */}
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-800">
-                      Plăți de procesat: {platiPending.filter(p => p.status === 'PENDING').length} în așteptare export, {platiPending.filter(p => p.status === 'EXPORTED').length} exportate
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Apăsați butonul verde &quot;Plătită&quot; după ce plata a fost efectuată în bancă pentru a scădea soldul din cheltuială.
-                    </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">
+                        Plăți de procesat: {platiPending.filter(p => p.status === 'PENDING').length} în așteptare export, {platiPending.filter(p => p.status === 'EXPORTED').length} exportate
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Apăsați butonul verde &quot;Plătită&quot; după ce plata a fost efectuată în bancă pentru a scădea soldul din cheltuială.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Bulk actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={handleSelectAll}
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+                      title={selectedPayments.size === platiPending.length ? 'Deselectează tot' : 'Selectează tot'}
+                    >
+                      {selectedPayments.size === platiPending.length ? (
+                        <CheckSquare className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Square className="h-4 w-4" />
+                      )}
+                      {selectedPayments.size > 0 ? `${selectedPayments.size} selectate` : 'Selectează tot'}
+                    </button>
+                    {selectedPayments.size > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        onClick={handleBulkDelete}
+                        disabled={deletingBulk}
+                      >
+                        {deletingBulk ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 mr-1" />
+                        )}
+                        Șterge ({selectedPayments.size})
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
+
               {Object.entries(pendingByBank).map(([bankId, { cont, plati, total }]) => (
               <div key={bankId} className="bg-white rounded-xl border overflow-hidden">
                 <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
@@ -854,31 +1021,58 @@ export default function PlatiPage() {
                 </div>
                 <div className="divide-y">
                   {plati.map((plata) => (
-                    <div key={plata.id} className="px-4 py-3 flex items-center justify-between">
-                      <div>
+                    <div key={plata.id} className={cn(
+                      "px-4 py-3 flex items-center gap-3 transition-colors",
+                      selectedPayments.has(plata.id) && "bg-blue-50"
+                    )}>
+                      {/* Checkbox */}
+                      <button
+                        onClick={() => handleSelectPayment(plata.id)}
+                        className="shrink-0 p-1 hover:bg-gray-100 rounded"
+                      >
+                        {selectedPayments.has(plata.id) ? (
+                          <CheckSquare className="h-5 w-5 text-blue-600" />
+                        ) : (
+                          <Square className="h-5 w-5 text-gray-400" />
+                        )}
+                      </button>
+
+                      {/* Payment details */}
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium">{plata.beneficiarNume}</p>
+                          <p className="font-medium truncate">{plata.beneficiarNume}</p>
                           {plata.status === 'EXPORTED' && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full shrink-0">
                               Exportat
                             </span>
                           )}
                           {plata.status === 'PENDING' && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 rounded-full">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 rounded-full shrink-0">
                               În așteptare
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500">{plata.beneficiarIban}</p>
-                        <p className="text-xs text-gray-500">{plata.descriere}</p>
+                        <p className="text-xs text-gray-500 font-mono">{plata.beneficiarIban}</p>
+                        <p className="text-xs text-gray-500 truncate">{plata.descriere}</p>
                         {plata.exportedAt && (
                           <p className="text-xs text-blue-600">
                             Exportat: {new Date(plata.exportedAt).toLocaleDateString('ro-RO')}
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold">{plata.suma.toLocaleString('ro-RO')} lei</p>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <p className="font-semibold text-right min-w-[80px]">{plata.suma.toLocaleString('ro-RO')} lei</p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                          onClick={() => handleOpenEditModal(plata)}
+                          title="Editează plata"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           className="bg-green-600 hover:bg-green-700"
@@ -888,17 +1082,15 @@ export default function PlatiPage() {
                           <Check className="h-4 w-4 mr-1" />
                           Plătită
                         </Button>
-                        {plata.status === 'PENDING' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeletePending(plata.id)}
-                            title="Șterge din listă"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeletePending(plata.id)}
+                          title="Șterge din listă"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -1292,6 +1484,127 @@ export default function PlatiPage() {
                     Descarcă fișier
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Payment Modal */}
+      {showEditModal && editingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowEditModal(false); setEditingPayment(null) }} />
+          <div className="relative bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Editează plata</h2>
+              <button
+                onClick={() => { setShowEditModal(false); setEditingPayment(null) }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nume beneficiar *
+                </label>
+                <Input
+                  value={editFormData.beneficiarNume}
+                  onChange={(e) => setEditFormData({ ...editFormData, beneficiarNume: e.target.value })}
+                  placeholder="Nume furnizor"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  IBAN beneficiar *
+                </label>
+                <Input
+                  value={editFormData.beneficiarIban}
+                  onChange={(e) => setEditFormData({ ...editFormData, beneficiarIban: e.target.value.toUpperCase() })}
+                  placeholder="RO49AAAA1B31007593840000"
+                  className="font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sumă (lei) *
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={editFormData.suma}
+                  onChange={(e) => setEditFormData({ ...editFormData, suma: e.target.value })}
+                  className="text-lg font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descriere *
+                </label>
+                <Input
+                  value={editFormData.descriere}
+                  onChange={(e) => setEditFormData({ ...editFormData, descriere: e.target.value })}
+                  placeholder="Descriere plată"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Referință / Nr. document
+                </label>
+                <Input
+                  value={editFormData.referinta}
+                  onChange={(e) => setEditFormData({ ...editFormData, referinta: e.target.value })}
+                  placeholder="ex: OP 12345"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cont bancar sursă
+                </label>
+                <select
+                  value={editFormData.contBancarId}
+                  onChange={(e) => setEditFormData({ ...editFormData, contBancarId: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {conturiBancare.map(cont => (
+                    <option key={cont.id} value={cont.id}>
+                      {cont.nume} - {cont.iban}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {editingPayment.status === 'EXPORTED' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-700">
+                    <strong>Atenție:</strong> Această plată a fost deja exportată. Modificările vor afecta doar înregistrarea din aplicație, nu și fișierul exportat.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setShowEditModal(false); setEditingPayment(null) }}
+              >
+                Anulează
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleSaveEdit}
+                disabled={savingEdit || !editFormData.beneficiarNume || !editFormData.beneficiarIban || !editFormData.suma || !editFormData.descriere}
+              >
+                {savingEdit ? 'Se salvează...' : 'Salvează modificările'}
               </Button>
             </div>
           </div>

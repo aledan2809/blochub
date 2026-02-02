@@ -23,7 +23,9 @@ import {
   CheckCircle,
   Loader2,
   FileText,
+  Eye,
 } from 'lucide-react'
+import { AnafVerificationModal } from '@/components/AnafVerificationModal'
 
 interface Furnizor {
   id: string
@@ -74,6 +76,8 @@ export default function FurnizoriPage() {
   // ANAF verification states
   const [verificandANAF, setVerificandANAF] = useState(false)
   const [anafResult, setAnafResult] = useState<{ found: boolean; firma?: { denumire: string; adresa: string; telefon: string | null } } | null>(null)
+  const [showAnafModal, setShowAnafModal] = useState(false)
+  const [anafModalCui, setAnafModalCui] = useState<string>('')
 
   const fetchFurnizori = useCallback(async () => {
     if (!selectedAsociatie?.id) return
@@ -454,6 +458,18 @@ export default function FurnizoriPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {furnizor.cui && (
+                    <button
+                      onClick={() => {
+                        setAnafModalCui(furnizor.cui!)
+                        setShowAnafModal(true)
+                      }}
+                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Verifică ANAF"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => openEditModal(furnizor)}
                     className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -510,12 +526,25 @@ export default function FurnizoriPage() {
                     onClick={verificaANAF}
                     disabled={!formData.cui.trim() || verificandANAF}
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                    title="Auto-completează datele din ANAF"
                   >
                     {verificandANAF ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      'Verifică ANAF'
+                      'Completează'
                     )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnafModalCui(formData.cui)
+                      setShowAnafModal(true)
+                    }}
+                    disabled={!formData.cui.trim()}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Vezi detalii complete ANAF"
+                  >
+                    <Eye className="h-5 w-5" />
                   </button>
                 </div>
                 {anafResult && (
@@ -672,6 +701,26 @@ export default function FurnizoriPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ANAF Verification Modal */}
+      {showAnafModal && anafModalCui && (
+        <AnafVerificationModal
+          cui={anafModalCui}
+          onClose={() => {
+            setShowAnafModal(false)
+            setAnafModalCui('')
+          }}
+          onAutoFill={(showAddModal || showEditModal) ? (firma) => {
+            setFormData(prev => ({
+              ...prev,
+              nume: firma.denumire || prev.nume,
+              adresa: firma.adresa || prev.adresa,
+              telefon: firma.telefon || prev.telefon,
+            }))
+            setAnafResult({ found: true, firma })
+          } : undefined}
+        />
       )}
     </div>
   )

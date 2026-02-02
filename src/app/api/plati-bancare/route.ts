@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - update payment status
+// PUT - update payment (status or full edit)
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -163,10 +163,10 @@ export async function PUT(request: NextRequest) {
     const userId = (session.user as { id: string }).id
     const body = await request.json()
 
-    const { id, status } = body
+    const { id, status, beneficiarNume, beneficiarIban, suma, descriere, referinta, contBancarId } = body
 
-    if (!id || !status) {
-      return NextResponse.json({ error: 'ID și status required' }, { status: 400 })
+    if (!id) {
+      return NextResponse.json({ error: 'ID required' }, { status: 400 })
     }
 
     // Find and verify ownership
@@ -179,55 +179,82 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Plată negăsită' }, { status: 404 })
     }
 
-    const updateData: Record<string, unknown> = { status }
-    if (status === 'EXPORTED') {
-      updateData.exportedAt = new Date()
-    } else if (status === 'PAID') {
-      updateData.paidAt = new Date()
+    const updateData: Record<string, unknown> = {}
 
-      // Creează PlataFurnizor pentru a scădea soldul din cheltuială
-      if (existing.cheltuialaId) {
-        const cheltuiala = await db.cheltuiala.findUnique({
-          where: { id: existing.cheltuialaId },
-          include: { furnizor: true }
-        })
+    // Handle status update
+    if (status) {
+      updateData.status = status
 
-        if (cheltuiala?.furnizorId) {
-          await db.plataFurnizor.create({
-            data: {
-              suma: existing.suma,
-              metodaPlata: 'TRANSFER',
-              referinta: existing.referinta || `Export bancar - ${existing.beneficiarIban}`,
-              dataPlata: new Date(),
-              cheltuialaId: existing.cheltuialaId,
-              furnizorId: cheltuiala.furnizorId,
-            }
+      if (status === 'EXPORTED') {
+        updateData.exportedAt = new Date()
+      } else if (status === 'PAID') {
+        updateData.paidAt = new Date()
+
+        // Creează PlataFurnizor pentru a scădea soldul din cheltuială
+        if (existing.cheltuialaId) {
+          const cheltuiala = await db.cheltuiala.findUnique({
+            where: { id: existing.cheltuialaId },
+            include: { furnizor: true }
           })
 
-          // Verifică dacă cheltuiala e achitată integral
-          const platiFurnizor = await db.plataFurnizor.findMany({
-            where: { cheltuialaId: existing.cheltuialaId }
-          })
-          const totalPlatit = platiFurnizor.reduce((sum, p) => sum + p.suma, 0)
-
-          if (totalPlatit >= cheltuiala.suma - 0.01) {
-            await db.cheltuiala.update({
-              where: { id: existing.cheltuialaId },
+          if (cheltuiala?.furnizorId) {
+            await db.plataFurnizor.create({
               data: {
-                platita: true,
+                suma: existing.suma,
+                metodaPlata: 'TRANSFER',
+                referinta: existing.referinta || `Export bancar - ${existing.beneficiarIban}`,
                 dataPlata: new Date(),
-                metodaPlataFurnizor: 'TRANSFER',
-                referintaPlata: existing.referinta
+                cheltuialaId: existing.cheltuialaId,
+                furnizorId: cheltuiala.furnizorId,
               }
             })
+
+            // Verifică dacă cheltuiala e achitată integral
+            const platiFurnizor = await db.plataFurnizor.findMany({
+              where: { cheltuialaId: existing.cheltuialaId }
+            })
+            const totalPlatit = platiFurnizor.reduce((sum, p) => sum + p.suma, 0)
+
+            if (totalPlatit >= cheltuiala.suma - 0.01) {
+              await db.cheltuiala.update({
+                where: { id: existing.cheltuialaId },
+                data: {
+                  platita: true,
+                  dataPlata: new Date(),
+                  metodaPlataFurnizor: 'TRANSFER',
+                  referintaPlata: existing.referinta
+                }
+              })
+            }
           }
         }
       }
     }
 
+    // Handle field edits
+    if (beneficiarNume !== undefined) updateData.beneficiarNume = beneficiarNume
+    if (beneficiarIban !== undefined) updateData.beneficiarIban = beneficiarIban.replace(/\s/g, '').toUpperCase()
+    if (suma !== undefined) updateData.suma = suma
+    if (descriere !== undefined) updateData.descriere = descriere
+    if (referinta !== undefined) updateData.referinta = referinta || null
+    if (contBancarId !== undefined) {
+      // Verify bank account belongs to association
+      const contBancar = await db.contBancarAsociatie.findFirst({
+        where: { id: contBancarId, asociatieId: existing.asociatieId }
+      })
+      if (contBancar) {
+        updateData.contBancarId = contBancarId
+      }
+    }
+
     const plata = await db.plataBancaraPending.update({
       where: { id },
-      data: updateData
+      data: updateData,
+      include: {
+        contBancar: {
+          select: { id: true, nume: true, iban: true, banca: true }
+        }
+      }
     })
 
     return NextResponse.json({ plata })
@@ -263,10 +290,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Plată negăsită' }, { status: 404 })
     }
 
-    // Only allow deletion of pending payments
-    if (existing.status !== 'PENDING') {
+    // Only prevent deletion of PAID payments
+    if (existing.status === 'PAID') {
       return NextResponse.json({
-        error: 'Nu poți șterge o plată care a fost deja exportată'
+        error: 'Nu poți șterge o plată care a fost deja efectuată'
       }, { status: 400 })
     }
 

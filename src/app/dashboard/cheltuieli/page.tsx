@@ -456,6 +456,7 @@ export default function CheltuieliPage() {
       {showPaymentModal && payingCheltuiala && asociatieId && (
         <PaymentModal
           cheltuiala={payingCheltuiala}
+          asociatieId={asociatieId}
           onClose={() => { setShowPaymentModal(false); setPayingCheltuiala(null) }}
           onSuccess={() => {
             setShowPaymentModal(false)
@@ -646,17 +647,28 @@ export default function CheltuieliPage() {
   )
 }
 
+interface ContBancar {
+  id: string
+  nume: string
+  iban: string
+  banca: string | null
+}
+
 // Payment Modal Component
 function PaymentModal({
   cheltuiala,
+  asociatieId,
   onClose,
   onSuccess,
 }: {
   cheltuiala: Cheltuiala
+  asociatieId: string
   onClose: () => void
   onSuccess: () => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [conturiBancare, setConturiBancare] = useState<ContBancar[]>([])
+  const [loadingConturi, setLoadingConturi] = useState(false)
   const restDePlata = cheltuiala.restDePlata ?? cheltuiala.suma
   const [formData, setFormData] = useState({
     suma: restDePlata.toString(),
@@ -664,12 +676,70 @@ function PaymentModal({
     referinta: '',
     dataPlata: new Date().toISOString().split('T')[0],
   })
+  const [tipPlata, setTipPlata] = useState<'manual' | 'export'>('manual')
+  const [contBancarId, setContBancarId] = useState('')
+
+  // Fetch bank accounts when Transfer is selected
+  useEffect(() => {
+    if (formData.metodaPlata === 'TRANSFER' && conturiBancare.length === 0) {
+      setLoadingConturi(true)
+      fetch(`/api/conturi-bancare?asociatieId=${asociatieId}`)
+        .then(res => res.json())
+        .then(data => {
+          setConturiBancare(data.conturi || [])
+          if (data.conturi?.length > 0) {
+            setContBancarId(data.conturi[0].id)
+          }
+        })
+        .catch(err => console.error('Failed to fetch bank accounts:', err))
+        .finally(() => setLoadingConturi(false))
+    }
+  }, [formData.metodaPlata, asociatieId, conturiBancare.length])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
+      // If Transfer + Export, add to pending bank payments
+      if (formData.metodaPlata === 'TRANSFER' && tipPlata === 'export') {
+        if (!contBancarId) {
+          alert('Selectează un cont bancar')
+          setLoading(false)
+          return
+        }
+        if (!cheltuiala.furnizor?.contBancar) {
+          alert('Furnizorul nu are IBAN configurat. Adaugă IBAN-ul în Furnizori.')
+          setLoading(false)
+          return
+        }
+
+        const res = await fetch('/api/plati-bancare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            asociatieId,
+            contBancarId,
+            beneficiarNume: cheltuiala.furnizor.nume,
+            beneficiarIban: cheltuiala.furnizor.contBancar,
+            beneficiarCui: cheltuiala.furnizor.cui || null,
+            suma: parseFloat(formData.suma),
+            descriere: `Plată factură ${cheltuiala.nrFactura || ''} - ${tipCheltuialaLabels[cheltuiala.tip] || cheltuiala.tip}`.trim(),
+            referinta: formData.referinta || null,
+            cheltuialaId: cheltuiala.id,
+          }),
+        })
+
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Eroare la adăugarea în export')
+        }
+
+        onSuccess()
+        return
+      }
+
+      // Otherwise, direct payment (manual)
       const res = await fetch('/api/plati-furnizori', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -755,7 +825,12 @@ function PaymentModal({
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setFormData({ ...formData, metodaPlata: value as typeof formData.metodaPlata })}
+                    onClick={() => {
+                      setFormData({ ...formData, metodaPlata: value as typeof formData.metodaPlata })
+                      if (value !== 'TRANSFER') {
+                        setTipPlata('manual')
+                      }
+                    }}
                     className={`flex items-center gap-2 p-3 border rounded-lg transition-colors ${
                       formData.metodaPlata === value
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
@@ -768,6 +843,97 @@ function PaymentModal({
                 ))}
               </div>
             </div>
+
+            {/* Transfer options: Manual vs Export */}
+            {formData.metodaPlata === 'TRANSFER' && (
+              <div className="space-y-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tip transfer
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTipPlata('manual')}
+                    className={`p-3 border rounded-lg text-left transition-colors ${
+                      tipPlata === 'manual'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-300 bg-white hover:border-gray-400'
+                    }`}
+                  >
+                    <span className={`text-sm font-medium ${tipPlata === 'manual' ? 'text-green-700' : 'text-gray-700'}`}>
+                      Plată manuală
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Transfer deja efectuat
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipPlata('export')}
+                    className={`p-3 border rounded-lg text-left transition-colors ${
+                      tipPlata === 'export'
+                        ? 'border-orange-500 bg-orange-50'
+                        : 'border-gray-300 bg-white hover:border-gray-400'
+                    }`}
+                  >
+                    <span className={`text-sm font-medium ${tipPlata === 'export' ? 'text-orange-700' : 'text-gray-700'}`}>
+                      Adaugă la export
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Pentru fișier bancă
+                    </p>
+                  </button>
+                </div>
+
+                {tipPlata === 'export' && (
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Cont bancar sursă *
+                    </label>
+                    {loadingConturi ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Se încarcă conturile...
+                      </div>
+                    ) : conturiBancare.length === 0 ? (
+                      <p className="text-sm text-red-600">
+                        Nu ai configurat conturi bancare. Adaugă unul în Setări → Conturi bancare.
+                      </p>
+                    ) : (
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        value={contBancarId}
+                        onChange={(e) => setContBancarId(e.target.value)}
+                        required
+                      >
+                        {conturiBancare.map((cont) => (
+                          <option key={cont.id} value={cont.id}>
+                            {cont.nume} - {cont.iban}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    {!cheltuiala.furnizor?.contBancar && (
+                      <p className="text-xs text-red-600 mt-2">
+                        ⚠️ Furnizorul nu are IBAN configurat! Adaugă IBAN-ul în pagina Furnizori.
+                      </p>
+                    )}
+                    {cheltuiala.furnizor?.contBancar && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Beneficiar: {cheltuiala.furnizor.nume} • IBAN: {cheltuiala.furnizor.contBancar}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {tipPlata === 'manual' && (
+                  <div className="p-2 bg-green-100 rounded text-xs text-green-700">
+                    ✓ Plata va fi marcată ca efectuată și scăzută din sold imediat.
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -801,8 +967,18 @@ function PaymentModal({
               <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
                 Anulează
               </Button>
-              <Button type="submit" className="flex-1" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Înregistrează Plata'}
+              <Button
+                type="submit"
+                className={`flex-1 ${formData.metodaPlata === 'TRANSFER' && tipPlata === 'export' ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
+                disabled={loading || (formData.metodaPlata === 'TRANSFER' && tipPlata === 'export' && !cheltuiala.furnizor?.contBancar)}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : formData.metodaPlata === 'TRANSFER' && tipPlata === 'export' ? (
+                  'Adaugă la Export'
+                ) : (
+                  'Înregistrează Plata'
+                )}
               </Button>
             </div>
           </form>

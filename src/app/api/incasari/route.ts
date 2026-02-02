@@ -117,41 +117,112 @@ export async function POST(request: NextRequest) {
     const userId = (session.user as { id: string }).id
     const body = await request.json()
 
-    // Verify chitanta belongs to user's association
-    const chitanta = await db.chitanta.findFirst({
-      where: { id: body.chitantaId },
-      include: {
-        asociatie: true,
-        apartament: true
-      }
-    })
+    const { apartamentId, chitantaId, asociatieId, suma, metodaPlata, referinta, dataPlata } = body
 
-    if (!chitanta || chitanta.asociatie.adminId !== userId) {
-      return NextResponse.json({ error: 'Chitanță negăsită' }, { status: 404 })
+    // Need either apartamentId or chitantaId
+    if (!apartamentId && !chitantaId) {
+      return NextResponse.json({ error: 'Apartament sau chitanță necesară' }, { status: 400 })
     }
 
-    // Get next receipt number and update counter atomically
-    const asociatie = chitanta.asociatie
-    const nextReceiptNumber = (asociatie.ultimulNumarChitanta || 0) + 1
+    if (!suma || suma <= 0) {
+      return NextResponse.json({ error: 'Suma trebuie să fie mai mare ca 0' }, { status: 400 })
+    }
 
-    // Update the counter first
-    await db.asociatie.update({
-      where: { id: asociatie.id },
-      data: { ultimulNumarChitanta: nextReceiptNumber }
-    })
+    let chitanta
+    let apartament
+    let asociatie
 
-    // Create payment with receipt number
+    if (chitantaId) {
+      // If chitantaId provided, use it directly
+      chitanta = await db.chitanta.findFirst({
+        where: { id: chitantaId },
+        include: {
+          asociatie: true,
+          apartament: true
+        }
+      })
+
+      if (!chitanta || chitanta.asociatie.adminId !== userId) {
+        return NextResponse.json({ error: 'Chitanță negăsită' }, { status: 404 })
+      }
+
+      apartament = chitanta.apartament
+      asociatie = chitanta.asociatie
+    } else {
+      // If only apartamentId, find the oldest unpaid chitanta
+      apartament = await db.apartament.findUnique({
+        where: { id: apartamentId },
+        include: { asociatie: true }
+      })
+
+      if (!apartament || apartament.asociatie.adminId !== userId) {
+        return NextResponse.json({ error: 'Apartament negăsit' }, { status: 404 })
+      }
+
+      asociatie = apartament.asociatie
+
+      // Find oldest unpaid chitanta for this apartment
+      chitanta = await db.chitanta.findFirst({
+        where: {
+          apartamentId,
+          status: { in: ['GENERATA', 'TRIMISA', 'PARTIAL_PLATITA', 'RESTANTA'] }
+        },
+        orderBy: [
+          { an: 'asc' },
+          { luna: 'asc' }
+        ],
+        include: { asociatie: true, apartament: true }
+      })
+
+      // If no unpaid chitanta exists, try to find any chitanta for this apartment
+      if (!chitanta) {
+        chitanta = await db.chitanta.findFirst({
+          where: { apartamentId },
+          orderBy: [
+            { an: 'desc' },
+            { luna: 'desc' }
+          ],
+          include: { asociatie: true, apartament: true }
+        })
+      }
+
+      // If still no chitanta, we can't proceed - user needs to generate chitante first
+      if (!chitanta) {
+        return NextResponse.json({
+          error: 'Nu există chitanțe pentru acest apartament. Generați chitanțele de întreținere mai întâi.'
+        }, { status: 400 })
+      }
+    }
+
+    // Only generate receipt number for CASH payments
+    const isCashPayment = !metodaPlata || metodaPlata === 'CASH'
+    let nextReceiptNumber: number | null = null
+    let serieChitanta: string | null = null
+
+    if (isCashPayment) {
+      // Get next receipt number and update counter atomically
+      nextReceiptNumber = (asociatie.ultimulNumarChitanta || 0) + 1
+      serieChitanta = asociatie.serieChitantier || null
+
+      // Update the counter
+      await db.asociatie.update({
+        where: { id: asociatie.id },
+        data: { ultimulNumarChitanta: nextReceiptNumber }
+      })
+    }
+
+    // Create payment (with receipt number only for CASH)
     const plata = await db.plata.create({
       data: {
-        suma: body.suma,
-        metodaPlata: body.metodaPlata || 'CASH',
+        suma,
+        metodaPlata: metodaPlata || 'CASH',
         status: 'CONFIRMED',
-        referinta: body.referinta || null,
-        serieChitantaIncasare: asociatie.serieChitantier || null,
+        referinta: referinta || null,
+        serieChitantaIncasare: serieChitanta,
         numarChitantaIncasare: nextReceiptNumber,
-        chitantaId: body.chitantaId,
-        apartamentId: chitanta.apartamentId,
-        dataPlata: body.dataPlata ? new Date(body.dataPlata) : new Date()
+        chitantaId: chitanta.id,
+        apartamentId: apartament.id,
+        dataPlata: dataPlata ? new Date(dataPlata) : new Date()
       },
       include: {
         apartament: {
@@ -174,7 +245,7 @@ export async function POST(request: NextRequest) {
     // Update chitanta status
     const totalPaid = await db.plata.aggregate({
       where: {
-        chitantaId: body.chitantaId,
+        chitantaId: chitanta.id,
         status: 'CONFIRMED'
       },
       _sum: { suma: true }
@@ -191,7 +262,7 @@ export async function POST(request: NextRequest) {
 
     if (newStatus !== chitanta.status) {
       await db.chitanta.update({
-        where: { id: body.chitantaId },
+        where: { id: chitanta.id },
         data: { status: newStatus }
       })
     }

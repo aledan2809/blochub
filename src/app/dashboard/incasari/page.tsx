@@ -13,7 +13,10 @@ import {
   Check,
   AlertCircle,
   Trash2,
-  Receipt
+  Receipt,
+  User,
+  UserPlus,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,6 +62,17 @@ interface Chitanta {
   }
 }
 
+interface Apartament {
+  id: string
+  numar: string
+  suprafata: number
+  etaj: number | null
+  numarPersoane: number
+  scara: { id: string; numar: string } | null
+  proprietar: { id: string; nume: string; telefon: string | null } | null
+  chirias: { id: string; nume: string; telefon: string | null } | null
+}
+
 interface Asociatie {
   id: string
   serieChitantier: string | null
@@ -96,6 +110,7 @@ export default function IncasariPage() {
   const { currentAsociatie } = useAsociatie()
   const [plati, setPlati] = useState<Plata[]>([])
   const [chitante, setChitante] = useState<Chitanta[]>([])
+  const [apartamente, setApartamente] = useState<Apartament[]>([])
   const [loading, setLoading] = useState(true)
   const [asociatieData, setAsociatieData] = useState<Asociatie | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -105,13 +120,25 @@ export default function IncasariPage() {
 
   // Modal
   const [showAddModal, setShowAddModal] = useState(false)
+  const [selectedApartamentId, setSelectedApartamentId] = useState('')
   const [formData, setFormData] = useState({
     chitantaId: '',
     suma: '',
     metodaPlata: 'CASH',
     referinta: '',
-    dataPlata: new Date().toISOString().split('T')[0]
+    dataPlata: new Date().toISOString().split('T')[0],
+    // Bank transfer details
+    numeOrdonator: '',
+    dataExtras: '',
+    explicatieExtras: ''
   })
+
+  // Resident management
+  const [selectedLocuitor, setSelectedLocuitor] = useState<'proprietar' | 'chirias' | ''>('')
+  const [showAddLocuitor, setShowAddLocuitor] = useState(false)
+  const [addLocuitorType, setAddLocuitorType] = useState<'proprietar' | 'chirias'>('proprietar')
+  const [newLocuitor, setNewLocuitor] = useState({ nume: '', telefon: '', email: '' })
+  const [savingLocuitor, setSavingLocuitor] = useState(false)
 
   useEffect(() => {
     if (currentAsociatie?.id) {
@@ -123,9 +150,10 @@ export default function IncasariPage() {
     if (!currentAsociatie?.id) return
 
     try {
-      const [platiRes, chitRes] = await Promise.all([
+      const [platiRes, chitRes, aptRes] = await Promise.all([
         fetch(`/api/incasari?asociatieId=${currentAsociatie.id}&luna=${selectedMonth}&an=${selectedYear}`),
-        fetch(`/api/chitante?asociatieId=${currentAsociatie.id}`)
+        fetch(`/api/chitante?asociatieId=${currentAsociatie.id}`),
+        fetch(`/api/apartamente?asociatieId=${currentAsociatie.id}`)
       ])
 
       if (platiRes.ok) {
@@ -142,6 +170,11 @@ export default function IncasariPage() {
           ['GENERATA', 'TRIMISA', 'PARTIAL_PLATITA', 'RESTANTA'].includes(c.status)
         )
         setChitante(unpaid)
+      }
+
+      if (aptRes.ok) {
+        const aptData = await aptRes.json()
+        setApartamente(aptData.apartamente || [])
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -160,32 +193,55 @@ export default function IncasariPage() {
     : `#${nextReceiptNumber}`
 
   const handleAdd = async () => {
-    if (!formData.chitantaId || !formData.suma || !currentAsociatie?.id) return
+    if (!selectedApartamentId || !formData.suma || !currentAsociatie?.id) return
 
     try {
+      // Build referinta with bank details if transfer
+      let referinta: string | null = formData.referinta || null
+      if (formData.metodaPlata === 'TRANSFER') {
+        const parts: string[] = []
+        if (formData.numeOrdonator) parts.push(`Ordonator: ${formData.numeOrdonator}`)
+        if (formData.dataExtras) parts.push(`Data extras: ${formData.dataExtras}`)
+        if (formData.explicatieExtras) parts.push(`Explicație: ${formData.explicatieExtras}`)
+        if (formData.referinta) parts.push(formData.referinta)
+        referinta = parts.length > 0 ? parts.join(' | ') : null
+      }
+
       const res = await fetch('/api/incasari', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          apartamentId: selectedApartamentId,
+          chitantaId: formData.chitantaId || null,
           asociatieId: currentAsociatie.id,
-          suma: parseFloat(formData.suma)
+          suma: parseFloat(formData.suma),
+          metodaPlata: formData.metodaPlata,
+          referinta,
+          dataPlata: formData.dataPlata
         })
       })
 
       if (res.ok) {
         setShowAddModal(false)
+        setSelectedApartamentId('')
         setFormData({
           chitantaId: '',
           suma: '',
           metodaPlata: 'CASH',
           referinta: '',
-          dataPlata: new Date().toISOString().split('T')[0]
+          dataPlata: new Date().toISOString().split('T')[0],
+          numeOrdonator: '',
+          dataExtras: '',
+          explicatieExtras: ''
         })
         fetchData()
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Eroare la înregistrarea încasării')
       }
     } catch (error) {
       console.error('Failed to add plata:', error)
+      alert('Eroare la înregistrarea încasării')
     }
   }
 
@@ -217,6 +273,51 @@ export default function IncasariPage() {
     })
   }, [plati, searchTerm])
 
+  // Get selected apartment
+  const selectedApartament = apartamente.find(a => a.id === selectedApartamentId)
+
+  // Get unpaid chitante for selected apartment
+  const chitanteForApartament = chitante.filter(c =>
+    c.apartament.numar === selectedApartament?.numar &&
+    c.apartament.scara?.numar === selectedApartament?.scara?.numar
+  )
+
+  // Calculate total outstanding for apartment
+  const totalRestant = chitanteForApartament.reduce((sum, c) => sum + c.sumaTotal, 0)
+
+  // Handle apartment selection
+  const handleApartamentSelect = (apartamentId: string) => {
+    setSelectedApartamentId(apartamentId)
+    setShowAddLocuitor(false)
+    const apt = apartamente.find(a => a.id === apartamentId)
+    if (apt) {
+      // Find unpaid chitante for this apartment
+      const aptChitante = chitante.filter(c =>
+        c.apartament.numar === apt.numar &&
+        c.apartament.scara?.numar === apt.scara?.numar
+      )
+      const total = aptChitante.reduce((sum, c) => sum + c.sumaTotal, 0)
+      // Auto-fill with the oldest unpaid chitanta if exists
+      const firstUnpaid = aptChitante[0]
+
+      // Auto-select locuitor (prefer chirias over proprietar)
+      if (apt.chirias) {
+        setSelectedLocuitor('chirias')
+      } else if (apt.proprietar) {
+        setSelectedLocuitor('proprietar')
+      } else {
+        setSelectedLocuitor('')
+      }
+
+      setFormData({
+        ...formData,
+        chitantaId: firstUnpaid?.id || '',
+        suma: total > 0 ? total.toFixed(2) : '',
+        numeOrdonator: apt.chirias?.nume || apt.proprietar?.nume || ''
+      })
+    }
+  }
+
   // Auto-fill suma when chitanta selected
   const handleChitantaSelect = (chitantaId: string) => {
     const chitanta = chitante.find(c => c.id === chitantaId)
@@ -229,10 +330,48 @@ export default function IncasariPage() {
       setFormData({
         ...formData,
         chitantaId,
-        suma: remaining > 0 ? remaining.toString() : chitanta.sumaTotal.toString()
+        suma: remaining > 0 ? remaining.toFixed(2) : chitanta.sumaTotal.toFixed(2)
       })
     } else {
       setFormData({ ...formData, chitantaId })
+    }
+  }
+
+  // Add new locuitor (proprietar or chirias)
+  const handleAddLocuitor = async () => {
+    if (!selectedApartament || !newLocuitor.nume.trim()) return
+
+    setSavingLocuitor(true)
+    try {
+      const endpoint = addLocuitorType === 'proprietar' ? '/api/proprietari' : '/api/chiriasi'
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nume: newLocuitor.nume.trim(),
+          telefon: newLocuitor.telefon.trim() || null,
+          email: newLocuitor.email.trim() || null,
+          apartamentId: selectedApartament.id
+        })
+      })
+
+      if (res.ok) {
+        // Refresh apartamente data
+        fetchData()
+        setShowAddLocuitor(false)
+        setNewLocuitor({ nume: '', telefon: '', email: '' })
+        setSelectedLocuitor(addLocuitorType)
+        // Update numeOrdonator in formData
+        setFormData(prev => ({ ...prev, numeOrdonator: newLocuitor.nume.trim() }))
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Eroare la adăugarea locuitorului')
+      }
+    } catch (error) {
+      console.error('Failed to add locuitor:', error)
+      alert('Eroare la adăugarea locuitorului')
+    } finally {
+      setSavingLocuitor(false)
     }
   }
 
@@ -455,7 +594,7 @@ export default function IncasariPage() {
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
-          <div className="relative bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+          <div className="relative bg-white rounded-xl p-6 w-full max-w-lg mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Înregistrează încasare</h2>
               <button
@@ -466,54 +605,261 @@ export default function IncasariPage() {
               </button>
             </div>
 
-            {/* Next Receipt Number Display */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Receipt className="h-5 w-5 text-green-600" />
+            {/* Next Receipt Number Display - only for CASH */}
+            {formData.metodaPlata === 'CASH' && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Receipt className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-600">Următorul număr chitanță</p>
+                    <p className="text-xl font-bold text-green-700">{nextReceiptDisplay}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-green-600">Următorul număr chitanță</p>
-                  <p className="text-xl font-bold text-green-700">{nextReceiptDisplay}</p>
-                </div>
-              </div>
-              {!asociatieData?.serieChitantier && (
-                <p className="text-xs text-orange-600 mt-2">
-                  Configurați seria chitanțier în{' '}
-                  <Link href="/dashboard/setari?tab=asociatie" target="_blank" className="font-medium underline hover:text-orange-700">
-                    Setări Asociație →
-                  </Link>
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Factură de plătit *
-                </label>
-                <select
-                  value={formData.chitantaId}
-                  onChange={(e) => handleChitantaSelect(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Selectează factură</option>
-                  {chitante.map(ch => (
-                    <option key={ch.id} value={ch.id}>
-                      Apt. {ch.apartament.numar}{ch.apartament.scara ? ` (Sc. ${ch.apartament.scara.numar})` : ''} - #{ch.numar} ({months[ch.luna - 1]} {ch.an}) - {ch.sumaTotal.toLocaleString('ro-RO')} lei
-                    </option>
-                  ))}
-                </select>
-                {chitante.length === 0 && (
-                  <p className="text-xs text-orange-600 mt-1">
-                    Nu există facturi neachitate
+                {!asociatieData?.serieChitantier && (
+                  <p className="text-xs text-orange-600 mt-2">
+                    Configurați seria chitanțier în{' '}
+                    <Link href="/dashboard/setari?tab=asociatie" target="_blank" className="font-medium underline hover:text-orange-700">
+                      Setări Asociație →
+                    </Link>
                   </p>
                 )}
               </div>
+            )}
+
+            {/* Info for non-cash payments */}
+            {formData.metodaPlata !== 'CASH' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    {metodaPlataIcons[formData.metodaPlata]}
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-600">Plată fără chitanță</p>
+                    <p className="text-xs text-blue-500 mt-1">
+                      Chitanța se emite doar pentru plăți în numerar
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Step 1: Select Apartment */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Apartament *
+                </label>
+                <select
+                  value={selectedApartamentId}
+                  onChange={(e) => handleApartamentSelect(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selectează apartament</option>
+                  {apartamente.map(apt => (
+                    <option key={apt.id} value={apt.id}>
+                      Apt. {apt.numar}{apt.scara ? ` (Sc. ${apt.scara.numar})` : ''} - {apt.chirias?.nume || apt.proprietar?.nume || 'Fără locuitor'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Show resident info when apartment selected */}
+              {selectedApartament && (
+                <div className="bg-gray-50 rounded-lg p-3 border">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-gray-700">Locuitor *</p>
+                    {!showAddLocuitor && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddLocuitor(true)}
+                        className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                      >
+                        <UserPlus className="h-3 w-3" />
+                        Adaugă locuitor
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Add new locuitor form */}
+                  {showAddLocuitor ? (
+                    <div className="space-y-3 p-3 bg-white rounded-lg border">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAddLocuitorType('proprietar')}
+                          className={cn(
+                            'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+                            addLocuitorType === 'proprietar'
+                              ? 'border-green-500 bg-green-50 text-green-700'
+                              : 'border-gray-200 hover:border-gray-300'
+                          )}
+                        >
+                          Proprietar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAddLocuitorType('chirias')}
+                          className={cn(
+                            'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
+                            addLocuitorType === 'chirias'
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 hover:border-gray-300'
+                          )}
+                        >
+                          Chiriaș
+                        </button>
+                      </div>
+                      <Input
+                        placeholder="Nume complet *"
+                        value={newLocuitor.nume}
+                        onChange={(e) => setNewLocuitor({ ...newLocuitor, nume: e.target.value })}
+                        className="text-sm"
+                      />
+                      <Input
+                        placeholder="Telefon"
+                        value={newLocuitor.telefon}
+                        onChange={(e) => setNewLocuitor({ ...newLocuitor, telefon: e.target.value })}
+                        className="text-sm"
+                      />
+                      <Input
+                        placeholder="Email"
+                        type="email"
+                        value={newLocuitor.email}
+                        onChange={(e) => setNewLocuitor({ ...newLocuitor, email: e.target.value })}
+                        className="text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => {
+                            setShowAddLocuitor(false)
+                            setNewLocuitor({ nume: '', telefon: '', email: '' })
+                          }}
+                        >
+                          Anulează
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="flex-1"
+                          onClick={handleAddLocuitor}
+                          disabled={savingLocuitor || !newLocuitor.nume.trim()}
+                        >
+                          {savingLocuitor ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Salvează'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Existing locuitori selection */}
+                      {(selectedApartament.proprietar || selectedApartament.chirias) ? (
+                        <div className="space-y-2">
+                          {selectedApartament.proprietar && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedLocuitor('proprietar')
+                                setFormData(prev => ({ ...prev, numeOrdonator: selectedApartament.proprietar!.nume }))
+                              }}
+                              className={cn(
+                                'w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left',
+                                selectedLocuitor === 'proprietar'
+                                  ? 'border-green-500 bg-green-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              )}
+                            >
+                              <User className={cn('h-4 w-4', selectedLocuitor === 'proprietar' ? 'text-green-600' : 'text-gray-400')} />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{selectedApartament.proprietar.nume}</p>
+                                <p className="text-xs text-green-600">Proprietar</p>
+                              </div>
+                              {selectedLocuitor === 'proprietar' && (
+                                <Check className="h-4 w-4 text-green-600 shrink-0" />
+                              )}
+                            </button>
+                          )}
+                          {selectedApartament.chirias && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedLocuitor('chirias')
+                                setFormData(prev => ({ ...prev, numeOrdonator: selectedApartament.chirias!.nume }))
+                              }}
+                              className={cn(
+                                'w-full flex items-center gap-3 p-2 rounded-lg border transition-colors text-left',
+                                selectedLocuitor === 'chirias'
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              )}
+                            >
+                              <User className={cn('h-4 w-4', selectedLocuitor === 'chirias' ? 'text-blue-600' : 'text-gray-400')} />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{selectedApartament.chirias.nume}</p>
+                                <p className="text-xs text-blue-600">Chiriaș</p>
+                              </div>
+                              {selectedLocuitor === 'chirias' && (
+                                <Check className="h-4 w-4 text-blue-600 shrink-0" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-orange-600">
+                          <UserPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm font-medium">Nu există locuitor configurat</p>
+                          <p className="text-xs mt-1">Adăugați un proprietar sau chiriaș</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Outstanding balance */}
+                  {totalRestant > 0 && !showAddLocuitor && (
+                    <div className="mt-3 pt-3 border-t">
+                      <p className="text-sm text-orange-600 font-medium">
+                        Sold restant: {totalRestant.toLocaleString('ro-RO')} lei
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {chitanteForApartament.length} chitanțe neachitate
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Chitanta selection (optional, for partial payments) */}
+              {selectedApartament && chitanteForApartament.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chitanță de achitat (opțional)
+                  </label>
+                  <select
+                    value={formData.chitantaId}
+                    onChange={(e) => handleChitantaSelect(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="">Toate restanțele ({totalRestant.toLocaleString('ro-RO')} lei)</option>
+                    {chitanteForApartament.map(ch => (
+                      <option key={ch.id} value={ch.id}>
+                        #{ch.numar} - {months[ch.luna - 1]} {ch.an} - {ch.sumaTotal.toLocaleString('ro-RO')} lei
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sumă (lei) *
+                  Sumă încasată (lei) *
                 </label>
                 <Input
                   type="number"
@@ -522,7 +868,13 @@ export default function IncasariPage() {
                   value={formData.suma}
                   onChange={(e) => setFormData({ ...formData, suma: e.target.value })}
                   placeholder="0.00"
+                  className="text-lg font-semibold"
                 />
+                {totalRestant > 0 && parseFloat(formData.suma) < totalRestant && parseFloat(formData.suma) > 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Plată parțială - va rămâne sold: {(totalRestant - parseFloat(formData.suma)).toLocaleString('ro-RO')} lei
+                  </p>
+                )}
               </div>
 
               <div>
@@ -549,6 +901,46 @@ export default function IncasariPage() {
                 </div>
               </div>
 
+              {/* Bank transfer details */}
+              {formData.metodaPlata === 'TRANSFER' && (
+                <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 space-y-3">
+                  <p className="text-sm font-medium text-blue-700">Detalii extras bancar</p>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Nume ordonator (din extras)
+                    </label>
+                    <Input
+                      value={formData.numeOrdonator}
+                      onChange={(e) => setFormData({ ...formData, numeOrdonator: e.target.value })}
+                      placeholder="ex: POPESCU ION"
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Data din extras
+                    </label>
+                    <Input
+                      type="date"
+                      value={formData.dataExtras}
+                      onChange={(e) => setFormData({ ...formData, dataExtras: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Explicație din extras
+                    </label>
+                    <Input
+                      value={formData.explicatieExtras}
+                      onChange={(e) => setFormData({ ...formData, explicatieExtras: e.target.value })}
+                      placeholder="ex: PLATA INTRETINERE IANUARIE"
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Data plății
@@ -567,7 +959,7 @@ export default function IncasariPage() {
                 <Input
                   value={formData.referinta}
                   onChange={(e) => setFormData({ ...formData, referinta: e.target.value })}
-                  placeholder="ex: OP 12345 / Chitanță 001"
+                  placeholder="ex: OP 12345 / Nr. chitanță manuală"
                 />
               </div>
             </div>
@@ -576,17 +968,36 @@ export default function IncasariPage() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false)
+                  setSelectedApartamentId('')
+                  setSelectedLocuitor('')
+                  setShowAddLocuitor(false)
+                }}
               >
                 Anulează
               </Button>
               <Button
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className={cn(
+                  "flex-1",
+                  formData.metodaPlata === 'CASH'
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-blue-600 hover:bg-blue-700"
+                )}
                 onClick={handleAdd}
-                disabled={!formData.chitantaId || !formData.suma}
+                disabled={!selectedApartamentId || !formData.suma || !selectedLocuitor}
               >
-                <Receipt className="h-4 w-4 mr-2" />
-                Emite chitanță
+                {formData.metodaPlata === 'CASH' ? (
+                  <>
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Emite chitanță
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Înregistrează plată
+                  </>
+                )}
               </Button>
             </div>
           </div>
