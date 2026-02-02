@@ -179,6 +179,7 @@ export async function POST(request: NextRequest) {
 
     // Obține datele de bilanț pentru ultimii 5 ani
     let bilantData = null
+    let debugIndicators: BilantIndicator[] = []
     const istoricBilant: Array<{
       an: number
       cifraAfaceri: number
@@ -222,9 +223,9 @@ export async function POST(request: NextRequest) {
             indicators[ind.indicator] = ind.val_indicator
           })
 
-          // DEBUG: Log all indicators for first year to understand ANAF structure
+          // DEBUG: Store indicators from first year to understand ANAF structure
           if (i === 0) {
-            console.log('ANAF Bilant Indicators for year', bilant.an, ':', JSON.stringify(bilant.i.slice(0, 30), null, 2))
+            debugIndicators = bilant.i.slice(0, 50)
           }
 
           // ANAF uses different codes for normal vs micro companies
@@ -357,7 +358,7 @@ export async function POST(request: NextRequest) {
       riscuri,
       avertismente,
       // DEBUG: Include raw indicators to understand ANAF structure
-      _debug_indicators: bilantResults[0]?.i?.slice(0, 40) || [],
+      _debug_indicators: debugIndicators,
     })
   } catch (error) {
     console.error('Verificare ANAF error:', error)
