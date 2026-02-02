@@ -1,4 +1,6 @@
 import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
+import { db } from '@/lib/db'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -7,16 +9,111 @@ interface EmailOptions {
   subject: string
   html: string
   from?: string
+  asociatieId?: string // Optional: if provided, uses asociatie's SMTP config
 }
 
-export async function sendEmail({ to, subject, html, from }: EmailOptions) {
-  // If no API key, just log (development mode)
-  if (!resend) {
-    console.log('[Email] Would send email:')
+interface SMTPConfig {
+  host: string
+  port: number
+  secure: boolean
+  user: string
+  password: string
+  fromEmail: string
+  fromName: string | null
+}
+
+// Cache for SMTP configs to avoid repeated DB queries
+const smtpConfigCache = new Map<string, { config: SMTPConfig | null; timestamp: number }>()
+const CACHE_TTL = 60000 // 1 minute cache
+
+async function getSMTPConfig(asociatieId: string): Promise<SMTPConfig | null> {
+  // Check cache first
+  const cached = smtpConfigCache.get(asociatieId)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.config
+  }
+
+  try {
+    const config = await db.sMTPConfig.findUnique({
+      where: { asociatieId },
+      select: {
+        host: true,
+        port: true,
+        secure: true,
+        user: true,
+        password: true,
+        fromEmail: true,
+        fromName: true,
+        enabled: true,
+      },
+    })
+
+    const result = config?.enabled ? config : null
+    smtpConfigCache.set(asociatieId, { config: result, timestamp: Date.now() })
+    return result
+  } catch (error) {
+    console.error('[Email] Error fetching SMTP config:', error)
+    return null
+  }
+}
+
+async function sendViaSMTP(
+  smtpConfig: SMTPConfig,
+  { to, subject, html }: { to: string | string[]; subject: string; html: string }
+) {
+  const transporter = nodemailer.createTransport({
+    host: smtpConfig.host,
+    port: smtpConfig.port,
+    secure: smtpConfig.secure,
+    auth: {
+      user: smtpConfig.user,
+      pass: smtpConfig.password,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  })
+
+  const fromName = smtpConfig.fromName || 'BlocHub'
+  const result = await transporter.sendMail({
+    from: `"${fromName}" <${smtpConfig.fromEmail}>`,
+    to: Array.isArray(to) ? to.join(', ') : to,
+    subject,
+    html,
+  })
+
+  return result
+}
+
+export async function sendEmail({ to, subject, html, from, asociatieId }: EmailOptions) {
+  // Development mode - no email services configured
+  if (!resend && !asociatieId) {
+    console.log('[Email] Would send email (dev mode):')
     console.log(`  To: ${Array.isArray(to) ? to.join(', ') : to}`)
     console.log(`  Subject: ${subject}`)
     console.log(`  HTML: ${html.substring(0, 200)}...`)
     return { success: true, development: true }
+  }
+
+  // Try SMTP first if asociatieId provided
+  if (asociatieId) {
+    const smtpConfig = await getSMTPConfig(asociatieId)
+    if (smtpConfig) {
+      try {
+        console.log(`[Email] Sending via SMTP (${smtpConfig.host})`)
+        const result = await sendViaSMTP(smtpConfig, { to, subject, html })
+        return { success: true, data: result, via: 'smtp' }
+      } catch (error: any) {
+        console.error('[Email] SMTP error, falling back to Resend:', error.message)
+        // Fall through to Resend if SMTP fails
+      }
+    }
+  }
+
+  // Fallback to Resend
+  if (!resend) {
+    console.log('[Email] No email service available')
+    return { success: false, error: 'No email service configured' }
   }
 
   try {
@@ -27,11 +124,16 @@ export async function sendEmail({ to, subject, html, from }: EmailOptions) {
       html,
     })
 
-    return { success: true, data: result }
+    return { success: true, data: result, via: 'resend' }
   } catch (error) {
-    console.error('[Email] Error sending email:', error)
+    console.error('[Email] Error sending email via Resend:', error)
     return { success: false, error }
   }
+}
+
+// Clear SMTP config cache (call after config update)
+export function clearSMTPConfigCache(asociatieId: string) {
+  smtpConfigCache.delete(asociatieId)
 }
 
 // Email templates

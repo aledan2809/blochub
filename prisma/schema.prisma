@@ -155,6 +155,10 @@ model Asociatie {
   conturiBancare  ContBancarAsociatie[]
   platiBancare    PlataBancaraPending[]
 
+  // Email & Notifications
+  smtpConfig      SMTPConfig?
+  reminderHistory ReminderHistory[]
+
   @@map("asociatii")
 }
 
@@ -235,6 +239,7 @@ model Apartament {
   chitante        Chitanta[]
   plati           Plata[]
   indexuri        IndexContor[]
+  reminderHistory ReminderHistory[]
 
   @@unique([asociatieId, numar])
   @@map("apartamente")
@@ -547,6 +552,7 @@ model Chitanta {
 
   repartizari     Repartizare[]
   plati           Plata[]
+  reminderHistory ReminderHistory[]
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -887,4 +893,77 @@ model PredictieRestanta {
 
   @@unique([asociatieId, apartamentId, luna, an])
   @@map("predictii_restante")
+}
+
+// ============================================
+// SMTP CONFIGURATION
+// ============================================
+
+model SMTPConfig {
+  id              String   @id @default(cuid())
+
+  host            String   // smtp.gmail.com, smtp.office365.com, etc.
+  port            Int      @default(587)
+  secure          Boolean  @default(false) // true for port 465 (SSL)
+  user            String   // SMTP username/email
+  password        String   // SMTP password (encrypted in production)
+
+  fromEmail       String   // Email address to send from
+  fromName        String?  // Display name for sender
+
+  enabled         Boolean  @default(false)
+  lastTest        DateTime?
+  lastTestSuccess Boolean?
+  lastTestError   String?
+
+  asociatieId     String   @unique
+  asociatie       Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("smtp_configs")
+}
+
+// ============================================
+// REMINDER HISTORY (for tracking sent reminders)
+// ============================================
+
+enum ReminderType {
+  BEFORE_DUE      // Reminder before due date
+  ON_DUE          // Reminder on due date
+  AFTER_DUE       // Reminder after due date (overdue)
+  ESCALATION      // Escalated reminder
+  WEEKLY_SUMMARY  // Weekly summary for admin
+}
+
+enum ReminderChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+model ReminderHistory {
+  id              String          @id @default(cuid())
+
+  tip             ReminderType
+  canal           ReminderChannel
+  mesaj           String          @db.Text
+
+  trimisLa        DateTime        @default(now())
+  deschisLa       DateTime?       // For email open tracking
+
+  apartamentId    String
+  apartament      Apartament      @relation(fields: [apartamentId], references: [id], onDelete: Cascade)
+
+  chitantaId      String?
+  chitanta        Chitanta?       @relation(fields: [chitantaId], references: [id], onDelete: SetNull)
+
+  asociatieId     String
+  asociatie       Asociatie       @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime        @default(now())
+
+  @@map("reminder_history")
 }

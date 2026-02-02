@@ -64,6 +64,21 @@ interface ContBancar {
   esteImplicit: boolean
 }
 
+interface SMTPConfigState {
+  configured: boolean
+  host: string
+  port: number
+  secure: boolean
+  user: string
+  password: string
+  fromEmail: string
+  fromName: string
+  enabled: boolean
+  lastTest: string | null
+  lastTestSuccess: boolean | null
+  lastTestError: string | null
+}
+
 function SetariContent() {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
@@ -103,6 +118,27 @@ function SetariContent() {
     notificariSms: false,
     reminderZile: 5
   })
+
+  // SMTP configuration state
+  const [smtpConfig, setSMTPConfig] = useState<SMTPConfigState>({
+    configured: false,
+    host: '',
+    port: 587,
+    secure: false,
+    user: '',
+    password: '',
+    fromEmail: '',
+    fromName: '',
+    enabled: false,
+    lastTest: null,
+    lastTestSuccess: null,
+    lastTestError: null
+  })
+  const [useSMTP, setUseSMTP] = useState(false)
+  const [savingSMTP, setSavingSMTP] = useState(false)
+  const [testingSMTP, setTestingSMTP] = useState(false)
+  const [smtpTestEmail, setSMTPTestEmail] = useState('')
+  const [smtpTestResult, setSMTPTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const [asociatie, setAsociatie] = useState<AsociatieInfo | null>(null)
   const [asociatieSettings, setAsociatieSettings] = useState<AsociatieSettings>({
@@ -171,6 +207,29 @@ function SetariContent() {
             const conturiData = await conturiRes.json()
             setConturiBancare(conturiData.conturi || [])
           }
+        }
+      }
+
+      // Get SMTP configuration
+      const smtpRes = await fetch('/api/asociatie/smtp')
+      if (smtpRes.ok) {
+        const smtpData = await smtpRes.json()
+        if (smtpData.configured && smtpData.config) {
+          setSMTPConfig({
+            configured: true,
+            host: smtpData.config.host || '',
+            port: smtpData.config.port || 587,
+            secure: smtpData.config.secure || false,
+            user: smtpData.config.user || '',
+            password: '', // Don't load password for security
+            fromEmail: smtpData.config.fromEmail || '',
+            fromName: smtpData.config.fromName || '',
+            enabled: smtpData.config.enabled || false,
+            lastTest: smtpData.config.lastTest || null,
+            lastTestSuccess: smtpData.config.lastTestSuccess,
+            lastTestError: smtpData.config.lastTestError || null
+          })
+          setUseSMTP(smtpData.config.enabled || false)
         }
       }
     } catch (error) {
@@ -352,6 +411,114 @@ function SetariContent() {
     } catch (error) {
       console.error('Export failed:', error)
       alert('Export temporar indisponibil')
+    }
+  }
+
+  // SMTP Configuration handlers
+  const handleSaveSMTP = async () => {
+    setSavingSMTP(true)
+    setSMTPTestResult(null)
+    try {
+      const res = await fetch('/api/asociatie/smtp', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          secure: smtpConfig.secure,
+          user: smtpConfig.user,
+          password: smtpConfig.password,
+          fromEmail: smtpConfig.fromEmail,
+          fromName: smtpConfig.fromName,
+          enabled: useSMTP
+        })
+      })
+
+      if (res.ok) {
+        setSMTPConfig(prev => ({ ...prev, configured: true, enabled: useSMTP }))
+        setSMTPTestResult({ success: true, message: 'Configurația SMTP a fost salvată!' })
+        setTimeout(() => setSMTPTestResult(null), 3000)
+      } else {
+        const data = await res.json()
+        setSMTPTestResult({ success: false, message: data.error || 'Eroare la salvare' })
+      }
+    } catch (error) {
+      console.error('Failed to save SMTP config:', error)
+      setSMTPTestResult({ success: false, message: 'Eroare la salvarea configurației SMTP' })
+    } finally {
+      setSavingSMTP(false)
+    }
+  }
+
+  const handleTestSMTP = async () => {
+    if (!smtpTestEmail) {
+      setSMTPTestResult({ success: false, message: 'Introdu o adresă email pentru test' })
+      return
+    }
+
+    setTestingSMTP(true)
+    setSMTPTestResult(null)
+    try {
+      const res = await fetch('/api/asociatie/smtp/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testEmail: smtpTestEmail })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setSMTPTestResult({ success: true, message: data.message || 'Email de test trimis cu succes!' })
+        setSMTPConfig(prev => ({
+          ...prev,
+          lastTest: new Date().toISOString(),
+          lastTestSuccess: true,
+          lastTestError: null
+        }))
+      } else {
+        setSMTPTestResult({ success: false, message: data.error || 'Test eșuat' })
+        setSMTPConfig(prev => ({
+          ...prev,
+          lastTest: new Date().toISOString(),
+          lastTestSuccess: false,
+          lastTestError: data.error
+        }))
+      }
+    } catch (error) {
+      console.error('SMTP test failed:', error)
+      setSMTPTestResult({ success: false, message: 'Eroare la testarea SMTP' })
+    } finally {
+      setTestingSMTP(false)
+    }
+  }
+
+  const handleDeleteSMTP = async () => {
+    if (!confirm('Sigur vrei să ștergi configurația SMTP? Notificările vor fi trimise prin serviciul BlocHub.')) {
+      return
+    }
+
+    try {
+      const res = await fetch('/api/asociatie/smtp', { method: 'DELETE' })
+      if (res.ok) {
+        setSMTPConfig({
+          configured: false,
+          host: '',
+          port: 587,
+          secure: false,
+          user: '',
+          password: '',
+          fromEmail: '',
+          fromName: '',
+          enabled: false,
+          lastTest: null,
+          lastTestSuccess: null,
+          lastTestError: null
+        })
+        setUseSMTP(false)
+        setSMTPTestResult({ success: true, message: 'Configurația SMTP a fost ștearsă' })
+        setTimeout(() => setSMTPTestResult(null), 3000)
+      }
+    } catch (error) {
+      console.error('Failed to delete SMTP config:', error)
     }
   }
 
@@ -982,6 +1149,212 @@ function SetariContent() {
                 )}
                 Salvează preferințele
               </Button>
+            </div>
+
+            {/* SMTP Configuration Section */}
+            <div className="pt-6 border-t">
+              <h2 className="text-lg font-semibold mb-4">Configurare Server Email (SMTP)</h2>
+              <p className="text-gray-600 mb-4">
+                Folosește propriul server SMTP pentru a trimite notificări. Implicit se folosește serviciul BlocHub.
+              </p>
+
+              <div className="space-y-4">
+                {/* Toggle SMTP */}
+                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                    <div>
+                      <p className="font-medium">Folosește server SMTP propriu</p>
+                      <p className="text-sm text-gray-500">
+                        {smtpConfig.configured ? 'Configurat' : 'Nu este configurat'} -
+                        {useSMTP ? ' Activ' : ' Inactiv'}
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={useSMTP}
+                    onChange={(e) => setUseSMTP(e.target.checked)}
+                    className="h-5 w-5 rounded text-blue-600"
+                  />
+                </label>
+
+                {/* SMTP Configuration Form */}
+                {useSMTP && (
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Server SMTP *
+                        </label>
+                        <Input
+                          value={smtpConfig.host}
+                          onChange={(e) => setSMTPConfig({ ...smtpConfig, host: e.target.value })}
+                          placeholder="smtp.gmail.com"
+                        />
+                      </div>
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Port *
+                          </label>
+                          <Input
+                            type="number"
+                            value={smtpConfig.port}
+                            onChange={(e) => setSMTPConfig({ ...smtpConfig, port: parseInt(e.target.value) || 587 })}
+                            placeholder="587"
+                          />
+                        </div>
+                        <div className="flex items-end pb-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={smtpConfig.secure}
+                              onChange={(e) => setSMTPConfig({ ...smtpConfig, secure: e.target.checked })}
+                              className="h-4 w-4 rounded text-blue-600"
+                            />
+                            <span className="text-sm">SSL/TLS</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Utilizator *
+                        </label>
+                        <Input
+                          value={smtpConfig.user}
+                          onChange={(e) => setSMTPConfig({ ...smtpConfig, user: e.target.value })}
+                          placeholder="email@domeniu.ro"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Parolă *
+                        </label>
+                        <Input
+                          type="password"
+                          value={smtpConfig.password}
+                          onChange={(e) => setSMTPConfig({ ...smtpConfig, password: e.target.value })}
+                          placeholder={smtpConfig.configured ? '••••••••' : 'Parolă SMTP'}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Email expeditor *
+                        </label>
+                        <Input
+                          type="email"
+                          value={smtpConfig.fromEmail}
+                          onChange={(e) => setSMTPConfig({ ...smtpConfig, fromEmail: e.target.value })}
+                          placeholder="notificari@asociatie.ro"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Nume expeditor
+                        </label>
+                        <Input
+                          value={smtpConfig.fromName}
+                          onChange={(e) => setSMTPConfig({ ...smtpConfig, fromName: e.target.value })}
+                          placeholder="Asociația X"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Test SMTP */}
+                    <div className="pt-4 border-t border-blue-200">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Test conexiune SMTP</p>
+                      <div className="flex gap-2">
+                        <Input
+                          type="email"
+                          value={smtpTestEmail}
+                          onChange={(e) => setSMTPTestEmail(e.target.value)}
+                          placeholder="email.test@exemplu.ro"
+                          className="flex-1"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={handleTestSMTP}
+                          disabled={testingSMTP || !smtpConfig.host || !smtpConfig.user}
+                        >
+                          {testingSMTP ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Trimite Test'
+                          )}
+                        </Button>
+                      </div>
+                      {smtpConfig.lastTest && (
+                        <p className={cn(
+                          'text-xs mt-2',
+                          smtpConfig.lastTestSuccess ? 'text-green-600' : 'text-red-600'
+                        )}>
+                          Ultimul test: {new Date(smtpConfig.lastTest).toLocaleString('ro-RO')} -
+                          {smtpConfig.lastTestSuccess ? ' ✓ Success' : ` ✗ ${smtpConfig.lastTestError || 'Eșuat'}`}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Result message */}
+                    {smtpTestResult && (
+                      <div className={cn(
+                        'p-3 rounded-lg text-sm',
+                        smtpTestResult.success
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      )}>
+                        {smtpTestResult.success ? (
+                          <Check className="h-4 w-4 inline mr-2" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 inline mr-2" />
+                        )}
+                        {smtpTestResult.message}
+                      </div>
+                    )}
+
+                    {/* Save/Delete buttons */}
+                    <div className="flex gap-3 pt-4">
+                      <Button
+                        onClick={handleSaveSMTP}
+                        disabled={savingSMTP || !smtpConfig.host || !smtpConfig.user || !smtpConfig.fromEmail}
+                        className="flex-1"
+                      >
+                        {savingSMTP ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-2" />
+                        )}
+                        Salvează configurația SMTP
+                      </Button>
+                      {smtpConfig.configured && (
+                        <Button
+                          variant="outline"
+                          onClick={handleDeleteSMTP}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Info when SMTP disabled */}
+                {!useSMTP && (
+                  <div className="p-4 bg-gray-50 rounded-lg border">
+                    <p className="text-sm text-gray-600">
+                      <strong>Serviciul BlocHub</strong> este folosit pentru trimiterea notificărilor.
+                      Activează opțiunea de mai sus pentru a configura un server SMTP propriu.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
