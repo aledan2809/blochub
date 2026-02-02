@@ -177,50 +177,83 @@ export async function POST(request: NextRequest) {
       adresaCompleta = dateGenerale.adresa
     }
 
-    // Obține și datele de bilanț (ultimii ani disponibili)
+    // Obține datele de bilanț pentru ultimii 5 ani
     let bilantData = null
+    const istoricBilant: Array<{
+      an: number
+      cifraAfaceri: number
+      profitNet: number
+      datorii: number
+      activeImobilizate: number
+      activeCirculante: number
+      capitaluriProprii: number
+      nrSalariati: number
+    }> = []
+
     try {
       const currentYear = new Date().getFullYear()
-      // Încearcă ultimii 3 ani pentru a găsi cel mai recent bilanț
-      for (const an of [currentYear - 1, currentYear - 2, currentYear - 3]) {
-        const bilantResponse = await fetch(
-          `https://webservicesp.anaf.ro/bilant?an=${an}&cui=${cuiClean}`,
-          { method: 'GET' }
-        )
+      // Fetch în paralel pentru ultimii 5 ani (mai rapid)
+      const years = [currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4, currentYear - 5]
 
-        if (bilantResponse.ok) {
-          const bilant: BilantResponse = await bilantResponse.json()
-          if (bilant && bilant.i && bilant.i.length > 0) {
-            // Mapăm indicatorii la un format mai ușor de folosit
-            const indicators: Record<string, number | null> = {}
-            bilant.i.forEach((ind: BilantIndicator) => {
-              indicators[ind.indicator] = ind.val_indicator
-            })
+      const bilantPromises = years.map(an =>
+        fetch(`https://webservicesp.anaf.ro/bilant?an=${an}&cui=${cuiClean}`, { method: 'GET' })
+          .then(res => res.ok ? res.json() : null)
+          .catch(() => null)
+      )
 
-            bilantData = {
-              an: bilant.an,
-              caen: bilant.caen,
-              caenDenumire: bilant.caen_denumire,
-              // Indicatori cheie din bilanț
-              activeImobilizate: indicators['I'] || 0,
-              activeCirculante: indicators['II'] || 0,
-              stocuri: indicators['II.1'] || 0,
-              creante: indicators['II.2'] || 0,
-              casaBanca: indicators['II.3'] || 0,
-              datorii: indicators['III'] || 0,
-              capitaluriProprii: indicators['IV'] || 0,
-              capitalSocial: indicators['IV.1'] || 0,
-              cifraAfaceriNeta: indicators['I1'] || 0,
-              venituriTotale: indicators['21'] || 0,
-              cheltuieliTotale: indicators['22'] || 0,
-              profitBrut: indicators['23'] || 0,
-              profitNet: indicators['26'] || 0,
-              nrMediuSalariati: indicators['27'] || 0,
-            }
-            break
+      const bilantResults = await Promise.all(bilantPromises)
+
+      for (let i = 0; i < bilantResults.length; i++) {
+        const bilant: BilantResponse | null = bilantResults[i]
+        if (bilant && bilant.i && bilant.i.length > 0) {
+          // Mapăm indicatorii la un format mai ușor de folosit
+          const indicators: Record<string, number | null> = {}
+          bilant.i.forEach((ind: BilantIndicator) => {
+            indicators[ind.indicator] = ind.val_indicator
+          })
+
+          const yearData = {
+            an: bilant.an || years[i],
+            caen: bilant.caen,
+            caenDenumire: bilant.caen_denumire,
+            activeImobilizate: indicators['I'] || 0,
+            activeCirculante: indicators['II'] || 0,
+            stocuri: indicators['II.1'] || 0,
+            creante: indicators['II.2'] || 0,
+            casaBanca: indicators['II.3'] || 0,
+            datorii: indicators['III'] || 0,
+            capitaluriProprii: indicators['IV'] || 0,
+            capitalSocial: indicators['IV.1'] || 0,
+            cifraAfaceriNeta: indicators['I1'] || 0,
+            venituriTotale: indicators['21'] || 0,
+            cheltuieliTotale: indicators['22'] || 0,
+            profitBrut: indicators['23'] || 0,
+            profitNet: indicators['26'] || 0,
+            nrMediuSalariati: indicators['27'] || 0,
           }
+
+          // Primul an valid devine bilantData (cel mai recent)
+          if (!bilantData) {
+            bilantData = yearData
+          }
+
+          // Adaugă la istoric
+          istoricBilant.push({
+            an: yearData.an,
+            cifraAfaceri: yearData.cifraAfaceriNeta,
+            profitNet: yearData.profitNet,
+            datorii: yearData.datorii,
+            activeImobilizate: yearData.activeImobilizate,
+            activeCirculante: yearData.activeCirculante,
+            capitaluriProprii: yearData.capitaluriProprii,
+            nrSalariati: yearData.nrMediuSalariati,
+          })
         }
       }
+
+      // Sortează istoricul descrescător după an
+      istoricBilant.sort((a, b) => b.an - a.an)
+
     } catch (bilantError) {
       console.error('Error fetching bilant:', bilantError)
       // Nu oprește execuția - continuăm fără date de bilanț
@@ -300,6 +333,7 @@ export async function POST(request: NextRequest) {
         iban: dateGenerale.iban || null,
       },
       bilant: bilantData,
+      istoricBilant,
       riscuri,
       avertismente,
     })

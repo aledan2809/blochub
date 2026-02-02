@@ -77,6 +77,17 @@ interface BilantData {
   nrMediuSalariati: number
 }
 
+interface IstoricBilant {
+  an: number
+  cifraAfaceri: number
+  profitNet: number
+  datorii: number
+  activeImobilizate: number
+  activeCirculante: number
+  capitaluriProprii: number
+  nrSalariati: number
+}
+
 interface AnafVerificationModalProps {
   cui: string
   onClose: () => void
@@ -88,6 +99,7 @@ export function AnafVerificationModal({ cui, onClose, onAutoFill }: AnafVerifica
   const [error, setError] = useState<string | null>(null)
   const [firma, setFirma] = useState<AnafFirma | null>(null)
   const [bilant, setBilant] = useState<BilantData | null>(null)
+  const [istoricBilant, setIstoricBilant] = useState<IstoricBilant[]>([])
   const [riscuri, setRiscuri] = useState<string[]>([])
   const [avertismente, setAvertismente] = useState<string[]>([])
 
@@ -108,6 +120,7 @@ export function AnafVerificationModal({ cui, onClose, onAutoFill }: AnafVerifica
         if (res.ok && data.found) {
           setFirma(data.firma)
           setBilant(data.bilant)
+          setIstoricBilant(data.istoricBilant || [])
           setRiscuri(data.riscuri || [])
           setAvertismente(data.avertismente || [])
         } else {
@@ -472,6 +485,76 @@ export function AnafVerificationModal({ cui, onClose, onAutoFill }: AnafVerifica
                         <span className="font-medium">{formatNumber(bilant.cheltuieliTotale)} lei</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Historical Financial Data */}
+              {istoricBilant.length > 1 && (
+                <div className="bg-white border rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-indigo-600" />
+                      <h3 className="font-semibold">Evoluție financiară ({istoricBilant.length} ani)</h3>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">An</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Cifră afaceri</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Profit net</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Datorii</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Cap. proprii</th>
+                          <th className="px-3 py-2 text-center font-medium text-gray-600">Salariați</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {istoricBilant.map((row, idx) => {
+                          const prevYear = istoricBilant[idx + 1]
+                          const profitTrend = prevYear ? (row.profitNet > prevYear.profitNet ? 'up' : row.profitNet < prevYear.profitNet ? 'down' : 'same') : 'same'
+                          const cifraAfaceriTrend = prevYear ? (row.cifraAfaceri > prevYear.cifraAfaceri ? 'up' : row.cifraAfaceri < prevYear.cifraAfaceri ? 'down' : 'same') : 'same'
+
+                          return (
+                            <tr key={row.an} className={idx === 0 ? 'bg-blue-50' : ''}>
+                              <td className="px-3 py-2 font-medium">
+                                {row.an}
+                                {idx === 0 && <span className="ml-1 text-xs text-blue-600">(ultim)</span>}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <span className="flex items-center justify-end gap-1">
+                                  {formatNumber(row.cifraAfaceri)}
+                                  {cifraAfaceriTrend === 'up' && <TrendingUp className="h-3 w-3 text-green-500" />}
+                                  {cifraAfaceriTrend === 'down' && <TrendingDown className="h-3 w-3 text-red-500" />}
+                                </span>
+                              </td>
+                              <td className={cn(
+                                "px-3 py-2 text-right font-medium",
+                                row.profitNet >= 0 ? "text-green-600" : "text-red-600"
+                              )}>
+                                <span className="flex items-center justify-end gap-1">
+                                  {formatNumber(row.profitNet)}
+                                  {profitTrend === 'up' && <TrendingUp className="h-3 w-3 text-green-500" />}
+                                  {profitTrend === 'down' && <TrendingDown className="h-3 w-3 text-red-500" />}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right">{formatNumber(row.datorii)}</td>
+                              <td className={cn(
+                                "px-3 py-2 text-right",
+                                row.capitaluriProprii < 0 ? "text-red-600" : ""
+                              )}>
+                                {formatNumber(row.capitaluriProprii)}
+                              </td>
+                              <td className="px-3 py-2 text-center">{row.nrSalariati}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="px-4 py-2 bg-gray-50 border-t text-xs text-gray-500">
+                    Valori în RON • Sursa: ANAF Bilanțuri publice
                   </div>
                 </div>
               )}
