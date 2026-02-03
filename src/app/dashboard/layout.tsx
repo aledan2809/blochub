@@ -17,6 +17,7 @@ import {
   X,
   Home,
   Receipt,
+  FileText,
   MessageSquare,
   ChevronDown,
   Building,
@@ -503,6 +504,12 @@ const navigation = [
     href: '/dashboard/furnizori',
     icon: Truck,
     description: 'Gestionare furnizori'
+  },
+  {
+    name: 'Facturi SPV',
+    href: '/dashboard/facturi',
+    icon: FileText,
+    description: 'e-Factura ANAF'
   },
   {
     name: 'Avizier',

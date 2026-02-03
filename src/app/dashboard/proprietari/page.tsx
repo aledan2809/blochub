@@ -19,6 +19,11 @@ import {
   UserCheck,
   Bell,
   User,
+  Send,
+  Loader2,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -61,6 +66,16 @@ interface Apartament {
   chiriasi?: Chirias[]
 }
 
+interface Invitation {
+  id: string
+  email: string
+  numeInvitat: string | null
+  expires: string
+  usedAt: string | null
+  createdAt: string
+  apartament: { numar: string } | null
+}
+
 export default function ProprietariPage() {
   return (
     <Suspense fallback={
@@ -88,9 +103,20 @@ function ProprietariContent() {
   const [showAddModal, setShowAddModal] = useState(!!preselectedAptId)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showChiriasModal, setShowChiriasModal] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const [editingProprietar, setEditingProprietar] = useState<Proprietar | null>(null)
   const [editingChirias, setEditingChirias] = useState<Chirias | null>(null)
   const [selectedAptForChirias, setSelectedAptForChirias] = useState<string | null>(null)
+
+  // Invitations
+  const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [sendingInvite, setSendingInvite] = useState(false)
+  const [inviteForm, setInviteForm] = useState({
+    email: '',
+    numeInvitat: '',
+    apartamentId: '',
+  })
+  const [inviteResult, setInviteResult] = useState<{ success: boolean; message: string } | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -132,11 +158,12 @@ function ProprietariContent() {
         const currentAsociatieId = propData.asociatieId
         setAsociatieId(currentAsociatieId)
 
-        // Now fetch apartamente and chiriasi with asociatieId
+        // Now fetch apartamente, chiriasi, and invitations with asociatieId
         if (currentAsociatieId) {
-          const [aptRes, chiriasRes] = await Promise.all([
+          const [aptRes, chiriasRes, inviteRes] = await Promise.all([
             fetch(`/api/apartamente?asociatieId=${currentAsociatieId}`),
-            fetch('/api/chiriasi')
+            fetch('/api/chiriasi'),
+            fetch('/api/invitations')
           ])
 
           if (aptRes.ok) {
@@ -148,12 +175,68 @@ function ProprietariContent() {
             const chiriasData = await chiriasRes.json()
             setChiriasi(chiriasData.chiriasi || [])
           }
+
+          if (inviteRes.ok) {
+            const inviteData = await inviteRes.json()
+            setInvitations(inviteData.invitations || [])
+          }
         }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSendInvite = async () => {
+    if (!inviteForm.email) return
+
+    setSendingInvite(true)
+    setInviteResult(null)
+
+    try {
+      const res = await fetch('/api/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inviteForm)
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setInviteResult({ success: true, message: 'Invitație trimisă cu succes!' })
+        setInviteForm({ email: '', numeInvitat: '', apartamentId: '' })
+        // Refresh invitations
+        const inviteRes = await fetch('/api/invitations')
+        if (inviteRes.ok) {
+          const inviteData = await inviteRes.json()
+          setInvitations(inviteData.invitations || [])
+        }
+        setTimeout(() => {
+          setInviteResult(null)
+          setShowInviteModal(false)
+        }, 2000)
+      } else {
+        setInviteResult({ success: false, message: data.error || 'Eroare la trimitere' })
+      }
+    } catch (error) {
+      setInviteResult({ success: false, message: 'Eroare de conexiune' })
+    } finally {
+      setSendingInvite(false)
+    }
+  }
+
+  const handleCancelInvite = async (id: string) => {
+    if (!confirm('Sigur doriți să anulați această invitație?')) return
+
+    try {
+      const res = await fetch(`/api/invitations?id=${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setInvitations(invitations.filter(i => i.id !== id))
+      }
+    } catch (error) {
+      console.error('Failed to cancel invitation:', error)
     }
   }
 
@@ -402,10 +485,16 @@ function ProprietariContent() {
             Gestionează datele proprietarilor din asociație
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Adaugă proprietar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowInviteModal(true)}>
+            <Send className="h-4 w-4 mr-2" />
+            Invită
+          </Button>
+          <Button onClick={() => setShowAddModal(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Adaugă
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -1042,6 +1131,159 @@ function ProprietariContent() {
                 {editingChirias ? 'Salvează' : 'Adaugă'}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowInviteModal(false)} />
+          <div className="relative bg-white rounded-xl p-6 w-full max-w-lg mx-4 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Invită proprietar</h2>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-gray-600 text-sm mb-4">
+              Trimite o invitație pe email. Proprietarul va primi un link pentru a-și crea cont și
+              se va asocia automat cu apartamentul selectat.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email proprietar *
+                </label>
+                <Input
+                  type="email"
+                  value={inviteForm.email}
+                  onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                  placeholder="proprietar@email.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nume proprietar (opțional)
+                </label>
+                <Input
+                  value={inviteForm.numeInvitat}
+                  onChange={(e) => setInviteForm({ ...inviteForm, numeInvitat: e.target.value })}
+                  placeholder="Ion Popescu"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Apartament (opțional)
+                </label>
+                <select
+                  value={inviteForm.apartamentId}
+                  onChange={(e) => setInviteForm({ ...inviteForm, apartamentId: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selectează mai târziu</option>
+                  {apartamente
+                    .sort((a, b) => {
+                      const numA = parseInt(a.numar) || 0
+                      const numB = parseInt(b.numar) || 0
+                      return numA - numB
+                    })
+                    .map(apt => (
+                      <option key={apt.id} value={apt.id}>
+                        Apt. {apt.numar}
+                        {apt.scara && ` (Scara ${apt.scara.numar})`}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Proprietarul va fi asociat cu acest apartament la acceptarea invitației
+                </p>
+              </div>
+
+              {inviteResult && (
+                <div className={cn(
+                  'p-3 rounded-lg text-sm flex items-center gap-2',
+                  inviteResult.success
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-red-50 text-red-700'
+                )}>
+                  {inviteResult.success ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    <XCircle className="h-4 w-4" />
+                  )}
+                  {inviteResult.message}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowInviteModal(false)}
+                >
+                  Anulează
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleSendInvite}
+                  disabled={!inviteForm.email || sendingInvite}
+                >
+                  {sendingInvite ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Se trimite...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Trimite invitație
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Pending invitations */}
+            {invitations.filter(i => !i.usedAt && new Date(i.expires) > new Date()).length > 0 && (
+              <div className="mt-6 pt-6 border-t">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">
+                  Invitații în așteptare ({invitations.filter(i => !i.usedAt && new Date(i.expires) > new Date()).length})
+                </h3>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {invitations
+                    .filter(i => !i.usedAt && new Date(i.expires) > new Date())
+                    .map(inv => (
+                      <div key={inv.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Clock className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{inv.email}</p>
+                            <p className="text-xs text-gray-500">
+                              {inv.apartament ? `Apt. ${inv.apartament.numar}` : 'Fără apartament'} •
+                              Expiră {new Date(inv.expires).toLocaleDateString('ro-RO')}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleCancelInvite(inv.id)}
+                          className="p-1 hover:bg-red-100 rounded text-red-600"
+                          title="Anulează invitația"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

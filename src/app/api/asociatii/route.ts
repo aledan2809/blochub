@@ -86,6 +86,14 @@ export async function POST(request: Request) {
       },
     })
 
+    // Update user role to ADMIN if they're currently PROPRIETAR
+    await db.user.update({
+      where: { id: userId },
+      data: {
+        role: 'ADMIN',
+      },
+    })
+
     // Create default fonduri
     await db.fond.createMany({
       data: [

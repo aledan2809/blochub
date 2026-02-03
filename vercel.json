@@ -34,6 +34,10 @@
     {
       "path": "/api/cron/weekly-summary",
       "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/sync-facturi",
+      "schedule": "0 22 * * *"
     }
   ],
   "headers": [

@@ -484,6 +484,8 @@ export default function AdminPage() {
   const [editingAsociatie, setEditingAsociatie] = useState<Asociatie | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'user' | 'asociatie'; id: string; name: string } | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [syncingRoles, setSyncingRoles] = useState(false)
+  const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null)
 
   // Check if user is super admin
   const isSuperAdmin = (session?.user as any)?.role === 'SUPER_ADMIN'
@@ -519,6 +521,26 @@ export default function AdminPage() {
       console.error('Error fetching data:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSyncRoles = async () => {
+    setSyncingRoles(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/admin/users', { method: 'PATCH' })
+      const data = await res.json()
+
+      if (res.ok) {
+        setSyncResult({ success: true, message: data.message })
+        fetchData() // Refresh data
+      } else {
+        setSyncResult({ success: false, message: data.error || 'Eroare' })
+      }
+    } catch (err) {
+      setSyncResult({ success: false, message: 'Eroare de conexiune' })
+    } finally {
+      setSyncingRoles(false)
     }
   }
 
@@ -699,8 +721,34 @@ export default function AdminPage() {
             <Button variant="outline" size="sm" onClick={fetchData}>
               <RefreshCw className="h-4 w-4" />
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncRoles}
+              disabled={syncingRoles}
+              title="Actualizează rolurile utilizatorilor care administrează asociații"
+            >
+              {syncingRoles ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Shield className="h-4 w-4" />
+              )}
+              <span className="ml-2 hidden sm:inline">Sync Roluri</span>
+            </Button>
           </div>
         </div>
+
+        {/* Sync Result Message */}
+        {syncResult && (
+          <div
+            className={cn(
+              'mx-4 mb-2 p-3 rounded-lg text-sm',
+              syncResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            )}
+          >
+            {syncResult.message}
+          </div>
+        )}
 
         {/* Table */}
         <div className="overflow-x-auto">

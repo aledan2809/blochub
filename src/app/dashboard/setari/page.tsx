@@ -22,7 +22,14 @@ import {
   Plus,
   Pencil,
   X,
-  Star
+  Star,
+  Receipt,
+  RefreshCw,
+  ExternalLink,
+  Unplug,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -79,6 +86,31 @@ interface SMTPConfigState {
   lastTestError: string | null
 }
 
+interface SPVStatus {
+  configured: boolean
+  connected: boolean
+  cui: string | null
+  expiresAt: string | null
+  lastSync: string | null
+  lastSyncError: string | null
+  systemName: string
+}
+
+interface FacturaSPV {
+  id: string
+  spvId: string
+  cuiFurnizor: string
+  numeFurnizor: string
+  numarFactura: string
+  dataFactura: string
+  dataScadenta: string | null
+  sumaTotal: number
+  sumaTVA: number | null
+  moneda: string
+  status: 'NOUA' | 'PROCESATA' | 'IGNORATA' | 'EROARE'
+  importedAt: string
+}
+
 function SetariContent() {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
@@ -90,12 +122,28 @@ function SetariContent() {
   const [savedAsociatie, setSavedAsociatie] = useState(false)
 
   // Get initial tab from URL query parameter
-  const validTabs = ['profil', 'notificari', 'asociatie', 'conturi', 'date', 'cont'] as const
+  const validTabs = ['profil', 'notificari', 'asociatie', 'conturi', 'fiscal', 'date', 'cont'] as const
   const [activeTab, setActiveTab] = useState<typeof validTabs[number]>(
     tabParam && validTabs.includes(tabParam as typeof validTabs[number])
       ? tabParam as typeof validTabs[number]
       : 'profil'
   )
+
+  // SPV / e-Factura state
+  const [spvStatus, setSpvStatus] = useState<SPVStatus>({
+    configured: false,
+    connected: false,
+    cui: null,
+    expiresAt: null,
+    lastSync: null,
+    lastSyncError: null,
+    systemName: 'SPV'
+  })
+  const [spvLoading, setSpvLoading] = useState(false)
+  const [spvSyncing, setSpvSyncing] = useState(false)
+  const [spvSyncResult, setSpvSyncResult] = useState<{ success: boolean; message: string; imported?: number } | null>(null)
+  const [facturiSPV, setFacturiSPV] = useState<FacturaSPV[]>([])
+  const [facturiLoading, setFacturiLoading] = useState(false)
 
   // Bank accounts state
   const [conturiBancare, setConturiBancare] = useState<ContBancar[]>([])
@@ -522,10 +570,133 @@ function SetariContent() {
     }
   }
 
+  // SPV / e-Factura handlers
+  const fetchSPVStatus = async () => {
+    try {
+      const res = await fetch('/api/spv/auth', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setSpvStatus(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch SPV status:', error)
+    }
+  }
+
+  const fetchFacturiSPV = async () => {
+    setFacturiLoading(true)
+    try {
+      const res = await fetch('/api/spv/facturi?limit=10')
+      if (res.ok) {
+        const data = await res.json()
+        setFacturiSPV(data.facturi || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch SPV invoices:', error)
+    } finally {
+      setFacturiLoading(false)
+    }
+  }
+
+  const handleConnectSPV = async () => {
+    setSpvLoading(true)
+    try {
+      const res = await fetch('/api/spv/auth')
+      const data = await res.json()
+
+      if (res.ok && data.authUrl) {
+        // Redirect to ANAF authorization
+        window.location.href = data.authUrl
+      } else {
+        setSpvSyncResult({ success: false, message: data.error || 'Eroare la conectare' })
+      }
+    } catch (error) {
+      setSpvSyncResult({ success: false, message: 'Eroare la conectarea cu SPV' })
+    } finally {
+      setSpvLoading(false)
+    }
+  }
+
+  const handleDisconnectSPV = async () => {
+    if (!confirm('Sigur doriți să deconectați integrarea SPV/e-Factura?')) return
+
+    setSpvLoading(true)
+    try {
+      const res = await fetch('/api/spv/auth', { method: 'DELETE' })
+      if (res.ok) {
+        setSpvStatus(prev => ({ ...prev, connected: false, cui: null, expiresAt: null }))
+        setFacturiSPV([])
+        setSpvSyncResult({ success: true, message: 'Deconectat de la SPV' })
+        setTimeout(() => setSpvSyncResult(null), 3000)
+      }
+    } catch (error) {
+      setSpvSyncResult({ success: false, message: 'Eroare la deconectare' })
+    } finally {
+      setSpvLoading(false)
+    }
+  }
+
+  const handleSyncSPV = async () => {
+    setSpvSyncing(true)
+    setSpvSyncResult(null)
+    try {
+      const res = await fetch('/api/spv/sync', { method: 'POST' })
+      const data = await res.json()
+
+      if (res.ok) {
+        setSpvSyncResult({
+          success: data.success,
+          message: data.success
+            ? `Sincronizare completă: ${data.imported} facturi noi importate`
+            : `Sincronizare parțială: ${data.errors?.join(', ')}`,
+          imported: data.imported
+        })
+        fetchFacturiSPV()
+        fetchSPVStatus()
+      } else {
+        setSpvSyncResult({ success: false, message: data.error || 'Eroare la sincronizare' })
+      }
+    } catch (error) {
+      setSpvSyncResult({ success: false, message: 'Eroare la sincronizarea facturilor' })
+    } finally {
+      setSpvSyncing(false)
+    }
+  }
+
+  // Check for SPV callback result
+  useEffect(() => {
+    const spvSuccess = searchParams.get('spv_success')
+    const spvError = searchParams.get('spv_error')
+
+    if (spvSuccess === 'true') {
+      setSpvSyncResult({ success: true, message: 'Conectare SPV reușită!' })
+      setActiveTab('fiscal')
+      fetchSPVStatus()
+      fetchFacturiSPV()
+      // Clean up URL
+      window.history.replaceState({}, '', '/dashboard/setari?tab=fiscal')
+    } else if (spvError) {
+      setSpvSyncResult({ success: false, message: decodeURIComponent(spvError) })
+      setActiveTab('fiscal')
+      window.history.replaceState({}, '', '/dashboard/setari?tab=fiscal')
+    }
+  }, [searchParams])
+
+  // Load SPV data when fiscal tab is active
+  useEffect(() => {
+    if (activeTab === 'fiscal') {
+      fetchSPVStatus()
+      if (spvStatus.connected) {
+        fetchFacturiSPV()
+      }
+    }
+  }, [activeTab])
+
   const tabs = [
     { id: 'profil', label: 'Profil', icon: User },
     { id: 'asociatie', label: 'Asociație', icon: Building2 },
     { id: 'conturi', label: 'Conturi Bancare', icon: Landmark },
+    { id: 'fiscal', label: 'Fiscal', icon: Receipt },
     { id: 'notificari', label: 'Notificări', icon: Bell },
     { id: 'date', label: 'Date', icon: Database },
     { id: 'cont', label: 'Cont', icon: Shield },
@@ -1082,6 +1253,280 @@ function SetariContent() {
           </div>
         )}
 
+        {/* Fiscal Tab - SPV / e-Factura */}
+        {activeTab === 'fiscal' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Integrare SPV / e-Factura</h2>
+              <p className="text-gray-600 text-sm mb-6">
+                Conectează-te la sistemul ANAF pentru a descărca automat facturile primite de la furnizori.
+              </p>
+
+              {/* SPV Status Card */}
+              <div className={cn(
+                'p-5 rounded-xl border-2',
+                spvStatus.connected
+                  ? 'bg-green-50 border-green-200'
+                  : spvStatus.configured
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-gray-50 border-gray-200'
+              )}>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className={cn(
+                      'h-12 w-12 rounded-xl flex items-center justify-center',
+                      spvStatus.connected
+                        ? 'bg-green-100'
+                        : 'bg-gray-100'
+                    )}>
+                      <Receipt className={cn(
+                        'h-6 w-6',
+                        spvStatus.connected ? 'text-green-600' : 'text-gray-500'
+                      )} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        {spvStatus.systemName || 'SPV / e-Factura'}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        {spvStatus.connected ? (
+                          <>
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-green-700 text-sm font-medium">Conectat</span>
+                            {spvStatus.cui && (
+                              <span className="text-gray-500 text-sm">• CUI: {spvStatus.cui}</span>
+                            )}
+                          </>
+                        ) : spvStatus.configured ? (
+                          <>
+                            <Clock className="h-4 w-4 text-amber-600" />
+                            <span className="text-amber-700 text-sm">Server configurat, necesită autorizare</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4 text-gray-400" />
+                            <span className="text-gray-500 text-sm">Neconectat</span>
+                          </>
+                        )}
+                      </div>
+                      {spvStatus.lastSync && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Ultima sincronizare: {new Date(spvStatus.lastSync).toLocaleString('ro-RO')}
+                        </p>
+                      )}
+                      {spvStatus.lastSyncError && (
+                        <p className="text-xs text-red-600 mt-1">
+                          Eroare: {spvStatus.lastSyncError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {spvStatus.connected ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSyncSPV}
+                          disabled={spvSyncing}
+                        >
+                          {spvSyncing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          <span className="ml-2 hidden sm:inline">Sincronizează</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDisconnectSPV}
+                          disabled={spvLoading}
+                          className="text-red-600 hover:bg-red-50"
+                        >
+                          <Unplug className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        onClick={handleConnectSPV}
+                        disabled={spvLoading}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {spvLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                        )}
+                        Conectează la ANAF
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sync Result Message */}
+              {spvSyncResult && (
+                <div className={cn(
+                  'mt-4 p-3 rounded-lg text-sm flex items-center gap-2',
+                  spvSyncResult.success
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                )}>
+                  {spvSyncResult.success ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4" />
+                  )}
+                  {spvSyncResult.message}
+                </div>
+              )}
+            </div>
+
+            {/* How it works */}
+            {!spvStatus.connected && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-medium text-blue-900 mb-2">Cum funcționează?</h3>
+                <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+                  <li>Asigură-te că ai CUI-ul asociației completat în Setări → Asociație</li>
+                  <li>Apasă &quot;Conectează la ANAF&quot; pentru a autoriza accesul</li>
+                  <li>Te vei autentifica pe portalul ANAF cu certificat digital</li>
+                  <li>După autorizare, facturile vor fi descărcate automat zilnic</li>
+                </ol>
+                <div className="mt-3 p-3 bg-white rounded border border-blue-300">
+                  <p className="text-xs text-blue-700">
+                    <strong>Notă:</strong> Ai nevoie de un certificat digital valid pentru autentificare ANAF.
+                    Contactează-ne dacă ai nevoie de ajutor cu configurarea.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Invoices */}
+            {spvStatus.connected && (
+              <div className="pt-6 border-t">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Facturi descărcate recent</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchFacturiSPV}
+                    disabled={facturiLoading}
+                  >
+                    {facturiLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                {facturiLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  </div>
+                ) : facturiSPV.length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed">
+                    <Receipt className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">Nu sunt facturi descărcate încă</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={handleSyncSPV}
+                      disabled={spvSyncing}
+                    >
+                      {spvSyncing ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Sincronizează acum
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {facturiSPV.map(factura => (
+                      <div
+                        key={factura.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={cn(
+                            'h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0',
+                            factura.status === 'NOUA' ? 'bg-blue-100' :
+                            factura.status === 'PROCESATA' ? 'bg-green-100' :
+                            factura.status === 'IGNORATA' ? 'bg-gray-100' :
+                            'bg-red-100'
+                          )}>
+                            <FileText className={cn(
+                              'h-4 w-4',
+                              factura.status === 'NOUA' ? 'text-blue-600' :
+                              factura.status === 'PROCESATA' ? 'text-green-600' :
+                              factura.status === 'IGNORATA' ? 'text-gray-500' :
+                              'text-red-600'
+                            )} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {factura.numeFurnizor}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {factura.numarFactura} • {new Date(factura.dataFactura).toLocaleDateString('ro-RO')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-4">
+                          <p className="font-semibold text-sm">
+                            {factura.sumaTotal.toLocaleString('ro-RO', { minimumFractionDigits: 2 })} {factura.moneda}
+                          </p>
+                          <span className={cn(
+                            'text-xs px-2 py-0.5 rounded-full',
+                            factura.status === 'NOUA' ? 'bg-blue-100 text-blue-700' :
+                            factura.status === 'PROCESATA' ? 'bg-green-100 text-green-700' :
+                            factura.status === 'IGNORATA' ? 'bg-gray-100 text-gray-600' :
+                            'bg-red-100 text-red-700'
+                          )}>
+                            {factura.status === 'NOUA' ? 'Nouă' :
+                             factura.status === 'PROCESATA' ? 'Procesată' :
+                             factura.status === 'IGNORATA' ? 'Ignorată' :
+                             'Eroare'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {facturiSPV.length >= 10 && (
+                      <div className="text-center pt-2">
+                        <Button variant="ghost" size="sm">
+                          Vezi toate facturile →
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Info about automatic sync */}
+            {spvStatus.connected && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-gray-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-gray-900">Sincronizare automată</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Facturile sunt sincronizate automat în fiecare zi la ora 22:00.
+                      Poți sincroniza manual oricând folosind butonul &quot;Sincronizează&quot;.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Notificări Tab */}
         {activeTab === 'notificari' && (
           <div className="space-y-6">
@@ -1159,201 +1604,199 @@ function SetariContent() {
               </p>
 
               <div className="space-y-4">
-                {/* Toggle SMTP */}
-                <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-gray-400" />
+                {/* SMTP Configuration Form - Always visible */}
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
+                  {/* Toggle SMTP */}
+                  <label className="flex items-center justify-between p-3 bg-white rounded-lg cursor-pointer border">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-5 w-5 text-blue-500" />
+                      <div>
+                        <p className="font-medium">Activează server SMTP propriu</p>
+                        <p className="text-sm text-gray-500">
+                          {smtpConfig.configured ? 'Configurat' : 'Nu este configurat'} -
+                          {useSMTP ? ' Activ' : ' Inactiv (folosește BlocHub)'}
+                        </p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={useSMTP}
+                      onChange={(e) => setUseSMTP(e.target.checked)}
+                      className="h-5 w-5 rounded text-blue-600"
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <p className="font-medium">Folosește server SMTP propriu</p>
-                      <p className="text-sm text-gray-500">
-                        {smtpConfig.configured ? 'Configurat' : 'Nu este configurat'} -
-                        {useSMTP ? ' Activ' : ' Inactiv'}
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Server SMTP *
+                      </label>
+                      <Input
+                        value={smtpConfig.host}
+                        onChange={(e) => setSMTPConfig({ ...smtpConfig, host: e.target.value })}
+                        placeholder="smtp.gmail.com"
+                      />
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Port *
+                        </label>
+                        <Input
+                          type="number"
+                          value={smtpConfig.port}
+                          onChange={(e) => setSMTPConfig({ ...smtpConfig, port: parseInt(e.target.value) || 587 })}
+                          placeholder="587"
+                        />
+                      </div>
+                      <div className="flex items-end pb-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={smtpConfig.secure}
+                            onChange={(e) => setSMTPConfig({ ...smtpConfig, secure: e.target.checked })}
+                            className="h-4 w-4 rounded text-blue-600"
+                          />
+                          <span className="text-sm">SSL/TLS</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Utilizator *
+                      </label>
+                      <Input
+                        value={smtpConfig.user}
+                        onChange={(e) => setSMTPConfig({ ...smtpConfig, user: e.target.value })}
+                        placeholder="email@domeniu.ro"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Parolă *
+                      </label>
+                      <Input
+                        type="password"
+                        value={smtpConfig.password}
+                        onChange={(e) => setSMTPConfig({ ...smtpConfig, password: e.target.value })}
+                        placeholder={smtpConfig.configured ? '••••••••' : 'Parolă SMTP'}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email expeditor *
+                      </label>
+                      <Input
+                        type="email"
+                        value={smtpConfig.fromEmail}
+                        onChange={(e) => setSMTPConfig({ ...smtpConfig, fromEmail: e.target.value })}
+                        placeholder="notificari@asociatie.ro"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nume expeditor
+                      </label>
+                      <Input
+                        value={smtpConfig.fromName}
+                        onChange={(e) => setSMTPConfig({ ...smtpConfig, fromName: e.target.value })}
+                        placeholder="Asociația X"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Test SMTP */}
+                  <div className="pt-4 border-t border-blue-200">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Test conexiune SMTP</p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="email"
+                        value={smtpTestEmail}
+                        onChange={(e) => setSMTPTestEmail(e.target.value)}
+                        placeholder="email.test@exemplu.ro"
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={handleTestSMTP}
+                        disabled={testingSMTP || !smtpConfig.host || !smtpConfig.user}
+                      >
+                        {testingSMTP ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Trimite Test'
+                        )}
+                      </Button>
+                    </div>
+                    {smtpConfig.lastTest && (
+                      <p className={cn(
+                        'text-xs mt-2',
+                        smtpConfig.lastTestSuccess ? 'text-green-600' : 'text-red-600'
+                      )}>
+                        Ultimul test: {new Date(smtpConfig.lastTest).toLocaleString('ro-RO')} -
+                        {smtpConfig.lastTestSuccess ? ' ✓ Success' : ` ✗ ${smtpConfig.lastTestError || 'Eșuat'}`}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Result message */}
+                  {smtpTestResult && (
+                    <div className={cn(
+                      'p-3 rounded-lg text-sm',
+                      smtpTestResult.success
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                    )}>
+                      {smtpTestResult.success ? (
+                        <Check className="h-4 w-4 inline mr-2" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 inline mr-2" />
+                      )}
+                      {smtpTestResult.message}
+                    </div>
+                  )}
+
+                  {/* Save/Delete buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      onClick={handleSaveSMTP}
+                      disabled={savingSMTP || !smtpConfig.host || !smtpConfig.user || !smtpConfig.fromEmail}
+                      className="flex-1"
+                    >
+                      {savingSMTP ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Salvează configurația SMTP
+                    </Button>
+                    {smtpConfig.configured && (
+                      <Button
+                        variant="outline"
+                        onClick={handleDeleteSMTP}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Info about SMTP status */}
+                  {!useSMTP && (
+                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <p className="text-sm text-amber-700">
+                        <strong>Notă:</strong> Serverul SMTP propriu este dezactivat. Notificările sunt trimise prin serviciul BlocHub.
+                        Completează câmpurile de mai sus și activează opțiunea pentru a folosi serverul tău.
                       </p>
                     </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={useSMTP}
-                    onChange={(e) => setUseSMTP(e.target.checked)}
-                    className="h-5 w-5 rounded text-blue-600"
-                  />
-                </label>
-
-                {/* SMTP Configuration Form */}
-                {useSMTP && (
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Server SMTP *
-                        </label>
-                        <Input
-                          value={smtpConfig.host}
-                          onChange={(e) => setSMTPConfig({ ...smtpConfig, host: e.target.value })}
-                          placeholder="smtp.gmail.com"
-                        />
-                      </div>
-                      <div className="flex gap-4">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Port *
-                          </label>
-                          <Input
-                            type="number"
-                            value={smtpConfig.port}
-                            onChange={(e) => setSMTPConfig({ ...smtpConfig, port: parseInt(e.target.value) || 587 })}
-                            placeholder="587"
-                          />
-                        </div>
-                        <div className="flex items-end pb-2">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={smtpConfig.secure}
-                              onChange={(e) => setSMTPConfig({ ...smtpConfig, secure: e.target.checked })}
-                              className="h-4 w-4 rounded text-blue-600"
-                            />
-                            <span className="text-sm">SSL/TLS</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Utilizator *
-                        </label>
-                        <Input
-                          value={smtpConfig.user}
-                          onChange={(e) => setSMTPConfig({ ...smtpConfig, user: e.target.value })}
-                          placeholder="email@domeniu.ro"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Parolă *
-                        </label>
-                        <Input
-                          type="password"
-                          value={smtpConfig.password}
-                          onChange={(e) => setSMTPConfig({ ...smtpConfig, password: e.target.value })}
-                          placeholder={smtpConfig.configured ? '••••••••' : 'Parolă SMTP'}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Email expeditor *
-                        </label>
-                        <Input
-                          type="email"
-                          value={smtpConfig.fromEmail}
-                          onChange={(e) => setSMTPConfig({ ...smtpConfig, fromEmail: e.target.value })}
-                          placeholder="notificari@asociatie.ro"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Nume expeditor
-                        </label>
-                        <Input
-                          value={smtpConfig.fromName}
-                          onChange={(e) => setSMTPConfig({ ...smtpConfig, fromName: e.target.value })}
-                          placeholder="Asociația X"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Test SMTP */}
-                    <div className="pt-4 border-t border-blue-200">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Test conexiune SMTP</p>
-                      <div className="flex gap-2">
-                        <Input
-                          type="email"
-                          value={smtpTestEmail}
-                          onChange={(e) => setSMTPTestEmail(e.target.value)}
-                          placeholder="email.test@exemplu.ro"
-                          className="flex-1"
-                        />
-                        <Button
-                          variant="outline"
-                          onClick={handleTestSMTP}
-                          disabled={testingSMTP || !smtpConfig.host || !smtpConfig.user}
-                        >
-                          {testingSMTP ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            'Trimite Test'
-                          )}
-                        </Button>
-                      </div>
-                      {smtpConfig.lastTest && (
-                        <p className={cn(
-                          'text-xs mt-2',
-                          smtpConfig.lastTestSuccess ? 'text-green-600' : 'text-red-600'
-                        )}>
-                          Ultimul test: {new Date(smtpConfig.lastTest).toLocaleString('ro-RO')} -
-                          {smtpConfig.lastTestSuccess ? ' ✓ Success' : ` ✗ ${smtpConfig.lastTestError || 'Eșuat'}`}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Result message */}
-                    {smtpTestResult && (
-                      <div className={cn(
-                        'p-3 rounded-lg text-sm',
-                        smtpTestResult.success
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
-                      )}>
-                        {smtpTestResult.success ? (
-                          <Check className="h-4 w-4 inline mr-2" />
-                        ) : (
-                          <AlertTriangle className="h-4 w-4 inline mr-2" />
-                        )}
-                        {smtpTestResult.message}
-                      </div>
-                    )}
-
-                    {/* Save/Delete buttons */}
-                    <div className="flex gap-3 pt-4">
-                      <Button
-                        onClick={handleSaveSMTP}
-                        disabled={savingSMTP || !smtpConfig.host || !smtpConfig.user || !smtpConfig.fromEmail}
-                        className="flex-1"
-                      >
-                        {savingSMTP ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Save className="h-4 w-4 mr-2" />
-                        )}
-                        Salvează configurația SMTP
-                      </Button>
-                      {smtpConfig.configured && (
-                        <Button
-                          variant="outline"
-                          onClick={handleDeleteSMTP}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Info when SMTP disabled */}
-                {!useSMTP && (
-                  <div className="p-4 bg-gray-50 rounded-lg border">
-                    <p className="text-sm text-gray-600">
-                      <strong>Serviciul BlocHub</strong> este folosit pentru trimiterea notificărilor.
-                      Activează opțiunea de mai sus pentru a configura un server SMTP propriu.
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>

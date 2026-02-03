@@ -134,6 +134,58 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
+// PATCH - Sync user roles (update users who admin associations to ADMIN role)
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
+    }
+
+    if (!isSuperAdmin(session)) {
+      return NextResponse.json({ error: 'Acces interzis - doar Super Admin' }, { status: 403 })
+    }
+
+    // Find all users who admin at least one association but have PROPRIETAR role
+    const usersToUpdate = await db.user.findMany({
+      where: {
+        role: 'PROPRIETAR',
+        asociatiiAdmin: {
+          some: {},
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+      },
+    })
+
+    // Update their role to ADMIN
+    if (usersToUpdate.length > 0) {
+      await db.user.updateMany({
+        where: {
+          id: {
+            in: usersToUpdate.map((u) => u.id),
+          },
+        },
+        data: {
+          role: 'ADMIN',
+        },
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `${usersToUpdate.length} utilizatori au fost actualizați la rol ADMIN`,
+      updatedUsers: usersToUpdate,
+    })
+  } catch (error) {
+    console.error('Sync roles error:', error)
+    return NextResponse.json({ error: 'Eroare la sincronizare roluri' }, { status: 500 })
+  }
+}
+
 // POST - Create user (Super Admin only)
 export async function POST(request: NextRequest) {
   try {
