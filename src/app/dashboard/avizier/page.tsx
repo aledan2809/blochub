@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface Apartament {
   numar: string
@@ -80,6 +81,7 @@ function getCategoryShortCode(category: string): string {
 }
 
 export default function AvizierPage() {
+  const { currentAsociatie, loading: asociatieLoading } = useAsociatie()
   const [data, setData] = useState<AvizierData | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -88,13 +90,16 @@ export default function AvizierPage() {
   const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetchAvizier()
-  }, [selectedMonth, selectedYear])
+    if (currentAsociatie?.id) {
+      fetchAvizier()
+    }
+  }, [selectedMonth, selectedYear, currentAsociatie?.id])
 
   async function fetchAvizier() {
+    if (!currentAsociatie?.id) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/avizier?luna=${selectedMonth}&an=${selectedYear}`)
+      const res = await fetch(`/api/avizier?luna=${selectedMonth}&an=${selectedYear}&asociatieId=${currentAsociatie.id}`)
       const json = await res.json()
       setData(json)
     } catch (err) {
@@ -109,8 +114,9 @@ export default function AvizierPage() {
   }
 
   const handleExport = async (format: 'xlsx' | 'csv') => {
+    if (!currentAsociatie?.id) return
     try {
-      const res = await fetch(`/api/avizier/export?luna=${selectedMonth}&an=${selectedYear}&format=${format}`)
+      const res = await fetch(`/api/avizier/export?luna=${selectedMonth}&an=${selectedYear}&format=${format}&asociatieId=${currentAsociatie.id}`)
       if (!res.ok) {
         throw new Error('Export failed')
       }
@@ -130,6 +136,7 @@ export default function AvizierPage() {
   }
 
   const handleGenerateChitante = async () => {
+    if (!currentAsociatie?.id) return
     if (!confirm(`Sigur vrei să generezi chitanțe pentru ${months[selectedMonth - 1]} ${selectedYear}?\n\nAceastă operațiune va crea chitanțe pentru toate apartamentele bazate pe calculul din avizier.`)) {
       return
     }
@@ -139,7 +146,7 @@ export default function AvizierPage() {
       const res = await fetch('/api/chitante/genereaza', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ luna: selectedMonth, an: selectedYear }),
+        body: JSON.stringify({ luna: selectedMonth, an: selectedYear, asociatieId: currentAsociatie.id }),
       })
 
       if (res.ok) {
@@ -175,7 +182,7 @@ export default function AvizierPage() {
     }
   }
 
-  if (loading) {
+  if (loading || asociatieLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

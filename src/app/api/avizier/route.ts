@@ -31,10 +31,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const luna = parseInt(searchParams.get('luna') || String(new Date().getMonth() + 1))
     const an = parseInt(searchParams.get('an') || String(new Date().getFullYear()))
+    const asociatieId = searchParams.get('asociatieId')
 
     // Get user's asociatie with penalty settings
+    // If asociatieId is provided, use it; otherwise fall back to first asociatie by adminId
     const asociatie = await db.asociatie.findFirst({
-      where: { adminId: userId },
+      where: asociatieId
+        ? { id: asociatieId, adminId: userId }
+        : { adminId: userId },
       include: {
         fonduri: true,
       },

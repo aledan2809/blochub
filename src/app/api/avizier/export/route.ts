@@ -33,10 +33,13 @@ export async function GET(request: NextRequest) {
     const luna = parseInt(searchParams.get('luna') || String(new Date().getMonth() + 1))
     const an = parseInt(searchParams.get('an') || String(new Date().getFullYear()))
     const format = searchParams.get('format') || 'xlsx' // xlsx, csv, json
+    const asociatieId = searchParams.get('asociatieId')
 
     // Get user's asociatie
     const asociatie = await db.asociatie.findFirst({
-      where: { adminId: userId },
+      where: asociatieId
+        ? { id: asociatieId, adminId: userId }
+        : { adminId: userId },
       include: { fonduri: true },
     })
 
