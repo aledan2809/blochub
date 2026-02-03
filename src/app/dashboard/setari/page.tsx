@@ -961,7 +961,7 @@ function SetariContent() {
                   </p>
                 </div>
 
-                {/* Chitanțier Settings */}
+                {/* Chitanțier Settings - Receipt Book Configuration */}
                 <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                   <h3 className="text-sm font-medium text-green-900 mb-3">Configurare Chitanțier</h3>
                   <p className="text-xs text-green-700 mb-4">
