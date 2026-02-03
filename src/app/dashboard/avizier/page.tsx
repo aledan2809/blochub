@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface Apartament {
   numar: string
@@ -81,25 +80,35 @@ function getCategoryShortCode(category: string): string {
 }
 
 export default function AvizierPage() {
-  const { currentAsociatie, loading: asociatieLoading } = useAsociatie()
   const [data, setData] = useState<AvizierData | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [asociatieId, setAsociatieId] = useState<string | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (currentAsociatie?.id) {
-      fetchAvizier()
-    }
-  }, [selectedMonth, selectedYear, currentAsociatie?.id])
+    fetchAvizier()
+  }, [selectedMonth, selectedYear])
 
   async function fetchAvizier() {
-    if (!currentAsociatie?.id) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/avizier?luna=${selectedMonth}&an=${selectedYear}&asociatieId=${currentAsociatie.id}`)
+      // Get asociatie from stats API (same pattern as Cheltuieli page)
+      const statsRes = await fetch('/api/dashboard/stats')
+      const statsData = await statsRes.json()
+
+      if (!statsData.hasAsociatie) {
+        setData(null)
+        setLoading(false)
+        return
+      }
+
+      const currentAsociatieId = statsData.asociatie.id
+      setAsociatieId(currentAsociatieId)
+
+      const res = await fetch(`/api/avizier?luna=${selectedMonth}&an=${selectedYear}&asociatieId=${currentAsociatieId}`)
       const json = await res.json()
       setData(json)
     } catch (err) {
@@ -114,9 +123,9 @@ export default function AvizierPage() {
   }
 
   const handleExport = async (format: 'xlsx' | 'csv') => {
-    if (!currentAsociatie?.id) return
+    if (!asociatieId) return
     try {
-      const res = await fetch(`/api/avizier/export?luna=${selectedMonth}&an=${selectedYear}&format=${format}&asociatieId=${currentAsociatie.id}`)
+      const res = await fetch(`/api/avizier/export?luna=${selectedMonth}&an=${selectedYear}&format=${format}&asociatieId=${asociatieId}`)
       if (!res.ok) {
         throw new Error('Export failed')
       }
@@ -136,7 +145,7 @@ export default function AvizierPage() {
   }
 
   const handleGenerateChitante = async () => {
-    if (!currentAsociatie?.id) return
+    if (!asociatieId) return
     if (!confirm(`Sigur vrei să generezi chitanțe pentru ${months[selectedMonth - 1]} ${selectedYear}?\n\nAceastă operațiune va crea chitanțe pentru toate apartamentele bazate pe calculul din avizier.`)) {
       return
     }
@@ -146,7 +155,7 @@ export default function AvizierPage() {
       const res = await fetch('/api/chitante/genereaza', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ luna: selectedMonth, an: selectedYear, asociatieId: currentAsociatie.id }),
+        body: JSON.stringify({ luna: selectedMonth, an: selectedYear, asociatieId }),
       })
 
       if (res.ok) {
@@ -182,7 +191,7 @@ export default function AvizierPage() {
     }
   }
 
-  if (loading || asociatieLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
