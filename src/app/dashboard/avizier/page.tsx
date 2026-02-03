@@ -146,7 +146,7 @@ export default function AvizierPage() {
 
   const handleGenerateChitante = async () => {
     if (!asociatieId) return
-    if (!confirm(`Sigur vrei să generezi chitanțe pentru ${months[selectedMonth - 1]} ${selectedYear}?\n\nAceastă operațiune va crea chitanțe pentru toate apartamentele bazate pe calculul din avizier.`)) {
+    if (!confirm(`Sigur vrei să generezi obligațiile de plată pentru ${months[selectedMonth - 1]} ${selectedYear}?\n\nAceastă operațiune va crea obligații pentru toate apartamentele bazate pe calculul din avizier.`)) {
       return
     }
 
@@ -159,11 +159,11 @@ export default function AvizierPage() {
       })
 
       if (res.ok) {
-        alert('Chitanțe generate cu succes!')
+        alert('Obligații de plată generate cu succes!')
         fetchAvizier() // Refresh data
       } else {
         const data = await res.json()
-        alert('Eroare: ' + (data.error || 'Nu s-au putut genera chitanțele'))
+        alert('Eroare: ' + (data.error || 'Nu s-au putut genera obligațiile'))
       }
     } catch (err) {
       console.error('Error generating chitante:', err)
@@ -295,8 +295,8 @@ export default function AvizierPage() {
               ) : (
                 <>
                   <FileText className="h-4 w-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">Generează chitanțe</span>
-                  <span className="sm:hidden">Chitanțe</span>
+                  <span className="hidden sm:inline">Generează obligații</span>
+                  <span className="sm:hidden">Obligații</span>
                 </>
               )}
             </Button>

@@ -186,10 +186,10 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // If still no chitanta, we can't proceed - user needs to generate chitante first
+      // If still no chitanta, we can't proceed - user needs to generate obligations first
       if (!chitanta) {
         return NextResponse.json({
-          error: 'Nu există chitanțe pentru acest apartament. Generați chitanțele de întreținere mai întâi.'
+          error: 'Nu există obligații de plată pentru acest apartament. Generați obligațiile din Avizier mai întâi.'
         }, { status: 400 })
       }
     }

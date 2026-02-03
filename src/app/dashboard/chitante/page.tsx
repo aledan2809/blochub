@@ -108,15 +108,15 @@ export default function ChitantePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Chitanțe</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Obligații de Plată</h1>
           <p className="text-gray-500">
-            {months[selectedMonth - 1]} {selectedYear} - {filteredChitante.length} chitanțe ({totalSum.toLocaleString('ro-RO')} lei)
+            {months[selectedMonth - 1]} {selectedYear} - {filteredChitante.length} obligații ({totalSum.toLocaleString('ro-RO')} lei)
           </p>
         </div>
-        <Link href="/dashboard/chitante/genereaza">
+        <Link href="/dashboard/avizier">
           <Button>
             <FileText className="h-4 w-4 mr-2" />
-            Generează Chitanțe
+            Generează Obligații
           </Button>
         </Link>
       </div>
@@ -171,18 +171,18 @@ export default function ChitantePage() {
           <CardContent className="py-12 text-center">
             <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || statusFilter !== 'ALL' ? 'Niciun rezultat' : 'Nu există chitanțe'}
+              {searchTerm || statusFilter !== 'ALL' ? 'Niciun rezultat' : 'Nu există obligații de plată'}
             </h3>
             <p className="text-gray-500 mb-4">
               {searchTerm || statusFilter !== 'ALL'
                 ? 'Încearcă să modifici criteriile de căutare'
-                : `Generează chitanțele pentru ${months[selectedMonth - 1]} ${selectedYear}`}
+                : `Generează obligațiile de plată pentru ${months[selectedMonth - 1]} ${selectedYear} din Avizier`}
             </p>
             {!searchTerm && statusFilter === 'ALL' && (
-              <Link href="/dashboard/chitante/genereaza">
+              <Link href="/dashboard/avizier">
                 <Button>
                   <FileText className="h-4 w-4 mr-2" />
-                  Generează Chitanțe
+                  Mergi la Avizier
                 </Button>
               </Link>
             )}

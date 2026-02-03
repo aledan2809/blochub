@@ -135,10 +135,10 @@ export default function DashboardPage() {
           <p className="text-gray-500">{data.asociatie?.nume || 'Asociația mea'}</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/dashboard/chitante/genereaza">
+          <Link href="/dashboard/avizier">
             <Button>
               <FileText className="h-4 w-4 mr-2" />
-              Generează Chitanțe
+              Generează Obligații
             </Button>
           </Link>
         </div>
@@ -436,11 +436,11 @@ export default function DashboardPage() {
             {data.chitanteRecente.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <FileText className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                <p>Nu există chitanțe încă.</p>
-                <Link href="/dashboard/chitante/genereaza">
+                <p>Nu există obligații de plată încă.</p>
+                <Link href="/dashboard/avizier">
                   <Button className="mt-4" variant="outline">
                     <Plus className="h-4 w-4 mr-2" />
-                    Generează prima chitanță
+                    Generează obligații
                   </Button>
                 </Link>
               </div>
