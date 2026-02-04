@@ -210,7 +210,6 @@ export default function IncasariPage() {
       if (formData.metodaPlata === 'TRANSFER') {
         const parts: string[] = []
         if (formData.numeOrdonator) parts.push(`Ordonator: ${formData.numeOrdonator}`)
-        if (formData.dataExtras) parts.push(`Data extras: ${formData.dataExtras}`)
         if (formData.explicatieExtras) parts.push(`Explicație: ${formData.explicatieExtras}`)
         if (formData.referinta) parts.push(formData.referinta)
         referinta = parts.length > 0 ? parts.join(' | ') : null
@@ -1013,17 +1012,6 @@ export default function IncasariPage() {
                       value={formData.numeOrdonator}
                       onChange={(e) => setFormData({ ...formData, numeOrdonator: e.target.value })}
                       placeholder="ex: POPESCU ION"
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Data din extras
-                    </label>
-                    <Input
-                      type="date"
-                      value={formData.dataExtras}
-                      onChange={(e) => setFormData({ ...formData, dataExtras: e.target.value })}
                       className="text-sm"
                     />
                   </div>
