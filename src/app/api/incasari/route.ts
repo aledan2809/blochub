@@ -61,6 +61,10 @@ export async function GET(request: NextRequest) {
             numar: true,
             luna: true,
             an: true,
+            sumaIntretinere: true,
+            sumaRestanta: true,
+            sumaPenalizare: true,
+            sumaFonduri: true,
             sumaTotal: true,
             plati: {
               where: { status: 'CONFIRMED' },

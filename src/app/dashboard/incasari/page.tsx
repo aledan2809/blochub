@@ -41,6 +41,10 @@ interface Plata {
     numar: number
     luna: number
     an: number
+    sumaIntretinere: number
+    sumaRestanta: number
+    sumaPenalizare: number
+    sumaFonduri: number
     sumaTotal: number
     plati?: { suma: number }[]
   }
@@ -523,91 +527,84 @@ export default function IncasariPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Nr. Chitanță</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Apartament</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Obligație de plată</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Sumă</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Rest de plată</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Metodă</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Data</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Acțiuni</th>
+                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Apartament</th>
+                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Luna</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Obligație curentă</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Penalizări</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Total datorat</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Sumă plătită</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Rest de plată</th>
+                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Metodă / Data</th>
+                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Nr. Chitanță</th>
+                  <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Acțiuni</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map((plata) => (
+                {filtered.map((plata) => {
+                  const totalPlatit = plata.chitanta.plati?.reduce((sum, p) => sum + p.suma, 0) || 0
+                  const restDePlata = plata.chitanta.sumaTotal - totalPlatit
+                  const fmt = (v: number) => v.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+                  return (
                   <tr key={plata.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Receipt className="h-4 w-4 text-green-600" />
-                        <span className="font-medium text-green-700">
-                          {plata.serieChitantaIncasare
-                            ? `${plata.serieChitantaIncasare}-${String(plata.numarChitantaIncasare).padStart(6, '0')}`
-                            : `#${plata.numarChitantaIncasare || '-'}`}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <div className="font-medium">
                         Apt. {plata.apartament.numar}
                       </div>
                       {plata.apartament.scara && (
                         <div className="text-xs text-gray-500">
-                          Scara {plata.apartament.scara.numar}
+                          Sc. {plata.apartament.scara.numar}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="text-sm font-medium">
-                        Obligație #{plata.chitanta.numar}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {months[plata.chitanta.luna - 1]} {plata.chitanta.an} • {plata.chitanta.sumaTotal.toLocaleString('ro-RO')} lei
-                      </div>
+                    <td className="px-3 py-3 text-sm">
+                      {months[plata.chitanta.luna - 1]} {plata.chitanta.an}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-green-600">
-                        {plata.suma.toLocaleString('ro-RO')} lei
-                      </div>
+                    <td className="px-3 py-3 text-right text-sm">
+                      {fmt(plata.chitanta.sumaIntretinere)} lei
                     </td>
-                    <td className="px-4 py-3">
-                      {(() => {
-                        const totalPlatit = plata.chitanta.plati?.reduce((sum, p) => sum + p.suma, 0) || 0
-                        const restDePlata = plata.chitanta.sumaTotal - totalPlatit
-                        return restDePlata > 0 ? (
-                          <span className="font-semibold text-orange-600">
-                            {restDePlata.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei
-                          </span>
-                        ) : (
-                          <span className="text-green-600 font-medium">Achitată</span>
-                        )
-                      })()}
+                    <td className="px-3 py-3 text-right text-sm">
+                      {plata.chitanta.sumaPenalizare > 0 ? (
+                        <span className="text-red-600 font-medium">{fmt(plata.chitanta.sumaPenalizare)} lei</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                    <td className="px-3 py-3 text-right font-semibold text-sm">
+                      {fmt(plata.chitanta.sumaTotal)} lei
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="font-semibold text-green-600">{fmt(plata.suma)} lei</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {restDePlata > 0.01 ? (
+                        <span className="font-semibold text-orange-600">{fmt(restDePlata)} lei</span>
+                      ) : (
+                        <span className="text-green-600 font-medium">Achitată</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1.5">
                         {metodaPlataIcons[plata.metodaPlata]}
                         <span className="text-sm">{metodaPlataLabels[plata.metodaPlata]}</span>
                       </div>
-                      {plata.referinta && (
-                        <div className="text-xs text-gray-500">
-                          {plata.referinta}
+                      <div className="text-xs text-gray-500">
+                        {new Date(plata.dataPlata).toLocaleDateString('ro-RO')}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      {plata.serieChitantaIncasare ? (
+                        <div className="flex items-center gap-1.5">
+                          <Receipt className="h-3.5 w-3.5 text-green-600" />
+                          <span className="text-sm font-medium text-green-700">
+                            {plata.serieChitantaIncasare}-{String(plata.numarChitantaIncasare).padStart(6, '0')}
+                          </span>
                         </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">Fără chitanță</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm">
-                      {new Date(plata.dataPlata).toLocaleDateString('ro-RO')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={cn(
-                        'px-2 py-1 rounded-full text-xs font-medium',
-                        statusColors[plata.status]
-                      )}>
-                        {plata.status === 'CONFIRMED' ? 'Confirmată' :
-                          plata.status === 'PENDING' ? 'În așteptare' :
-                            plata.status === 'FAILED' ? 'Eșuată' : 'Rambursată'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-3 text-right">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -618,7 +615,8 @@ export default function IncasariPage() {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
