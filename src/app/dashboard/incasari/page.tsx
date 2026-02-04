@@ -532,7 +532,7 @@ export default function IncasariPage() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Apartament</th>
-                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Luna obligație</th>
+                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Obligație plată luna</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Obligație curentă</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Penalizări</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Total datorat</th>

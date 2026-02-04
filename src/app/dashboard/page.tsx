@@ -23,6 +23,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 // Lazy load analytics charts for better performance
 const AnalyticsCharts = lazy(() =>
@@ -78,14 +79,16 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
+  const { currentAsociatie } = useAsociatie()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!currentAsociatie?.id) return
     async function fetchData() {
       try {
-        const res = await fetch('/api/dashboard/stats')
+        const res = await fetch(`/api/dashboard/stats?asociatieId=${currentAsociatie!.id}`)
         if (!res.ok) throw new Error('Eroare la încărcarea datelor')
         const json = await res.json()
         setData(json)
@@ -96,7 +99,7 @@ export default function DashboardPage() {
       }
     }
     fetchData()
-  }, [])
+  }, [currentAsociatie?.id])
 
   if (loading) {
     return (

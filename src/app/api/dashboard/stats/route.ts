@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -12,18 +12,34 @@ export async function GET() {
     }
 
     const userId = (session.user as { id: string }).id
+    const { searchParams } = new URL(request.url)
+    const asociatieId = searchParams.get('asociatieId')
 
-    // Get user's association
-    const asociatie = await db.asociatie.findFirst({
-      where: { adminId: userId },
-      include: {
-        _count: {
-          select: {
-            apartamente: true,
+    // Get user's association - prefer explicit ID, fallback to findFirst
+    let asociatie
+    if (asociatieId) {
+      asociatie = await db.asociatie.findFirst({
+        where: { id: asociatieId, adminId: userId },
+        include: {
+          _count: {
+            select: {
+              apartamente: true,
+            }
           }
         }
-      }
-    })
+      })
+    } else {
+      asociatie = await db.asociatie.findFirst({
+        where: { adminId: userId },
+        include: {
+          _count: {
+            select: {
+              apartamente: true,
+            }
+          }
+        }
+      })
+    }
 
     if (!asociatie) {
       return NextResponse.json({
