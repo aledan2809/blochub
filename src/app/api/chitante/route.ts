@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const chitante = await db.chitanta.findMany({
       where,
       include: {
-        apartament: { select: { numar: true } },
+        apartament: { select: { numar: true, scara: { select: { numar: true } } } },
         plati: { select: { suma: true, status: true } }
       },
       orderBy: [

@@ -42,6 +42,7 @@ interface Plata {
     luna: number
     an: number
     sumaTotal: number
+    plati?: { suma: number }[]
   }
   user?: {
     name: string | null
@@ -121,6 +122,8 @@ export default function IncasariPage() {
   // Modal
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedApartamentId, setSelectedApartamentId] = useState('')
+  const [modalMonth, setModalMonth] = useState(new Date().getMonth() + 1)
+  const [modalYear, setModalYear] = useState(new Date().getFullYear())
   const [formData, setFormData] = useState({
     chitantaId: '',
     suma: '',
@@ -149,6 +152,7 @@ export default function IncasariPage() {
   const fetchData = async () => {
     if (!currentAsociatie?.id) return
 
+    setLoading(true)
     try {
       const [platiRes, chitRes, aptRes] = await Promise.all([
         fetch(`/api/incasari?asociatieId=${currentAsociatie.id}&luna=${selectedMonth}&an=${selectedYear}`),
@@ -276,14 +280,32 @@ export default function IncasariPage() {
   // Get selected apartment
   const selectedApartament = apartamente.find(a => a.id === selectedApartamentId)
 
-  // Get unpaid chitante for selected apartment
+  // Get unpaid chitante for selected apartment filtered by modal month
   const chitanteForApartament = chitante.filter(c =>
     c.apartament.numar === selectedApartament?.numar &&
-    c.apartament.scara?.numar === selectedApartament?.scara?.numar
+    c.apartament.scara?.numar === selectedApartament?.scara?.numar &&
+    c.luna === modalMonth &&
+    c.an === modalYear
   )
 
-  // Calculate total outstanding for apartment
+  // Calculate total outstanding for apartment (for selected month)
   const totalRestant = chitanteForApartament.reduce((sum, c) => sum + c.sumaTotal, 0)
+
+  // Get all months that have unpaid obligations (for month selector)
+  const availableMonths = useMemo(() => {
+    const monthSet = new Map<string, { luna: number; an: number; count: number; total: number }>()
+    chitante.forEach(c => {
+      const key = `${c.an}-${c.luna}`
+      const existing = monthSet.get(key)
+      if (existing) {
+        existing.count++
+        existing.total += c.sumaTotal
+      } else {
+        monthSet.set(key, { luna: c.luna, an: c.an, count: 1, total: c.sumaTotal })
+      }
+    })
+    return Array.from(monthSet.values()).sort((a, b) => a.an - b.an || a.luna - b.luna)
+  }, [chitante])
 
   // Handle apartment selection
   const handleApartamentSelect = (apartamentId: string) => {
@@ -291,13 +313,15 @@ export default function IncasariPage() {
     setShowAddLocuitor(false)
     const apt = apartamente.find(a => a.id === apartamentId)
     if (apt) {
-      // Find unpaid chitante for this apartment
+      // Find unpaid chitante for this apartment for selected month
       const aptChitante = chitante.filter(c =>
         c.apartament.numar === apt.numar &&
-        c.apartament.scara?.numar === apt.scara?.numar
+        c.apartament.scara?.numar === apt.scara?.numar &&
+        c.luna === modalMonth &&
+        c.an === modalYear
       )
       const total = aptChitante.reduce((sum, c) => sum + c.sumaTotal, 0)
-      // Auto-fill with the oldest unpaid chitanta if exists
+      // Auto-fill with the first unpaid chitanta for this month
       const firstUnpaid = aptChitante[0]
 
       // Auto-select locuitor (prefer chirias over proprietar)
@@ -435,7 +459,7 @@ export default function IncasariPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{chitante.length}</p>
-              <p className="text-sm text-gray-500">Chitanțe neachitate</p>
+              <p className="text-sm text-gray-500">Obligații neachitate</p>
             </div>
           </div>
         </div>
@@ -501,8 +525,9 @@ export default function IncasariPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Nr. Chitanță</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Apartament</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Factură</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Obligație de plată</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Sumă</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Rest de plată</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Metodă</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Data</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
@@ -533,20 +558,30 @@ export default function IncasariPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm">
-                        #{plata.chitanta.numar}
+                      <div className="text-sm font-medium">
+                        Obligație #{plata.chitanta.numar}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {months[plata.chitanta.luna - 1]} {plata.chitanta.an}
+                        {months[plata.chitanta.luna - 1]} {plata.chitanta.an} • {plata.chitanta.sumaTotal.toLocaleString('ro-RO')} lei
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-semibold text-green-600">
                         {plata.suma.toLocaleString('ro-RO')} lei
                       </div>
-                      <div className="text-xs text-gray-500">
-                        din {plata.chitanta.sumaTotal.toLocaleString('ro-RO')} lei
-                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const totalPlatit = plata.chitanta.plati?.reduce((sum, p) => sum + p.suma, 0) || 0
+                        const restDePlata = plata.chitanta.sumaTotal - totalPlatit
+                        return restDePlata > 0 ? (
+                          <span className="font-semibold text-orange-600">
+                            {restDePlata.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei
+                          </span>
+                        ) : (
+                          <span className="text-green-600 font-medium">Achitată</span>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -603,6 +638,65 @@ export default function IncasariPage() {
               >
                 <X className="h-4 w-4" />
               </button>
+            </div>
+
+            {/* Step 0: Select Month for obligations */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Luna obligației de plată *
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={modalMonth}
+                  onChange={(e) => {
+                    setModalMonth(parseInt(e.target.value))
+                    setSelectedApartamentId('')
+                    setFormData(prev => ({ ...prev, chitantaId: '', suma: '' }))
+                  }}
+                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {months.map((month, i) => (
+                    <option key={i} value={i + 1}>{month}</option>
+                  ))}
+                </select>
+                <select
+                  value={modalYear}
+                  onChange={(e) => {
+                    setModalYear(parseInt(e.target.value))
+                    setSelectedApartamentId('')
+                    setFormData(prev => ({ ...prev, chitantaId: '', suma: '' }))
+                  }}
+                  className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {[2024, 2025, 2026].map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+              {availableMonths.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {availableMonths.map(m => (
+                    <button
+                      key={`${m.an}-${m.luna}`}
+                      type="button"
+                      onClick={() => {
+                        setModalMonth(m.luna)
+                        setModalYear(m.an)
+                        setSelectedApartamentId('')
+                        setFormData(prev => ({ ...prev, chitantaId: '', suma: '' }))
+                      }}
+                      className={cn(
+                        'text-xs px-2 py-1 rounded-full border transition-colors',
+                        modalMonth === m.luna && modalYear === m.an
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      )}
+                    >
+                      {months[m.luna - 1]} {m.an} ({m.count} apt, {m.total.toLocaleString('ro-RO')} lei)
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Next Receipt Number Display - only for CASH */}
@@ -829,7 +923,7 @@ export default function IncasariPage() {
                         Sold restant: {totalRestant.toLocaleString('ro-RO')} lei
                       </p>
                       <p className="text-xs text-gray-500">
-                        {chitanteForApartament.length} chitanțe neachitate
+                        {chitanteForApartament.length} obligații neachitate
                       </p>
                     </div>
                   )}

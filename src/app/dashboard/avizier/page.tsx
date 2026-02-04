@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface Apartament {
   numar: string
@@ -80,35 +81,27 @@ function getCategoryShortCode(category: string): string {
 }
 
 export default function AvizierPage() {
+  const { currentAsociatie } = useAsociatie()
   const [data, setData] = useState<AvizierData | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [asociatieId, setAsociatieId] = useState<string | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
 
+  const asociatieId = currentAsociatie?.id || null
+
   useEffect(() => {
-    fetchAvizier()
-  }, [selectedMonth, selectedYear])
+    if (currentAsociatie?.id) {
+      fetchAvizier()
+    }
+  }, [selectedMonth, selectedYear, currentAsociatie?.id])
 
   async function fetchAvizier() {
+    if (!currentAsociatie?.id) return
     setLoading(true)
     try {
-      // Get asociatie from stats API (same pattern as Cheltuieli page)
-      const statsRes = await fetch('/api/dashboard/stats')
-      const statsData = await statsRes.json()
-
-      if (!statsData.hasAsociatie) {
-        setData(null)
-        setLoading(false)
-        return
-      }
-
-      const currentAsociatieId = statsData.asociatie.id
-      setAsociatieId(currentAsociatieId)
-
-      const res = await fetch(`/api/avizier?luna=${selectedMonth}&an=${selectedYear}&asociatieId=${currentAsociatieId}`)
+      const res = await fetch(`/api/avizier?luna=${selectedMonth}&an=${selectedYear}&asociatieId=${currentAsociatie.id}`)
       const json = await res.json()
       setData(json)
     } catch (err) {
@@ -152,7 +145,7 @@ export default function AvizierPage() {
 
     setGenerating(true)
     try {
-      const res = await fetch('/api/chitante/genereaza', {
+      const res = await fetch('/api/chitante/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ luna: selectedMonth, an: selectedYear, asociatieId }),
@@ -167,7 +160,7 @@ export default function AvizierPage() {
       }
     } catch (err) {
       console.error('Error generating chitante:', err)
-      alert('Eroare la generarea chitanțelor')
+      alert('Eroare la generarea obligațiilor de plată')
     } finally {
       setGenerating(false)
     }
@@ -343,7 +336,7 @@ export default function AvizierPage() {
               <div className="p-3 bg-blue-50 rounded-lg print:p-1">
                 <p className="text-xs text-blue-600 font-medium">Total Întreținere</p>
                 <p className="text-xl font-bold text-blue-900 print:text-lg">
-                  {data.totaluri.intretinere.toLocaleString('ro-RO')} lei
+                  {data.totaluri.intretinere.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei
                 </p>
               </div>
               <div className="p-3 bg-orange-50 rounded-lg print:p-1 border-2 border-orange-200">
@@ -352,7 +345,7 @@ export default function AvizierPage() {
                   Total Restanțe
                 </p>
                 <p className="text-xl font-bold text-orange-900 print:text-lg">
-                  {data.totaluri.restante.toLocaleString('ro-RO')} lei
+                  {data.totaluri.restante.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei
                 </p>
                 <p className="text-[10px] text-orange-700 mt-1">
                   {data.apartamente.filter(apt => apt.restanta > 0).length} apartamente
@@ -361,13 +354,13 @@ export default function AvizierPage() {
               <div className="p-3 bg-red-50 rounded-lg print:p-1">
                 <p className="text-xs text-red-600 font-medium">Total Penalizări</p>
                 <p className="text-xl font-bold text-red-900 print:text-lg">
-                  {data.totaluri.penalizari.toLocaleString('ro-RO')} lei
+                  {data.totaluri.penalizari.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei
                 </p>
               </div>
               <div className="p-3 bg-green-50 rounded-lg print:p-1">
                 <p className="text-xs text-green-600 font-medium">Total General</p>
                 <p className="text-xl font-bold text-green-900 print:text-lg">
-                  {data.totaluri.total.toLocaleString('ro-RO')} lei
+                  {data.totaluri.total.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei
                 </p>
               </div>
             </div>
@@ -395,7 +388,7 @@ export default function AvizierPage() {
                           className="inline-flex items-center gap-2 px-3 py-1 bg-white rounded-md border border-orange-200 text-sm"
                         >
                           <span className="font-semibold text-orange-900">Ap. {apt.numar}</span>
-                          <span className="text-orange-700">{apt.restanta.toLocaleString('ro-RO')} lei</span>
+                          <span className="text-orange-700">{apt.restanta.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei</span>
                         </div>
                       ))}
                     {data.apartamente.filter(apt => apt.restanta > 0).length > 10 && (
@@ -458,7 +451,7 @@ export default function AvizierPage() {
               {Object.entries(data.totaluri.categorii).map(([categorie, suma]) => (
                 <div key={categorie} className="p-2 bg-gray-50 rounded print:p-1 print:text-xs">
                   <p className="text-xs text-gray-600 truncate">{categorie}</p>
-                  <p className="font-semibold">{suma.toLocaleString('ro-RO')} lei</p>
+                  <p className="font-semibold">{suma.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei</p>
                 </div>
               ))}
             </div>
@@ -532,16 +525,16 @@ export default function AvizierPage() {
                         </td>
                         {data.categoriiCheltuieli.map(cat => (
                           <td key={cat} className="px-2 py-1.5 border-b text-right print:px-1 print:py-0.5">
-                            {apt.cheltuieli[cat]?.toLocaleString('ro-RO') || '-'}
+                            {apt.cheltuieli[cat]?.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '-'}
                           </td>
                         ))}
                         <td className="px-2 py-1.5 border-b text-right bg-blue-50 font-medium print:px-1 print:py-0.5">
-                          {apt.totalIntretinere.toLocaleString('ro-RO')}
+                          {apt.totalIntretinere.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className={`px-2 py-1.5 border-b text-right ${hasRestanta ? 'bg-orange-100' : 'bg-orange-50'} print:px-1 print:py-0.5`}>
                           {apt.restanta > 0 ? (
                             <span className="font-bold text-orange-900">
-                              {apt.restanta.toLocaleString('ro-RO')}
+                              {apt.restanta.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           ) : (
                             '-'
@@ -550,17 +543,17 @@ export default function AvizierPage() {
                         <td className="px-2 py-1.5 border-b text-right bg-red-50 print:px-1 print:py-0.5">
                           {apt.penalizari > 0 ? (
                             <span className="font-semibold text-red-900">
-                              {apt.penalizari.toLocaleString('ro-RO')}
+                              {apt.penalizari.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           ) : (
                             '-'
                           )}
                         </td>
                         <td className="px-2 py-1.5 border-b text-right bg-purple-50 print:px-1 print:py-0.5">
-                          {apt.fonduri > 0 ? apt.fonduri.toLocaleString('ro-RO') : '-'}
+                          {apt.fonduri > 0 ? apt.fonduri.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
                         </td>
                         <td className="px-2 py-1.5 border-b text-right bg-green-100 font-bold print:px-1 print:py-0.5">
-                          {apt.total.toLocaleString('ro-RO')}
+                          {apt.total.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                     )
@@ -574,23 +567,23 @@ export default function AvizierPage() {
                     <td className="px-2 py-2 border-t-2 print:px-1 hidden lg:table-cell print:table-cell">-</td>
                     {data.categoriiCheltuieli.map(cat => (
                       <td key={cat} className="px-2 py-2 border-t-2 text-right print:px-1">
-                        {data.totaluri.categorii[cat]?.toLocaleString('ro-RO') || '-'}
+                        {data.totaluri.categorii[cat]?.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '-'}
                       </td>
                     ))}
                     <td className="px-2 py-2 border-t-2 text-right bg-blue-100 print:px-1">
-                      {data.totaluri.intretinere.toLocaleString('ro-RO')}
+                      {data.totaluri.intretinere.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-2 py-2 border-t-2 text-right bg-orange-100 print:px-1">
-                      {data.totaluri.restante.toLocaleString('ro-RO')}
+                      {data.totaluri.restante.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-2 py-2 border-t-2 text-right bg-red-100 print:px-1">
-                      {data.totaluri.penalizari.toLocaleString('ro-RO')}
+                      {data.totaluri.penalizari.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-2 py-2 border-t-2 text-right bg-purple-100 print:px-1">
-                      {data.totaluri.fonduri.toLocaleString('ro-RO')}
+                      {data.totaluri.fonduri.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-2 py-2 border-t-2 text-right bg-green-200 print:px-1">
-                      {data.totaluri.total.toLocaleString('ro-RO')}
+                      {data.totaluri.total.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                   </tr>
                 </tbody>
