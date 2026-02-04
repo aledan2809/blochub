@@ -109,7 +109,7 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, selectedMo
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={(entry: { name: string; percentage: number }) => `${entry.name}: ${entry.percentage}%`}
+                label={(entry: any) => `${entry.name}: ${entry.percentage}%`}
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
