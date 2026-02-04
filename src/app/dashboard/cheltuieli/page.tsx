@@ -24,6 +24,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface Furnizor {
   id: string
@@ -100,6 +101,7 @@ const metodaPlataLabels: Record<string, string> = {
 }
 
 export default function CheltuieliPage() {
+  const { currentAsociatie } = useAsociatie()
   const [cheltuieli, setCheltuieli] = useState<Cheltuiala[]>([])
   const [furnizori, setFurnizori] = useState<Furnizor[]>([])
   const [loading, setLoading] = useState(true)
@@ -108,7 +110,6 @@ export default function CheltuieliPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [editingCheltuiala, setEditingCheltuiala] = useState<Cheltuiala | null>(null)
   const [payingCheltuiala, setPayingCheltuiala] = useState<Cheltuiala | null>(null)
-  const [asociatieId, setAsociatieId] = useState<string | null>(null)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
@@ -120,21 +121,15 @@ export default function CheltuieliPage() {
   const [savingTip, setSavingTip] = useState(false)
   const [deletingTipId, setDeletingTipId] = useState<string | null>(null)
 
+  const asociatieId = currentAsociatie?.id || null
+
   const fetchData = async () => {
+    if (!currentAsociatie?.id) return
+
     try {
-      const statsRes = await fetch('/api/dashboard/stats')
-      const statsData = await statsRes.json()
-
-      if (!statsData.hasAsociatie) {
-        setLoading(false)
-        return
-      }
-
-      setAsociatieId(statsData.asociatie.id)
-
       // Fetch cheltuieli with payment info
       const res = await fetch(
-        `/api/plati-furnizori?asociatieId=${statsData.asociatie.id}&showPaid=true`
+        `/api/plati-furnizori?asociatieId=${currentAsociatie.id}&showPaid=true`
       )
       const data = await res.json()
 
@@ -145,14 +140,14 @@ export default function CheltuieliPage() {
       setCheltuieli(filtered)
 
       // Fetch furnizori
-      const furnizoriRes = await fetch(`/api/furnizori?asociatieId=${statsData.asociatie.id}`)
+      const furnizoriRes = await fetch(`/api/furnizori?asociatieId=${currentAsociatie.id}`)
       if (furnizoriRes.ok) {
         const furnizoriData = await furnizoriRes.json()
         setFurnizori(furnizoriData.furnizori || [])
       }
 
       // Fetch tipuri custom
-      const tipuriRes = await fetch(`/api/tipuri-cheltuieli?asociatieId=${statsData.asociatie.id}`)
+      const tipuriRes = await fetch(`/api/tipuri-cheltuieli?asociatieId=${currentAsociatie.id}`)
       if (tipuriRes.ok) {
         const tipuriData = await tipuriRes.json()
         setTipuriCustom(tipuriData.tipuri || [])
@@ -165,8 +160,10 @@ export default function CheltuieliPage() {
   }
 
   useEffect(() => {
-    fetchData()
-  }, [selectedMonth, selectedYear])
+    if (currentAsociatie?.id) {
+      fetchData()
+    }
+  }, [selectedMonth, selectedYear, currentAsociatie?.id])
 
   const handleDelete = async (id: string) => {
     if (!confirm('Sigur doriți să ștergeți această cheltuială?')) return

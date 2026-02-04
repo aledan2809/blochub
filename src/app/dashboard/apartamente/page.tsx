@@ -344,6 +344,7 @@ export default function ApartamentePage() {
                           <div>
                             <h3 className="font-semibold">Apt. {apt.numar}</h3>
                             <p className="text-xs text-gray-500">
+                              {apt.scara ? `Sc. ${apt.scara.numar} • ` : ''}
                               {apt.etaj !== null ? `Etaj ${apt.etaj}` : ''}
                               {apt.suprafata ? ` • ${apt.suprafata} mp` : ''}
                             </p>

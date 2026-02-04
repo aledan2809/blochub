@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface GenerationResult {
   success: boolean
@@ -26,10 +27,9 @@ interface GenerationResult {
 
 export default function GenereazaChitantePage() {
   const router = useRouter()
+  const { currentAsociatie } = useAsociatie()
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
-  const [asociatieId, setAsociatieId] = useState<string | null>(null)
-  const [asociatieNume, setAsociatieNume] = useState<string>('')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [result, setResult] = useState<GenerationResult | null>(null)
@@ -37,28 +37,28 @@ export default function GenereazaChitantePage() {
   const [apartamenteCount, setApartamenteCount] = useState(0)
   const [cheltuieliCount, setCheltuieliCount] = useState(0)
 
+  const asociatieId = currentAsociatie?.id || null
+  const asociatieNume = currentAsociatie?.nume || ''
+
   const months = [
     'Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
     'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'
   ]
 
   useEffect(() => {
+    if (!currentAsociatie?.id) return
+
     async function fetchData() {
       try {
-        const statsRes = await fetch('/api/dashboard/stats')
-        const statsData = await statsRes.json()
-
-        if (!statsData.hasAsociatie) {
-          router.push('/dashboard')
-          return
+        // Fetch apartment count
+        const aptRes = await fetch(`/api/apartamente?asociatieId=${currentAsociatie!.id}`)
+        if (aptRes.ok) {
+          const aptData = await aptRes.json()
+          setApartamenteCount(aptData.apartamente?.length || 0)
         }
 
-        setAsociatieId(statsData.asociatie.id)
-        setAsociatieNume(statsData.asociatie.nume)
-        setApartamenteCount(statsData.stats.totalApartamente)
-
         // Check existing invoices for selected month
-        await checkExisting(statsData.asociatie.id, selectedMonth, selectedYear)
+        await checkExisting(currentAsociatie!.id, selectedMonth, selectedYear)
       } catch (err) {
         console.error('Error:', err)
       } finally {
@@ -66,13 +66,13 @@ export default function GenereazaChitantePage() {
       }
     }
     fetchData()
-  }, [router])
+  }, [currentAsociatie?.id])
 
   useEffect(() => {
-    if (asociatieId) {
-      checkExisting(asociatieId, selectedMonth, selectedYear)
+    if (currentAsociatie?.id) {
+      checkExisting(currentAsociatie.id, selectedMonth, selectedYear)
     }
-  }, [selectedMonth, selectedYear, asociatieId])
+  }, [selectedMonth, selectedYear, currentAsociatie?.id])
 
   async function checkExisting(asocId: string, luna: number, an: number) {
     try {

@@ -14,6 +14,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { useAsociatie } from '@/contexts/AsociatieContext'
 
 interface Chitanta {
   id: string
@@ -41,29 +42,21 @@ const statusLabels: Record<string, { label: string; color: string; icon: React.R
 }
 
 export default function ChitantePage() {
+  const { currentAsociatie } = useAsociatie()
   const [chitante, setChitante] = useState<Chitanta[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [asociatieId, setAsociatieId] = useState<string | null>(null)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
 
   useEffect(() => {
+    if (!currentAsociatie?.id) return
+
     async function fetchData() {
       try {
-        const statsRes = await fetch('/api/dashboard/stats')
-        const statsData = await statsRes.json()
-
-        if (!statsData.hasAsociatie) {
-          setLoading(false)
-          return
-        }
-
-        setAsociatieId(statsData.asociatie.id)
-
         const res = await fetch(
-          `/api/chitante?asociatieId=${statsData.asociatie.id}&luna=${selectedMonth}&an=${selectedYear}`
+          `/api/chitante?asociatieId=${currentAsociatie!.id}&luna=${selectedMonth}&an=${selectedYear}`
         )
         const data = await res.json()
         setChitante(data.chitante || [])
@@ -74,7 +67,7 @@ export default function ChitantePage() {
       }
     }
     fetchData()
-  }, [selectedMonth, selectedYear])
+  }, [selectedMonth, selectedYear, currentAsociatie?.id])
 
   // Memoize filtered chitante to avoid recalculation on every render
   const filteredChitante = useMemo(() => {
