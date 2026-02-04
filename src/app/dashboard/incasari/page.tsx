@@ -61,6 +61,7 @@ interface Chitanta {
   an: number
   sumaTotal: number
   status: string
+  plati?: { suma: number; status: string }[]
   apartament: {
     numar: string
     scara?: { numar: string } | null
@@ -292,20 +293,28 @@ export default function IncasariPage() {
     c.an === modalYear
   )
 
+  // Calculate remaining balance for a chitanta (sumaTotal - already paid)
+  const getRestant = (c: Chitanta) => {
+    const platit = c.plati?.filter(p => p.status === 'CONFIRMED').reduce((sum, p) => sum + p.suma, 0) || 0
+    return Math.max(0, c.sumaTotal - platit)
+  }
+
   // Calculate total outstanding for apartment (for selected month)
-  const totalRestant = chitanteForApartament.reduce((sum, c) => sum + c.sumaTotal, 0)
+  const totalRestant = chitanteForApartament.reduce((sum, c) => sum + getRestant(c), 0)
 
   // Get all months that have unpaid obligations (for month selector)
   const availableMonths = useMemo(() => {
     const monthSet = new Map<string, { luna: number; an: number; count: number; total: number }>()
     chitante.forEach(c => {
+      const restant = getRestant(c)
+      if (restant <= 0) return // skip fully paid
       const key = `${c.an}-${c.luna}`
       const existing = monthSet.get(key)
       if (existing) {
         existing.count++
-        existing.total += c.sumaTotal
+        existing.total += restant
       } else {
-        monthSet.set(key, { luna: c.luna, an: c.an, count: 1, total: c.sumaTotal })
+        monthSet.set(key, { luna: c.luna, an: c.an, count: 1, total: restant })
       }
     })
     return Array.from(monthSet.values()).sort((a, b) => a.an - b.an || a.luna - b.luna)
@@ -324,7 +333,7 @@ export default function IncasariPage() {
         c.luna === modalMonth &&
         c.an === modalYear
       )
-      const total = aptChitante.reduce((sum, c) => sum + c.sumaTotal, 0)
+      const total = aptChitante.reduce((sum, c) => sum + getRestant(c), 0)
       // Auto-fill with the first unpaid chitanta for this month
       const firstUnpaid = aptChitante[0]
 
@@ -350,15 +359,11 @@ export default function IncasariPage() {
   const handleChitantaSelect = (chitantaId: string) => {
     const chitanta = chitante.find(c => c.id === chitantaId)
     if (chitanta) {
-      // Calculate remaining amount
-      const paidForThis = plati
-        .filter(p => p.chitanta.numar === chitanta.numar)
-        .reduce((sum, p) => sum + p.suma, 0)
-      const remaining = chitanta.sumaTotal - paidForThis
+      const remaining = getRestant(chitanta)
       setFormData({
         ...formData,
         chitantaId,
-        suma: remaining > 0 ? remaining.toFixed(2) : chitanta.sumaTotal.toFixed(2)
+        suma: remaining > 0 ? remaining.toFixed(2) : ''
       })
     } else {
       setFormData({ ...formData, chitantaId })
@@ -939,12 +944,15 @@ export default function IncasariPage() {
                     onChange={(e) => handleChitantaSelect(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                   >
-                    <option value="">Toate restanțele ({totalRestant.toLocaleString('ro-RO')} lei)</option>
-                    {chitanteForApartament.map(ch => (
-                      <option key={ch.id} value={ch.id}>
-                        #{ch.numar} - {months[ch.luna - 1]} {ch.an} - {ch.sumaTotal.toLocaleString('ro-RO')} lei
-                      </option>
-                    ))}
+                    <option value="">Toate restanțele ({totalRestant.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei)</option>
+                    {chitanteForApartament.map(ch => {
+                      const rest = getRestant(ch)
+                      return (
+                        <option key={ch.id} value={ch.id}>
+                          #{ch.numar} - {months[ch.luna - 1]} {ch.an} - rest: {rest.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei (din {ch.sumaTotal.toLocaleString('ro-RO')} lei)
+                        </option>
+                      )
+                    })}
                   </select>
                 </div>
               )}
