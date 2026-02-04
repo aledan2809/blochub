@@ -52,8 +52,12 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const lunaParam = searchParams.get('luna')
+    const anParam = searchParams.get('an')
+    const selectedLuna = lunaParam ? parseInt(lunaParam) : now.getMonth() + 1
+    const selectedAn = anParam ? parseInt(anParam) : now.getFullYear()
+    const startOfMonth = new Date(selectedAn, selectedLuna - 1, 1)
+    const endOfMonth = new Date(selectedAn, selectedLuna, 0, 23, 59, 59)
 
     // Get all stats in parallel
     const [
@@ -99,21 +103,23 @@ export async function GET(request: NextRequest) {
       db.cheltuiala.aggregate({
         where: {
           asociatieId: asociatie.id,
-          luna: now.getMonth() + 1,
-          an: now.getFullYear()
+          luna: selectedLuna,
+          an: selectedAn
         },
         _sum: { suma: true }
       }),
 
-      // Arrears (unpaid invoices)
-      db.chitanta.aggregate({
+      // Arrears (unpaid obligations for selected month - not yet fully paid)
+      db.chitanta.findMany({
         where: {
           asociatieId: asociatie.id,
-          status: { in: ['RESTANTA', 'GENERATA', 'TRIMISA'] },
-          dataScadenta: { lt: now }
+          luna: selectedLuna,
+          an: selectedAn,
+          status: { notIn: ['PLATITA'] }
         },
-        _sum: { sumaTotal: true },
-        _count: true
+        include: {
+          plati: { where: { status: 'CONFIRMED' }, select: { suma: true } }
+        }
       }),
 
       // Fund balance
@@ -125,15 +131,18 @@ export async function GET(request: NextRequest) {
         _sum: { soldCurent: true }
       }),
 
-      // Recent invoices
+      // Obligations for selected month (all chitante)
       db.chitanta.findMany({
-        where: { asociatieId: asociatie.id },
+        where: {
+          asociatieId: asociatie.id,
+          luna: selectedLuna,
+          an: selectedAn
+        },
         include: {
           apartament: { select: { numar: true } },
           plati: { select: { suma: true, status: true } }
         },
-        orderBy: { createdAt: 'desc' },
-        take: 5
+        orderBy: { apartament: { numar: 'asc' } }
       }),
 
       // Agent activity (last 24h)
@@ -151,8 +160,8 @@ export async function GET(request: NextRequest) {
         where: {
           asociatieId: asociatie.id,
           probabilitate: { gte: 80 },
-          luna: now.getMonth() + 1,
-          an: now.getFullYear()
+          luna: selectedLuna,
+          an: selectedAn
         }
       }),
 
@@ -198,7 +207,20 @@ export async function GET(request: NextRequest) {
       })()
     ])
 
-    // Calculate payment status for recent invoices
+    // Calculate restante from unpaid obligations
+    const restanteTotal = restanteData.reduce((sum, ch) => {
+      const paid = ch.plati.reduce((s, p) => s + p.suma, 0)
+      return sum + Math.max(0, ch.sumaTotal - paid)
+    }, 0)
+    const restanteCount = restanteData.filter(ch => {
+      const paid = ch.plati.reduce((s, p) => s + p.suma, 0)
+      return ch.sumaTotal - paid > 0.01
+    }).length
+
+    // Total obligations for selected month
+    const totalObligatiiLuna = chitanteRecente.reduce((sum, ch) => sum + ch.sumaTotal, 0)
+
+    // Calculate payment status for obligations
     const chitanteFormatted = chitanteRecente.map(ch => {
       const totalPaid = ch.plati
         .filter(p => p.status === 'CONFIRMED')
@@ -214,6 +236,7 @@ export async function GET(request: NextRequest) {
       return {
         apartament: ch.apartament.numar,
         suma: ch.sumaTotal,
+        platit: totalPaid,
         status
       }
     })
@@ -222,7 +245,7 @@ export async function GET(request: NextRequest) {
     const agentNames: Record<string, string> = {
       'OCR_FACTURA': 'OCR Facturi',
       'OCR_INDEX': 'OCR Indexuri',
-      'CALCUL_CHITANTA': 'Calcul Chitanțe',
+      'CALCUL_CHITANTA': 'Calcul Obligații',
       'PREDICTIE_PLATA': 'Predicție Plăți',
       'CHATBOT': 'Chatbot',
       'RECONCILIERE': 'Reconciliere',
@@ -247,10 +270,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    if (restanteData._count > 0) {
+    if (restanteCount > 0) {
       alerteAI.push({
         tip: 'danger',
-        mesaj: `${restanteData._count} chitanțe restante - total ${restanteData._sum.sumaTotal?.toFixed(0) || 0} lei`,
+        mesaj: `${restanteCount} obligații neplătite - total ${restanteTotal.toFixed(0)} lei`,
         actiune: 'Vezi restanțe'
       })
     }
@@ -320,8 +343,9 @@ export async function GET(request: NextRequest) {
         totalProprietari,
         incasariLuna: incasariLuna._sum.suma || 0,
         cheltuieliLuna: cheltuieliLuna._sum.suma || 0,
-        restante: restanteData._sum.sumaTotal || 0,
-        restanteCount: restanteData._count,
+        restante: restanteTotal,
+        restanteCount,
+        totalObligatiiLuna,
         fondRulment: fondRulmentData._sum.soldCurent || 0,
         tichete: ticheteStats
       },

@@ -19,6 +19,7 @@ import {
   MessageSquare,
   Wrench,
   ChevronRight,
+  Calendar,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,7 @@ interface DashboardData {
     cheltuieliLuna: number
     restante: number
     restanteCount: number
+    totalObligatiiLuna: number
     fondRulment: number
     tichete?: {
       deschise: number
@@ -61,6 +63,7 @@ interface DashboardData {
   chitanteRecente: Array<{
     apartament: string
     suma: number
+    platit: number
     status: 'platit' | 'partial' | 'neplatit'
   }>
   agentActivity: Array<{
@@ -78,17 +81,22 @@ interface DashboardData {
   }>
 }
 
+const months = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie', 'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie']
+
 export default function DashboardPage() {
   const { currentAsociatie } = useAsociatie()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
     if (!currentAsociatie?.id) return
     async function fetchData() {
       try {
-        const res = await fetch(`/api/dashboard/stats?asociatieId=${currentAsociatie!.id}`)
+        setLoading(true)
+        const res = await fetch(`/api/dashboard/stats?asociatieId=${currentAsociatie!.id}&luna=${selectedMonth}&an=${selectedYear}`)
         if (!res.ok) throw new Error('Eroare la încărcarea datelor')
         const json = await res.json()
         setData(json)
@@ -99,7 +107,7 @@ export default function DashboardPage() {
       }
     }
     fetchData()
-  }, [currentAsociatie?.id])
+  }, [currentAsociatie?.id, selectedMonth, selectedYear])
 
   if (loading) {
     return (
@@ -125,8 +133,8 @@ export default function DashboardPage() {
 
   const stats = data.stats!
   const totalAutomatizari = data.agentActivity.reduce((sum, a) => sum + a.actiuni, 0)
-  const rataIncasare = stats.totalApartamente > 0
-    ? Math.round(((stats.incasariLuna / (stats.incasariLuna + stats.restante)) || 0) * 100)
+  const rataIncasare = stats.totalObligatiiLuna > 0
+    ? Math.round((stats.incasariLuna / stats.totalObligatiiLuna) * 100)
     : 0
 
   return (
@@ -137,7 +145,28 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500">{data.asociatie?.nume || 'Asociația mea'}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-1.5">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              className="text-sm border-none bg-transparent focus:ring-0 pr-1"
+            >
+              {months.map((m, i) => (
+                <option key={i} value={i + 1}>{m}</option>
+              ))}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="text-sm border-none bg-transparent focus:ring-0 pr-1"
+            >
+              {[2024, 2025, 2026].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
           <Link href="/dashboard/avizier">
             <Button>
               <FileText className="h-4 w-4 mr-2" />
@@ -150,29 +179,29 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Încasări Luna"
-          value={`${stats.incasariLuna.toLocaleString('ro-RO')} lei`}
-          subtitle={stats.incasariLuna > 0 ? 'Luna curentă' : 'Nicio încasare'}
+          title="Încasări"
+          value={`${stats.incasariLuna.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
+          subtitle={`${months[selectedMonth - 1]} ${selectedYear}`}
           icon={<TrendingUp className="h-5 w-5 text-green-600" />}
           trend="up"
         />
         <StatCard
-          title="Cheltuieli Luna"
-          value={`${stats.cheltuieliLuna.toLocaleString('ro-RO')} lei`}
-          subtitle={stats.cheltuieliLuna > 0 ? 'Luna curentă' : 'Nicio cheltuială'}
+          title="Cheltuieli"
+          value={`${stats.cheltuieliLuna.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
+          subtitle={`${months[selectedMonth - 1]} ${selectedYear}`}
           icon={<TrendingDown className="h-5 w-5 text-blue-600" />}
           trend="down"
         />
         <StatCard
           title="Restanțe"
-          value={`${stats.restante.toLocaleString('ro-RO')} lei`}
-          subtitle={stats.restanteCount > 0 ? `${stats.restanteCount} chitanțe` : 'Nicio restanță'}
+          value={`${stats.restante.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
+          subtitle={stats.restanteCount > 0 ? `${stats.restanteCount} obligații neplătite` : 'Nicio restanță'}
           icon={<AlertTriangle className="h-5 w-5 text-orange-600" />}
           trend="warning"
         />
         <StatCard
           title="Fond Rulment"
-          value={`${stats.fondRulment.toLocaleString('ro-RO')} lei`}
+          value={`${stats.fondRulment.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
           subtitle="Sold disponibil"
           icon={<CreditCard className="h-5 w-5 text-purple-600" />}
         />
@@ -350,7 +379,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <CardDescription>
-                Chitanțe care necesită atenție
+                Obligații care necesită atenție
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -423,11 +452,11 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Recent Chitante */}
+        {/* Obligații de Plată */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Chitanțe Recente</CardTitle>
+              <CardTitle>Obligații de Plată - {months[selectedMonth - 1]} {selectedYear}</CardTitle>
               <Link href="/dashboard/chitante">
                 <Button variant="ghost" size="sm">
                   Vezi toate
@@ -439,7 +468,7 @@ export default function DashboardPage() {
             {data.chitanteRecente.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <FileText className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                <p>Nu există obligații de plată încă.</p>
+                <p>Nu există obligații de plată pentru {months[selectedMonth - 1]} {selectedYear}.</p>
                 <Link href="/dashboard/avizier">
                   <Button className="mt-4" variant="outline">
                     <Plus className="h-4 w-4 mr-2" />
@@ -461,14 +490,19 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium">Apartament {chitanta.apartament}</p>
+                        <p className="font-medium">Apt. {chitanta.apartament}</p>
                         <p className="text-sm text-gray-500">
-                          {new Date().toLocaleDateString('ro-RO', { month: 'long', year: 'numeric' })}
+                          {months[selectedMonth - 1]} {selectedYear}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="font-semibold">{chitanta.suma.toLocaleString('ro-RO')} lei</span>
+                      <div className="text-right">
+                        <span className="font-semibold">{chitanta.suma.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei</span>
+                        {chitanta.platit > 0 && chitanta.status !== 'platit' && (
+                          <p className="text-xs text-green-600">achitat: {chitanta.platit.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei</p>
+                        )}
+                      </div>
                       <StatusBadge status={chitanta.status} />
                     </div>
                   </div>
@@ -543,7 +577,7 @@ export default function DashboardPage() {
           </div>
         }
       >
-        <AnalyticsCharts stats={stats} agentActivity={data.agentActivity} />
+        <AnalyticsCharts stats={stats} selectedMonth={`${months[selectedMonth - 1]} ${selectedYear}`} agentActivity={data.agentActivity} />
       </Suspense>
     </div>
   )

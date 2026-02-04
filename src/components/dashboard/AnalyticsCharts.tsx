@@ -4,8 +4,6 @@ import { memo, useMemo } from 'react'
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -13,7 +11,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -24,28 +21,24 @@ interface AnalyticsChartsProps {
     cheltuieliLuna: number
     restante: number
     restanteCount: number
+    totalObligatiiLuna: number
     fondRulment: number
   }
+  selectedMonth?: string
   agentActivity?: Array<{
     agent: string
     actiuni: number
   }>
 }
 
-export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, agentActivity = [] }: AnalyticsChartsProps) {
+export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, selectedMonth = '', agentActivity = [] }: AnalyticsChartsProps) {
   // Financial overview data - memoized to prevent recalculation on every render
   const financialData = useMemo(() => [
+    { name: 'Obligații', value: stats.totalObligatiiLuna, color: '#6366f1' },
     { name: 'Încasări', value: stats.incasariLuna, color: '#10b981' },
     { name: 'Cheltuieli', value: stats.cheltuieliLuna, color: '#3b82f6' },
     { name: 'Restanțe', value: stats.restante, color: '#f59e0b' },
-  ], [stats.incasariLuna, stats.cheltuieliLuna, stats.restante])
-
-  // Monthly trend data (mock data - in real app this would come from API) - memoized
-  const monthlyTrend = useMemo(() => [
-    { month: 'Ian', incasari: stats.incasariLuna * 0.85, cheltuieli: stats.cheltuieliLuna * 0.9 },
-    { month: 'Feb', incasari: stats.incasariLuna * 0.92, cheltuieli: stats.cheltuieliLuna * 0.95 },
-    { month: 'Mar', incasari: stats.incasariLuna, cheltuieli: stats.cheltuieliLuna },
-  ], [stats.incasariLuna, stats.cheltuieliLuna])
+  ], [stats.totalObligatiiLuna, stats.incasariLuna, stats.cheltuieliLuna, stats.restante])
 
   // Agent activity data - memoized
   const agentData = useMemo(
@@ -58,20 +51,20 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, agentActiv
 
   // Payment status distribution - memoized
   const paymentStatusData = useMemo(() => {
-    const totalPlati = stats.incasariLuna + stats.restante
+    const total = stats.totalObligatiiLuna
     return [
       {
         name: 'Plătit',
         value: stats.incasariLuna,
-        percentage: totalPlati > 0 ? Math.round((stats.incasariLuna / totalPlati) * 100) : 0,
+        percentage: total > 0 ? Math.round((stats.incasariLuna / total) * 100) : 0,
       },
       {
         name: 'Restanță',
         value: stats.restante,
-        percentage: totalPlati > 0 ? Math.round((stats.restante / totalPlati) * 100) : 0,
+        percentage: total > 0 ? Math.round((stats.restante / total) * 100) : 0,
       },
     ]
-  }, [stats.incasariLuna, stats.restante])
+  }, [stats.incasariLuna, stats.restante, stats.totalObligatiiLuna])
 
   const COLORS = ['#10b981', '#f59e0b']
 
@@ -81,7 +74,7 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, agentActiv
       <Card>
         <CardHeader>
           <CardTitle>Situație Financiară</CardTitle>
-          <CardDescription>Rezumat lunar - încasări, cheltuieli, restanțe</CardDescription>
+          <CardDescription>Rezumat {selectedMonth} - obligații, încasări, cheltuieli, restanțe</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -90,7 +83,7 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, agentActiv
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip
-                formatter={(value) => [`${Number(value).toLocaleString('ro-RO')} lei`]}
+                formatter={(value) => [`${Number(value).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`]}
               />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                 {financialData.map((entry, index) => (
@@ -106,7 +99,7 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, agentActiv
       <Card>
         <CardHeader>
           <CardTitle>Statut Plăți</CardTitle>
-          <CardDescription>Distribuția plăților pentru luna curentă</CardDescription>
+          <CardDescription>Distribuția plăților - {selectedMonth}</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -116,54 +109,19 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, agentActiv
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={(entry: any) => `${entry.name}: ${entry.percentage}%`}
+                label={(entry: { name: string; percentage: number }) => `${entry.name}: ${entry.percentage}%`}
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
               >
-                {paymentStatusData.map((entry, index) => (
+                {paymentStatusData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => [`${Number(value).toLocaleString('ro-RO')} lei`]}
+                formatter={(value) => [`${Number(value).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`]}
               />
             </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Monthly Trend Line Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Trend Trimestrial</CardTitle>
-          <CardDescription>Evoluția încasărilor și cheltuielilor</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthlyTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip
-                formatter={(value) => [`${Number(value).toLocaleString('ro-RO')} lei`]}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="incasari"
-                stroke="#10b981"
-                strokeWidth={2}
-                name="Încasări"
-              />
-              <Line
-                type="monotone"
-                dataKey="cheltuieli"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                name="Cheltuieli"
-              />
-            </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
