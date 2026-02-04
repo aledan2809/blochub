@@ -532,13 +532,14 @@ export default function IncasariPage() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Apartament</th>
-                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Luna</th>
+                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Luna obligație</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Obligație curentă</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Penalizări</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Total datorat</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Sumă plătită</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Rest de plată</th>
-                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Metodă / Data</th>
+                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Data încasării</th>
+                  <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Metodă</th>
                   <th className="px-3 py-3 text-left text-sm font-medium text-gray-500">Nr. Chitanță</th>
                   <th className="px-3 py-3 text-right text-sm font-medium text-gray-500">Acțiuni</th>
                 </tr>
@@ -587,13 +588,13 @@ export default function IncasariPage() {
                         <span className="text-green-600 font-medium">Achitată</span>
                       )}
                     </td>
+                    <td className="px-3 py-3 text-sm">
+                      {new Date(plata.dataPlata).toLocaleDateString('ro-RO')}
+                    </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5">
                         {metodaPlataIcons[plata.metodaPlata]}
                         <span className="text-sm">{metodaPlataLabels[plata.metodaPlata]}</span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(plata.dataPlata).toLocaleDateString('ro-RO')}
                       </div>
                     </td>
                     <td className="px-3 py-3">
