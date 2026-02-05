@@ -1,6 +1,7 @@
 'use client'
 
 import { memo, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   BarChart,
   Bar,
@@ -32,6 +33,23 @@ interface AnalyticsChartsProps {
 }
 
 export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, selectedMonth = '', agentActivity = [] }: AnalyticsChartsProps) {
+  const router = useRouter()
+
+  // Navigation map for chart clicks
+  const navigationMap: Record<string, string> = {
+    'Obligații': '/dashboard/avizier',
+    'Încasări': '/dashboard/incasari',
+    'Cheltuieli': '/dashboard/cheltuieli',
+    'Restanțe': '/dashboard/chitante',
+    'Plătit': '/dashboard/incasari',
+    'Restanță': '/dashboard/chitante',
+  }
+
+  const handleBarClick = (data: { name: string }) => {
+    const path = navigationMap[data.name]
+    if (path) router.push(path)
+  }
+
   // Financial overview data - memoized to prevent recalculation on every render
   const financialData = useMemo(() => [
     { name: 'Obligații', value: stats.totalObligatiiLuna, color: '#6366f1' },
@@ -85,9 +103,9 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, selectedMo
               <Tooltip
                 formatter={(value) => [`${Number(value).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`]}
               />
-              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+              <Bar dataKey="value" radius={[8, 8, 0, 0]} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
                 {financialData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`cell-${index}`} fill={entry.color} className="hover:opacity-80 transition-opacity" />
                 ))}
               </Bar>
             </BarChart>
@@ -113,9 +131,11 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, selectedMo
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
+                onClick={handleBarClick}
+                style={{ cursor: 'pointer' }}
               >
                 {paymentStatusData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity" />
                 ))}
               </Pie>
               <Tooltip

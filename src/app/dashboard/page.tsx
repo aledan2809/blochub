@@ -178,27 +178,36 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Încasări"
-          value={`${stats.incasariLuna.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
-          subtitle={`${months[selectedMonth - 1]} ${selectedYear}`}
-          icon={<TrendingUp className="h-5 w-5 text-green-600" />}
-          trend="up"
-        />
-        <StatCard
-          title="Cheltuieli"
-          value={`${stats.cheltuieliLuna.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
-          subtitle={`${months[selectedMonth - 1]} ${selectedYear}`}
-          icon={<TrendingDown className="h-5 w-5 text-blue-600" />}
-          trend="down"
-        />
-        <StatCard
-          title="Restanțe"
-          value={`${stats.restante.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
-          subtitle={stats.restanteCount > 0 ? `${stats.restanteCount} obligații neplătite` : 'Nicio restanță'}
-          icon={<AlertTriangle className="h-5 w-5 text-orange-600" />}
-          trend="warning"
-        />
+        <Link href="/dashboard/incasari">
+          <StatCard
+            title="Încasări"
+            value={`${stats.incasariLuna.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
+            subtitle={`${months[selectedMonth - 1]} ${selectedYear}`}
+            icon={<TrendingUp className="h-5 w-5 text-green-600" />}
+            trend="up"
+            clickable
+          />
+        </Link>
+        <Link href="/dashboard/cheltuieli">
+          <StatCard
+            title="Cheltuieli"
+            value={`${stats.cheltuieliLuna.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
+            subtitle={`${months[selectedMonth - 1]} ${selectedYear}`}
+            icon={<TrendingDown className="h-5 w-5 text-blue-600" />}
+            trend="down"
+            clickable
+          />
+        </Link>
+        <Link href="/dashboard/chitante">
+          <StatCard
+            title="Restanțe"
+            value={`${stats.restante.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
+            subtitle={stats.restanteCount > 0 ? `${stats.restanteCount} obligații neplătite` : 'Nicio restanță'}
+            icon={<AlertTriangle className="h-5 w-5 text-orange-600" />}
+            trend="warning"
+            clickable
+          />
+        </Link>
         <StatCard
           title="Fond Rulment"
           value={`${stats.fondRulment.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
@@ -479,33 +488,34 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {data.chitanteRecente.map((chitanta, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <span className="font-semibold text-blue-600">
-                          {chitanta.apartament}
-                        </span>
+                  <Link key={i} href="/dashboard/incasari">
+                    <div
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <span className="font-semibold text-blue-600">
+                            {chitanta.apartament}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">Apt. {chitanta.apartament}</p>
+                          <p className="text-sm text-gray-500">
+                            {months[selectedMonth - 1]} {selectedYear}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">Apt. {chitanta.apartament}</p>
-                        <p className="text-sm text-gray-500">
-                          {months[selectedMonth - 1]} {selectedYear}
-                        </p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <span className="font-semibold">{chitanta.suma.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei</span>
+                          {chitanta.platit > 0 && chitanta.status !== 'platit' && (
+                            <p className="text-xs text-green-600">achitat: {chitanta.platit.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei</p>
+                          )}
+                        </div>
+                        <StatusBadge status={chitanta.status} />
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <span className="font-semibold">{chitanta.suma.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei</span>
-                        {chitanta.platit > 0 && chitanta.status !== 'platit' && (
-                          <p className="text-xs text-green-600">achitat: {chitanta.platit.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei</p>
-                        )}
-                      </div>
-                      <StatusBadge status={chitanta.status} />
-                    </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -1048,15 +1058,17 @@ function StatCard({
   subtitle,
   icon,
   trend,
+  clickable,
 }: {
   title: string
   value: string
   subtitle: string
   icon: React.ReactNode
   trend?: 'up' | 'down' | 'warning'
+  clickable?: boolean
 }) {
   return (
-    <Card>
+    <Card className={clickable ? 'cursor-pointer hover:shadow-md hover:border-blue-200 transition-all' : ''}>
       <CardContent className="pt-6">
         <div className="flex items-center justify-between">
           <div>
