@@ -45,8 +45,9 @@ export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, selectedMo
     'Restanță': '/dashboard/chitante',
   }
 
-  const handleBarClick = (data: { name: string }) => {
-    const path = navigationMap[data.name]
+  const handleBarClick = (data: any) => {
+    const name = data?.name || data?.payload?.name
+    const path = navigationMap[name]
     if (path) router.push(path)
   }
 
