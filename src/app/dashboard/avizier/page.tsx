@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   FileText,
@@ -82,11 +83,16 @@ function getCategoryShortCode(category: string): string {
 
 export default function AvizierPage() {
   const { currentAsociatie } = useAsociatie()
+  const searchParams = useSearchParams()
   const [data, setData] = useState<AvizierData | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+
+  // Initialize from URL params or default to current month
+  const urlLuna = searchParams.get('luna')
+  const urlAn = searchParams.get('an')
+  const [selectedMonth, setSelectedMonth] = useState(urlLuna ? parseInt(urlLuna) : new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(urlAn ? parseInt(urlAn) : new Date().getFullYear())
   const printRef = useRef<HTMLDivElement>(null)
 
   const asociatieId = currentAsociatie?.id || null

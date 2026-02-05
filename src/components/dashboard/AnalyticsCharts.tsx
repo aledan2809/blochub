@@ -26,23 +26,28 @@ interface AnalyticsChartsProps {
     fondRulment: number
   }
   selectedMonth?: string
+  luna?: number
+  an?: number
   agentActivity?: Array<{
     agent: string
     actiuni: number
   }>
 }
 
-export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, selectedMonth = '', agentActivity = [] }: AnalyticsChartsProps) {
+export const AnalyticsCharts = memo(function AnalyticsCharts({ stats, selectedMonth = '', luna, an, agentActivity = [] }: AnalyticsChartsProps) {
   const router = useRouter()
+
+  // Build query string for month/year
+  const queryParams = luna && an ? `?luna=${luna}&an=${an}` : ''
 
   // Navigation map for chart clicks
   const navigationMap: Record<string, string> = {
-    'Obligații': '/dashboard/avizier',
-    'Încasări': '/dashboard/incasari',
-    'Cheltuieli': '/dashboard/cheltuieli',
-    'Restanțe': '/dashboard/chitante',
-    'Plătit': '/dashboard/incasari',
-    'Restanță': '/dashboard/chitante',
+    'Obligații': `/dashboard/avizier${queryParams}`,
+    'Încasări': `/dashboard/incasari${queryParams}`,
+    'Cheltuieli': `/dashboard/cheltuieli${queryParams}`,
+    'Restanțe': `/dashboard/chitante${queryParams}`,
+    'Plătit': `/dashboard/incasari${queryParams}`,
+    'Restanță': `/dashboard/chitante${queryParams}`,
   }
 
   const handleBarClick = (data: any) => {

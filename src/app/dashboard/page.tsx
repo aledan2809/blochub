@@ -178,7 +178,7 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link href="/dashboard/incasari">
+        <Link href={`/dashboard/incasari?luna=${selectedMonth}&an=${selectedYear}`}>
           <StatCard
             title="Încasări"
             value={`${stats.incasariLuna.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
@@ -188,7 +188,7 @@ export default function DashboardPage() {
             clickable
           />
         </Link>
-        <Link href="/dashboard/cheltuieli">
+        <Link href={`/dashboard/cheltuieli?luna=${selectedMonth}&an=${selectedYear}`}>
           <StatCard
             title="Cheltuieli"
             value={`${stats.cheltuieliLuna.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
@@ -198,7 +198,7 @@ export default function DashboardPage() {
             clickable
           />
         </Link>
-        <Link href="/dashboard/chitante">
+        <Link href={`/dashboard/chitante?luna=${selectedMonth}&an=${selectedYear}`}>
           <StatCard
             title="Restanțe"
             value={`${stats.restante.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} lei`}
@@ -488,7 +488,7 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {data.chitanteRecente.map((chitanta, i) => (
-                  <Link key={i} href="/dashboard/incasari">
+                  <Link key={i} href={`/dashboard/incasari?luna=${selectedMonth}&an=${selectedYear}`}>
                     <div
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                     >
@@ -587,7 +587,7 @@ export default function DashboardPage() {
           </div>
         }
       >
-        <AnalyticsCharts stats={stats} selectedMonth={`${months[selectedMonth - 1]} ${selectedYear}`} agentActivity={data.agentActivity} />
+        <AnalyticsCharts stats={stats} selectedMonth={`${months[selectedMonth - 1]} ${selectedYear}`} luna={selectedMonth} an={selectedYear} agentActivity={data.agentActivity} />
       </Suspense>
     </div>
   )

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Search,
   Loader2,
@@ -43,11 +44,16 @@ const statusLabels: Record<string, { label: string; color: string; icon: React.R
 
 export default function ChitantePage() {
   const { currentAsociatie } = useAsociatie()
+  const searchParams = useSearchParams()
   const [chitante, setChitante] = useState<Chitanta[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+
+  // Initialize from URL params or default to current month
+  const urlLuna = searchParams.get('luna')
+  const urlAn = searchParams.get('an')
+  const [selectedMonth, setSelectedMonth] = useState(urlLuna ? parseInt(urlLuna) : new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(urlAn ? parseInt(urlAn) : new Date().getFullYear())
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
 
   useEffect(() => {

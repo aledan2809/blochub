@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Plus,
   Search,
@@ -102,6 +103,7 @@ const metodaPlataLabels: Record<string, string> = {
 
 export default function CheltuieliPage() {
   const { currentAsociatie } = useAsociatie()
+  const searchParams = useSearchParams()
   const [cheltuieli, setCheltuieli] = useState<Cheltuiala[]>([])
   const [furnizori, setFurnizori] = useState<Furnizor[]>([])
   const [loading, setLoading] = useState(true)
@@ -110,8 +112,12 @@ export default function CheltuieliPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [editingCheltuiala, setEditingCheltuiala] = useState<Cheltuiala | null>(null)
   const [payingCheltuiala, setPayingCheltuiala] = useState<Cheltuiala | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+
+  // Initialize from URL params or default to current month
+  const urlLuna = searchParams.get('luna')
+  const urlAn = searchParams.get('an')
+  const [selectedMonth, setSelectedMonth] = useState(urlLuna ? parseInt(urlLuna) : new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(urlAn ? parseInt(urlAn) : new Date().getFullYear())
 
   // Tipuri cheltuieli custom
   const [tipuriCustom, setTipuriCustom] = useState<TipCheltuialaCustom[]>([])

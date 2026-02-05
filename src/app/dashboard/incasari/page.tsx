@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Wallet,
   Plus,
@@ -114,14 +115,19 @@ const months = [
 
 export default function IncasariPage() {
   const { currentAsociatie } = useAsociatie()
+  const searchParams = useSearchParams()
   const [plati, setPlati] = useState<Plata[]>([])
   const [chitante, setChitante] = useState<Chitanta[]>([])
   const [apartamente, setApartamente] = useState<Apartament[]>([])
   const [loading, setLoading] = useState(true)
   const [asociatieData, setAsociatieData] = useState<Asociatie | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+
+  // Initialize from URL params or default to current month
+  const urlLuna = searchParams.get('luna')
+  const urlAn = searchParams.get('an')
+  const [selectedMonth, setSelectedMonth] = useState(urlLuna ? parseInt(urlLuna) : new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(urlAn ? parseInt(urlAn) : new Date().getFullYear())
   const [stats, setStats] = useState({ totalIncasat: 0, numarPlati: 0 })
 
   // Modal
