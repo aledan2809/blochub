@@ -1503,6 +1503,32 @@ function CheltuialaModal({
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
+              {/* Distribution method info */}
+              <div className="mt-2 text-xs text-gray-500">
+                {formData.modRepartizare === 'COTA_INDIVIZA' && (
+                  <p>Suma se împarte proporțional cu cota parte a fiecărui apartament (mp/%).</p>
+                )}
+                {formData.modRepartizare === 'PERSOANE' && (
+                  <p>Suma se împarte în funcție de numărul de persoane din fiecare apartament.</p>
+                )}
+                {formData.modRepartizare === 'APARTAMENT' && (
+                  <p>Suma se împarte egal la toate apartamentele.</p>
+                )}
+                {formData.modRepartizare === 'CONSUM' && (
+                  <div className="p-2 bg-blue-50 border border-blue-200 rounded text-blue-700">
+                    <p className="font-medium">Repartizare pe consum</p>
+                    <p className="mt-1">Suma se împarte pe baza indexurilor de contoare citite pentru luna curentă.</p>
+                    <p className="mt-1 text-blue-600">Asigură-te că ai introdus indexurile pentru această lună în pagina Apartamente.</p>
+                  </div>
+                )}
+                {formData.modRepartizare === 'MANUAL' && (
+                  <div className="p-2 bg-amber-50 border border-amber-200 rounded text-amber-700">
+                    <p className="font-medium">Repartizare manuală</p>
+                    <p className="mt-1">Sumele pentru fiecare apartament vor trebui introduse manual în Avizier.</p>
+                    <p className="mt-1 text-amber-600">Acest mod este util pentru cheltuieli speciale sau excepții.</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>

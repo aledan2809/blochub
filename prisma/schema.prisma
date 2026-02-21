@@ -47,6 +47,12 @@ model User {
   // Invitations sent
   invitationsSent  InvitationToken[]
 
+  // Multi-tenant: membership în organizații
+  organizatii      UtilizatorOrganizatie[]
+
+  // Import sessions
+  importSessions   ImportSession[]
+
   @@map("users")
 }
 
@@ -162,6 +168,10 @@ model Asociatie {
   adminId         String
   admin           User     @relation("AdminAsociatie", fields: [adminId], references: [id])
 
+  // Multi-tenant: legătura la organizație
+  organizatieId   String?
+  organizatie     Organizatie? @relation("OrganizatieAsociatii", fields: [organizatieId], references: [id])
+
   cladiri         Cladire[]
   scari           Scara[]
   apartamente     Apartament[]
@@ -196,6 +206,10 @@ model Asociatie {
   // SPV / e-Factura
   spvCredentials  SPVCredentials?
   facturiSPV      FacturaSPV[]
+
+  // Audit & Import
+  auditLogs       AuditLog[]
+  importSessions  ImportSession[]
 
   @@map("asociatii")
 }
@@ -250,16 +264,23 @@ model TipApartament {
 }
 
 model Apartament {
-  id              String   @id @default(cuid())
-  numar           String   // "1", "2", "15A"
+  id              String     @id @default(cuid())
+  numar           String     // "1", "2", "15A"
+  tipUnitate      TipUnitate @default(APARTAMENT)
+  tipUnitateCustom String?   // Denumire custom când tipUnitate = ALTUL
+  codUnic         String?    @unique @default(cuid()) // Cod unic auto-generat
+  nrCadastral     String?    // Număr cadastral (opțional dar important)
   etaj            Int?
-  suprafata       Float?   // mp
+  suprafata       Float?     // mp
   nrCamere        Int?
-  cotaIndiviza    Float?   // procent din bloc
-  nrPersoane      Int      @default(1)
+  cotaIndiviza    Float?     // procent din bloc
+  nrPersoane      Int        @default(1)
 
   // Locuire
-  esteInchiriat   Boolean  @default(false)
+  esteInchiriat   Boolean    @default(false)
+
+  // Debranșamente — JSON: { "ascensor": false, "caldura": true, ... }
+  debransamente   String?    @db.Text
 
   asociatieId     String
   asociatie       Asociatie @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
@@ -278,6 +299,7 @@ model Apartament {
   plati           Plata[]
   indexuri        IndexContor[]
   reminderHistory ReminderHistory[]
+  documenteUnitate DocumentUnitate[]
 
   // Invitations
   invitations     InvitationToken[]
@@ -342,12 +364,28 @@ enum TipContor {
   GAZ
   CURENT
   CALDURA
+  IMPULS_BMS          // Sisteme electronice BMS (VRV multi split)
+  REPARTITOR_COSTURI  // Repartitoare costuri energie calorică
+  CALORIMETRU         // Contor energie termică (distribuție orizontală)
+}
+
+// ============================================
+// TIP UNITATE (Apartament, Parcare, etc.)
+// ============================================
+
+enum TipUnitate {
+  APARTAMENT
+  PARCARE
+  BOXA
+  SPATIU_COMERCIAL
+  ALTUL              // Parametru customizabil
 }
 
 model Contor {
   id            String    @id @default(cuid())
   serie         String?
   tip           TipContor
+  unitateMasura String?   // "mc", "kWh", "impuls", "unități repartitor"
   dataInstalare DateTime?
   dataExpirare  DateTime?
   esteActiv     Boolean   @default(true)
@@ -1089,4 +1127,493 @@ model FacturaSPV {
   @@index([asociatieId, status])
   @@index([cuiFurnizor])
   @@map("facturi_spv")
+}
+
+// ============================================
+// MULTI-TENANT & ORGANIZAȚII
+// ============================================
+
+model Organizatie {
+  id              String   @id @default(cuid())
+  nume            String   // "SC Admin Bloc SRL"
+  cui             String?  @unique
+  adresa          String?
+  email           String?
+  telefon         String?
+  logo            String?  // URL logo pentru white-label (placeholder)
+
+  // Billing
+  emailFacturare  String?
+
+  // Status
+  status          OrgStatus @default(ACTIVA)
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  abonament       Abonament?
+  utilizatori     UtilizatorOrganizatie[]
+  asociatii       Asociatie[]              @relation("OrganizatieAsociatii")
+
+  // Usage tracking
+  usageLogs       UsageLog[]
+
+  // White-label
+  whiteLabel      WhiteLabelConfig?
+
+  @@map("organizatii")
+}
+
+enum OrgStatus {
+  ACTIVA
+  SUSPENDATA    // Plată întârziată
+  INCHISA       // Cont închis
+  TRIAL         // Perioadă de probă
+}
+
+// ============================================
+// UTILIZATORI ÎN ORGANIZAȚIE (Roluri per Org)
+// ============================================
+
+model UtilizatorOrganizatie {
+  id              String   @id @default(cuid())
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizatieId   String
+  organizatie     Organizatie @relation(fields: [organizatieId], references: [id], onDelete: Cascade)
+
+  rol             RolOrganizatie @default(MEMBRU)
+
+  // Permisiuni specifice (override default din rol)
+  permisiuniCustom String?  @db.Text // JSON array of permission codes
+
+  // Access la asociații specifice (empty = toate)
+  asociatiiAccess  String[] // array of asociatie IDs, empty = all
+
+  // Status
+  esteActiv       Boolean  @default(true)
+  invitedAt       DateTime @default(now())
+  acceptedAt      DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, organizatieId])
+  @@map("utilizatori_organizatie")
+}
+
+enum RolOrganizatie {
+  OWNER           // Proprietarul organizației (full access)
+  ADMIN           // Administrator (manage users, settings)
+  MANAGER         // Manager asociații (CRUD pe date)
+  CONTABIL        // Acces doar financiar (read/write financiar)
+  OPERATOR        // Operator (înregistrare plăți, indexuri)
+  VIZUALIZARE     // Doar citire (rapoarte)
+  MEMBRU          // Rol implicit
+}
+
+// ============================================
+// PLANURI & ABONAMENTE (Freemium)
+// ============================================
+
+model Plan {
+  id              String   @id @default(cuid())
+  cod             String   @unique // FREE, STARTER, PRO, ENTERPRISE
+  nume            String   // "Plan Gratuit", "Starter", etc.
+  descriere       String?
+
+  // Prețuri
+  pretPerApartament Float   // lei/apt/lună
+  pretMinimLunar    Float   @default(0) // preț minim garantat
+
+  // Module incluse
+  moduleIncluse     ModulFunctional[]
+
+  // Limite (JSON)
+  limiteJson        String  @db.Text // JSON cu toate limitele
+
+  // Status
+  esteActiv         Boolean @default(true)
+  estePublic        Boolean @default(true) // vizibil pe pricing page
+
+  // Ordine afișare
+  ordine            Int     @default(0)
+
+  abonamente        Abonament[]
+
+  createdAt         DateTime @default(now())
+
+  @@map("planuri")
+}
+
+model ModulFunctional {
+  id              String   @id @default(cuid())
+  cod             String   @unique // BAZA, FINANCIAR, AUTOMATIZARI, INTEGRARI
+  nume            String
+  descriere       String?
+
+  // Features din acest modul (pentru UI și verificări)
+  featuresJson    String   @db.Text // JSON array of feature codes
+
+  // Care planuri îl includ
+  planuri         Plan[]
+
+  @@map("module_functionale")
+}
+
+model Abonament {
+  id              String   @id @default(cuid())
+
+  organizatieId   String   @unique
+  organizatie     Organizatie @relation(fields: [organizatieId], references: [id], onDelete: Cascade)
+
+  planId          String
+  plan            Plan     @relation(fields: [planId], references: [id])
+
+  // Status abonament
+  status          StatusAbonament @default(TRIAL)
+
+  // Perioadă
+  dataStart       DateTime @default(now())
+  dataExpirare    DateTime?
+  perioadaTrial   DateTime? // când expiră trial-ul
+
+  // Billing
+  ciclulFacturare CiclulFacturare @default(LUNAR)
+  dataUrmatoareiFacturi DateTime?
+
+  // Stripe
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
+  // Override limite (pentru deals custom)
+  limiteCustomJson     String?  @db.Text
+
+  // Module extra achiziționate separat
+  moduleExtra          String[] // coduri module
+
+  // Read-only mode pentru downgrade
+  readOnlyModules      String[] // coduri module în read-only
+
+  // Snapshot la momentul downgrade-ului
+  downgradeSnapshot    String?  @db.Text // JSON cu starea la downgrade
+  downgradedAt         DateTime?
+  previousPlanId       String?
+
+  // Istoric facturi
+  facturiAbonament     FacturaAbonament[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("abonamente")
+}
+
+enum StatusAbonament {
+  TRIAL           // Perioadă de probă
+  ACTIV           // Plătit și activ
+  EXPIRAT         // Trecut de data expirării
+  SUSPENDAT       // Suspendat pentru neplată
+  ANULAT          // Anulat de client
+}
+
+enum CiclulFacturare {
+  LUNAR
+  TRIMESTRIAL
+  ANUAL
+}
+
+model FacturaAbonament {
+  id              String   @id @default(cuid())
+
+  abonamentId     String
+  abonament       Abonament @relation(fields: [abonamentId], references: [id])
+
+  numar           String   // FA-2024-0001
+  dataEmitere     DateTime @default(now())
+  dataScadenta    DateTime
+
+  // Detalii
+  perioada        String   // "Ianuarie 2024"
+  nrApartamente   Int      // câte apt au fost facturate
+  pretUnitar      Float    // preț/apt în acel moment
+
+  // Sume
+  subtotal        Float
+  tva             Float
+  total           Float
+
+  // Status
+  status          StatusFacturaAbonament @default(EMISA)
+  dataPlatii      DateTime?
+
+  // Stripe
+  stripeInvoiceId String?
+
+  createdAt       DateTime @default(now())
+
+  @@map("facturi_abonament")
+}
+
+enum StatusFacturaAbonament {
+  DRAFT
+  EMISA
+  PLATITA
+  ANULATA
+}
+
+// ============================================
+// USAGE TRACKING (pentru limite)
+// ============================================
+
+model UsageLog {
+  id              String   @id @default(cuid())
+
+  organizatieId   String
+  organizatie     Organizatie @relation(fields: [organizatieId], references: [id])
+
+  // Ce s-a folosit
+  tipResursa      TipResursa
+  cantitate       Int      @default(1)
+
+  // Context
+  asociatieId     String?
+  userId          String?
+  detalii         String?  // JSON cu context extra
+
+  createdAt       DateTime @default(now())
+
+  @@index([organizatieId, tipResursa, createdAt])
+  @@map("usage_logs")
+}
+
+enum TipResursa {
+  AI_REQUEST      // Cerere AI (OCR, predicții)
+  EMAIL_SENT      // Email trimis
+  DOCUMENT_UPLOAD // Document uploadat
+  API_CALL        // Apel API extern
+}
+
+// ============================================
+// PLATFORM SETTINGS (Super Admin Only)
+// ============================================
+
+model PlatformSettings {
+  id              String   @id @default("default") // Singleton
+
+  // Trial & Grace Period (configurabile din Super Admin)
+  trialDays       Int      @default(14)    // Zile trial cu toate modulele
+  graceDays       Int      @default(7)     // Zile după expirare înainte de suspendare
+
+  // Notifications timing
+  trialWarningDays    Int[]  @default([7, 3, 1])   // Când să trimită avertismente trial
+  paymentWarningDays  Int[]  @default([7, 3, 1])   // Când să trimită avertismente plată
+
+  // Feature toggles (kill switches)
+  aiEnabled           Boolean @default(true)
+  spvEnabled          Boolean @default(true)
+  stripeEnabled       Boolean @default(true)
+
+  // Platform branding (default, poate fi overriden per organizație)
+  platformName        String  @default("BlocHub")
+  platformLogo        String? // URL logo default
+  platformFavicon     String?
+  primaryColor        String  @default("#2563eb") // blue-600
+  supportEmail        String  @default("support@blochub.ro")
+
+  // Legal
+  termsUrl            String?
+  privacyUrl          String?
+
+  // Maintenance mode
+  maintenanceMode     Boolean @default(false)
+  maintenanceMessage  String?
+
+  // ============================================
+  // REVOLUT PAYMENT GATEWAY
+  // ============================================
+  revolutEnabled      Boolean @default(false)
+  revolutEnvironment  String  @default("sandbox") // sandbox or production
+  revolutApiKey       String? // sk_xxx... (encrypted in production)
+  revolutWebhookSecret String? // whsec_xxx...
+
+  // ============================================
+  // COMPANY BILLING DETAILS (for invoices)
+  // ============================================
+  companyName         String  @default("BlocHub SRL")
+  companyCui          String? // CUI/CIF
+  companyRegCom       String? // Nr. Reg. Com.
+  companyAddress      String?
+  companyCity         String?
+  companyCounty       String?
+  companyCountry      String  @default("România")
+  companyIban         String? // Cont bancar
+  companyBank         String? // Numele băncii
+  companyEmail        String? // Email facturare
+  companyPhone        String?
+
+  // TVA settings
+  companyIsVatPayer   Boolean @default(true)
+  vatRate             Float   @default(0.19) // 19% TVA
+
+  updatedAt       DateTime @updatedAt
+  updatedBy       String?  // userId who last updated
+
+  @@map("platform_settings")
+}
+
+// ============================================
+// WHITE-LABEL CONFIG (Enterprise)
+// ============================================
+
+model WhiteLabelConfig {
+  id              String   @id @default(cuid())
+
+  organizatieId   String   @unique
+  organizatie     Organizatie @relation(fields: [organizatieId], references: [id], onDelete: Cascade)
+
+  // Branding
+  logo            String?  // URL to uploaded logo
+  logoLight       String?  // Logo pentru dark mode
+  favicon         String?
+  appName         String?  // ex: "AdminBloc Pro"
+
+  // Culori (CSS hex)
+  primaryColor    String?  // #2563eb
+  accentColor     String?  // #10b981
+
+  // Email branding
+  emailHeaderHtml String?  @db.Text
+  emailFooterHtml String?  @db.Text
+  emailFromName   String?  // "Administrare Bloc X"
+
+  // Custom domain (future)
+  customDomain    String?  @unique
+  domainVerified  Boolean  @default(false)
+  sslCertId       String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("white_label_configs")
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+model AuditLog {
+  id              String   @id @default(cuid())
+  userId          String?
+  userName        String?  // Denormalizat pentru istoric
+
+  actiune         String   // "CREATE_APARTAMENT", "RESET_CONTOR", etc.
+  entitate        String   // "Apartament", "IndexContor", etc.
+  entitatId       String?
+
+  valoriVechi     String?  @db.Text // JSON snapshot înainte
+  valoriNoi       String?  @db.Text // JSON snapshot după
+
+  notaExplicativa String?  @db.Text // Obligatoriu pentru anumite operații
+
+  asociatieId     String?
+  asociatie       Asociatie? @relation(fields: [asociatieId], references: [id])
+
+  ipAddress       String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([asociatieId, createdAt])
+  @@index([entitate, entitatId])
+  @@map("audit_logs")
+}
+
+// ============================================
+// IMPORT SYSTEM
+// ============================================
+
+enum ImportStatus {
+  PENDING       // Fișier încărcat
+  MAPPING       // Mapare coloane
+  VALIDATING    // Validare în curs
+  READY         // Validat, gata de confirmare
+  PROCESSING    // Se creează înregistrările
+  COMPLETED     // Finalizat
+  FAILED        // Eroare
+}
+
+model ImportSession {
+  id              String       @id @default(cuid())
+
+  asociatieId     String
+  asociatie       Asociatie    @relation(fields: [asociatieId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+
+  // Fișier
+  tipFisier       String       // "EXCEL", "PDF"
+  numeFisier      String
+  fisierUrl       String?      // URL storage (opțional, datele pot fi în parsedDataJson)
+
+  status          ImportStatus @default(PENDING)
+  stepCurent      Int          @default(1) // 1-4
+
+  // Step 2: Mapare
+  selectedSheet   String?
+  colonneMapping  String?      @db.Text // JSON: { "Numar casa": "numar", ... }
+
+  // Step 3: Validare
+  errorsJson      String?      @db.Text // JSON: erori blocante
+  warningsJson    String?      @db.Text // JSON: avertismente
+
+  // Date parsate (cache, evită re-parsare)
+  parsedDataJson  String?      @db.Text // JSON: toate rândurile parsate
+
+  // Step 4: Rezultat
+  createdCount    Int          @default(0)
+  updatedCount    Int          @default(0)
+  skippedCount    Int          @default(0)
+
+  createdAt       DateTime     @default(now())
+  completedAt     DateTime?
+
+  @@index([asociatieId, status])
+  @@map("import_sessions")
+}
+
+// ============================================
+// DOCUMENTE PER UNITATE (DMS)
+// ============================================
+
+enum TipDocumentUnitate {
+  CONTRACT_PROPRIETATE
+  BULETIN_ID
+  CONTRACT_INCHIRIERE
+  CERTIFICAT_FISCAL
+  ALTELE
+}
+
+model DocumentUnitate {
+  id            String             @id @default(cuid())
+  tip           TipDocumentUnitate
+  titlu         String
+  descriere     String?
+  fisierUrl     String
+  fisierNume    String
+  fisierSize    Int?               // bytes
+
+  apartamentId  String
+  apartament    Apartament         @relation(fields: [apartamentId], references: [id], onDelete: Cascade)
+
+  uploadedById  String
+
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([apartamentId])
+  @@map("documente_unitati")
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(request: NextRequest) {
   try {
@@ -172,6 +173,16 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    await logAudit({
+      userId,
+      userName: (session!.user as any).name || (session!.user as any).email || undefined,
+      actiune: 'CREARE_PROPRIETAR',
+      entitate: 'ProprietarApartament',
+      entitatId: proprietarApartament.id,
+      valoriNoi: { nume: proprietarUser.name, email: proprietarUser.email, apartament: apartament.numar },
+      asociatieId: apartament.asociatie.id,
+    })
+
     return NextResponse.json({ proprietar: proprietarApartament }, { status: 201 })
   } catch (error) {
     console.error('POST proprietar error:', error)
@@ -239,6 +250,17 @@ export async function PUT(request: NextRequest) {
       }
     })
 
+    await logAudit({
+      userId,
+      userName: (session!.user as any).name || (session!.user as any).email || undefined,
+      actiune: 'MODIFICARE_PROPRIETAR',
+      entitate: 'ProprietarApartament',
+      entitatId: body.id,
+      valoriVechi: { nume: existingLink.user.name, cotaParte: existingLink.cotaParte },
+      valoriNoi: { nume: body.name, cotaParte: body.cotaParte },
+      asociatieId: existingLink.apartament.asociatie.id,
+    })
+
     return NextResponse.json({ proprietar: updated })
   } catch (error) {
     console.error('PUT proprietar error:', error)
@@ -274,6 +296,16 @@ export async function DELETE(request: NextRequest) {
     }
 
     await db.proprietarApartament.delete({ where: { id } })
+
+    await logAudit({
+      userId,
+      userName: (session!.user as any).name || (session!.user as any).email || undefined,
+      actiune: 'STERGERE_PROPRIETAR',
+      entitate: 'ProprietarApartament',
+      entitatId: id,
+      valoriVechi: { apartament: link.apartament.numar },
+      asociatieId: link.apartament.asociatie.id,
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -19,6 +19,15 @@ const tipCheltuialaLabels: Record<string, string> = {
   ALTE_CHELTUIELI: 'Alte cheltuieli',
 }
 
+// Map expense types to meter types for CONSUM distribution
+const tipCheltuialaToContor: Record<string, string> = {
+  APA_RECE: 'APA_RECE',
+  APA_CALDA: 'APA_CALDA',
+  GAZ: 'GAZ',
+  CURENT_COMUN: 'CURENT',
+  CALDURA: 'CALDURA',
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -75,6 +84,56 @@ export async function GET(request: Request) {
         luna,
         an,
       },
+    })
+
+    // Get meter readings for CONSUM-based distribution
+    // Current month readings
+    const currentIndexes = await db.indexContor.findMany({
+      where: {
+        apartament: { asociatieId: asociatie.id },
+        luna,
+        an,
+      },
+      include: {
+        contor: { select: { tip: true } },
+      },
+    })
+
+    // Previous month readings (for consumption calculation)
+    const prevLuna = luna === 1 ? 12 : luna - 1
+    const prevAn = luna === 1 ? an - 1 : an
+    const previousIndexes = await db.indexContor.findMany({
+      where: {
+        apartament: { asociatieId: asociatie.id },
+        luna: prevLuna,
+        an: prevAn,
+      },
+      include: {
+        contor: { select: { tip: true } },
+      },
+    })
+
+    // Calculate consumption per apartment per meter type
+    // Structure: { [apartamentId]: { [tipContor]: consumption } }
+    const consumByApartment: Record<string, Record<string, number>> = {}
+    const totalConsumByType: Record<string, number> = {}
+
+    apartamente.forEach(apt => {
+      consumByApartment[apt.id] = {}
+    })
+
+    currentIndexes.forEach(current => {
+      const tipContor = current.contor.tip
+      const prev = previousIndexes.find(
+        p => p.apartamentId === current.apartamentId && p.contor.tip === tipContor
+      )
+
+      if (prev) {
+        const consum = Math.max(0, current.valoare - prev.valoare)
+        consumByApartment[current.apartamentId][tipContor] =
+          (consumByApartment[current.apartamentId][tipContor] || 0) + consum
+        totalConsumByType[tipContor] = (totalConsumByType[tipContor] || 0) + consum
+      }
     })
 
     // Get expense categories
@@ -145,7 +204,11 @@ export async function GET(request: Request) {
           sumaApt = (ch.suma * apt.nrPersoane) / totalPersons
         } else if (ch.modRepartizare === 'APARTAMENT' && apartamente.length > 0) {
           sumaApt = ch.suma / apartamente.length
-        } else if (ch.modRepartizare === 'MANUAL' || ch.modRepartizare === 'CONSUM') {
+        } else if (ch.modRepartizare === 'CONSUM') {
+          // For previous months, fallback to cota indiviza (historical consumption not easily available)
+          sumaApt = totalCotaIndiviza > 0 ? (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza : 0
+        } else if (ch.modRepartizare === 'MANUAL') {
+          // Manual distribution - would need repartizari table
           sumaApt = 0
         } else {
           sumaApt = totalCotaIndiviza > 0 ? (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza : 0
@@ -219,7 +282,11 @@ export async function GET(request: Request) {
               sumaApt = (ch.suma * apt.nrPersoane) / totalPersons
             } else if (ch.modRepartizare === 'APARTAMENT' && apartamente.length > 0) {
               sumaApt = ch.suma / apartamente.length
-            } else if (ch.modRepartizare === 'MANUAL' || ch.modRepartizare === 'CONSUM') {
+            } else if (ch.modRepartizare === 'CONSUM') {
+              // For historical months, fallback to cota indiviza
+              sumaApt = totalCotaIndiviza > 0 ? (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza : 0
+            } else if (ch.modRepartizare === 'MANUAL') {
+              // Manual distribution - would need repartizari table
               sumaApt = 0
             } else {
               sumaApt = totalCotaIndiviza > 0 ? (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza : 0
@@ -275,8 +342,18 @@ export async function GET(request: Request) {
         } else if (ch.modRepartizare === 'APARTAMENT' && apartamente.length > 0) {
           // Equal distribution per apartment
           sumaApt = ch.suma / apartamente.length
-        } else if (ch.modRepartizare === 'MANUAL' || ch.modRepartizare === 'CONSUM') {
-          // Manual or consumption-based - skip for now (would need repartizari/indexes)
+        } else if (ch.modRepartizare === 'CONSUM') {
+          // Consumption-based distribution using meter readings
+          const tipContor = tipCheltuialaToContor[ch.tip]
+          if (tipContor && totalConsumByType[tipContor] > 0) {
+            const aptConsum = consumByApartment[apt.id]?.[tipContor] || 0
+            sumaApt = (ch.suma * aptConsum) / totalConsumByType[tipContor]
+          } else {
+            // No meter readings - fallback to cota indiviza
+            sumaApt = totalCotaIndiviza > 0 ? (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza : 0
+          }
+        } else if (ch.modRepartizare === 'MANUAL') {
+          // Manual distribution - would need repartizari table
           sumaApt = 0
         } else {
           // Default: cota indiviza

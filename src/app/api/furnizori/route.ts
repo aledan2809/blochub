@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+import { logAudit } from '@/lib/audit'
 
 // Schema for creating a new furnizor
 const furnizorSchema = z.object({
@@ -77,6 +80,19 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const session = await getServerSession(authOptions)
+    if (session?.user) {
+      await logAudit({
+        userId: (session.user as any).id,
+        userName: (session.user as any).name || (session.user as any).email || undefined,
+        actiune: 'CREARE_FURNIZOR',
+        entitate: 'Furnizor',
+        entitatId: furnizor.id,
+        valoriNoi: { nume: furnizor.nume, cui: furnizor.cui },
+        asociatieId: validatedData.asociatieId,
+      })
+    }
+
     return NextResponse.json(furnizor, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -127,6 +143,18 @@ export async function PUT(request: NextRequest) {
       },
     })
 
+    const session = await getServerSession(authOptions)
+    if (session?.user) {
+      await logAudit({
+        userId: (session.user as any).id,
+        userName: (session.user as any).name || (session.user as any).email || undefined,
+        actiune: 'MODIFICARE_FURNIZOR',
+        entitate: 'Furnizor',
+        entitatId: id,
+        valoriNoi: { nume: data.nume, cui: data.cui },
+      })
+    }
+
     return NextResponse.json(furnizor)
   } catch (error) {
     console.error('Error updating furnizor:', error)
@@ -162,9 +190,24 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    const furnizor = await db.furnizor.findUnique({ where: { id }, select: { nume: true, asociatieId: true } })
+
     await db.furnizor.delete({
       where: { id },
     })
+
+    const session = await getServerSession(authOptions)
+    if (session?.user) {
+      await logAudit({
+        userId: (session.user as any).id,
+        userName: (session.user as any).name || (session.user as any).email || undefined,
+        actiune: 'STERGERE_FURNIZOR',
+        entitate: 'Furnizor',
+        entitatId: id,
+        valoriVechi: furnizor ? { nume: furnizor.nume } : undefined,
+        asociatieId: furnizor?.asociatieId,
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

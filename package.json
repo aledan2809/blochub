@@ -62,7 +62,8 @@
     "tailwind-merge": "^3.4.0",
     "xlsx": "^0.18.5",
     "zod": "^3.25.76",
-    "zustand": "^5.0.10"
+    "zustand": "^5.0.10",
+    "@aledan/revolut-integration": "file:../revolut-integration"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",

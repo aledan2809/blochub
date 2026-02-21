@@ -16,7 +16,10 @@ import {
   AlertCircle,
   Info,
   Settings,
+  FileDown,
 } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAsociatie } from '@/contexts/AsociatieContext'
@@ -141,6 +144,189 @@ export default function AvizierPage() {
       console.error('Export error:', err)
       alert('Eroare la export. Încearcă din nou.')
     }
+  }
+
+  const handleExportPDF = () => {
+    if (!data) return
+
+    // Create PDF in landscape A4
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 10
+
+    // Header
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text(data.asociatie.nume, pageWidth / 2, 15, { align: 'center' })
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(data.asociatie.adresa, pageWidth / 2, 21, { align: 'center' })
+
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`AVIZIER - ${months[selectedMonth - 1]} ${selectedYear}`, pageWidth / 2, 30, { align: 'center' })
+
+    // Summary boxes
+    const summaryY = 36
+    const boxWidth = 45
+    const boxHeight = 14
+    const boxSpacing = 5
+    const startX = (pageWidth - (4 * boxWidth + 3 * boxSpacing)) / 2
+
+    // Box 1: Întreținere
+    doc.setFillColor(219, 234, 254) // blue-100
+    doc.rect(startX, summaryY, boxWidth, boxHeight, 'F')
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Total Întreținere', startX + boxWidth / 2, summaryY + 4, { align: 'center' })
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${data.totaluri.intretinere.toLocaleString('ro-RO', { minimumFractionDigits: 2 })} lei`, startX + boxWidth / 2, summaryY + 10, { align: 'center' })
+
+    // Box 2: Restanțe
+    doc.setFillColor(254, 243, 199) // orange-100
+    doc.rect(startX + boxWidth + boxSpacing, summaryY, boxWidth, boxHeight, 'F')
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Total Restanțe', startX + boxWidth + boxSpacing + boxWidth / 2, summaryY + 4, { align: 'center' })
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${data.totaluri.restante.toLocaleString('ro-RO', { minimumFractionDigits: 2 })} lei`, startX + boxWidth + boxSpacing + boxWidth / 2, summaryY + 10, { align: 'center' })
+
+    // Box 3: Penalizări
+    doc.setFillColor(254, 226, 226) // red-100
+    doc.rect(startX + 2 * (boxWidth + boxSpacing), summaryY, boxWidth, boxHeight, 'F')
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Total Penalizări', startX + 2 * (boxWidth + boxSpacing) + boxWidth / 2, summaryY + 4, { align: 'center' })
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${data.totaluri.penalizari.toLocaleString('ro-RO', { minimumFractionDigits: 2 })} lei`, startX + 2 * (boxWidth + boxSpacing) + boxWidth / 2, summaryY + 10, { align: 'center' })
+
+    // Box 4: Total
+    doc.setFillColor(187, 247, 208) // green-200
+    doc.rect(startX + 3 * (boxWidth + boxSpacing), summaryY, boxWidth, boxHeight, 'F')
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Total General', startX + 3 * (boxWidth + boxSpacing) + boxWidth / 2, summaryY + 4, { align: 'center' })
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${data.totaluri.total.toLocaleString('ro-RO', { minimumFractionDigits: 2 })} lei`, startX + 3 * (boxWidth + boxSpacing) + boxWidth / 2, summaryY + 10, { align: 'center' })
+
+    // Main Table
+    const tableHeaders = [
+      'Apt.',
+      'Scara',
+      ...data.categoriiCheltuieli.map(cat => getCategoryShortCode(cat)),
+      'Întreț.',
+      'Rest.',
+      'Pen.',
+      'Fond.',
+      'TOTAL'
+    ]
+
+    const tableData = data.apartamente.map(apt => [
+      apt.numar,
+      apt.scara || '-',
+      ...data.categoriiCheltuieli.map(cat =>
+        apt.cheltuieli[cat] ? apt.cheltuieli[cat].toFixed(2) : '-'
+      ),
+      apt.totalIntretinere.toFixed(2),
+      apt.restanta > 0 ? apt.restanta.toFixed(2) : '-',
+      apt.penalizari > 0 ? apt.penalizari.toFixed(2) : '-',
+      apt.fonduri > 0 ? apt.fonduri.toFixed(2) : '-',
+      apt.total.toFixed(2)
+    ])
+
+    // Totals row
+    const totalsRow = [
+      'TOTAL',
+      '',
+      ...data.categoriiCheltuieli.map(cat =>
+        data.totaluri.categorii[cat] ? data.totaluri.categorii[cat].toFixed(2) : '-'
+      ),
+      data.totaluri.intretinere.toFixed(2),
+      data.totaluri.restante.toFixed(2),
+      data.totaluri.penalizari.toFixed(2),
+      data.totaluri.fonduri.toFixed(2),
+      data.totaluri.total.toFixed(2)
+    ]
+
+    autoTable(doc, {
+      head: [tableHeaders],
+      body: [...tableData, totalsRow],
+      startY: summaryY + boxHeight + 5,
+      margin: { left: margin, right: margin },
+      styles: {
+        fontSize: 7,
+        cellPadding: 1.5,
+        halign: 'center',
+        valign: 'middle'
+      },
+      headStyles: {
+        fillColor: [229, 231, 235], // gray-200
+        textColor: [17, 24, 39], // gray-900
+        fontStyle: 'bold',
+        fontSize: 7
+      },
+      bodyStyles: {
+        fontSize: 7
+      },
+      columnStyles: {
+        0: { halign: 'center', fontStyle: 'bold' }, // Apt
+        1: { halign: 'center' }, // Scara
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251] // gray-50
+      },
+      didParseCell: function(hookData) {
+        const row = hookData.row.index
+        const col = hookData.column.index
+        const isLastRow = row === tableData.length
+
+        // Style totals row
+        if (isLastRow) {
+          hookData.cell.styles.fillColor = [229, 231, 235] // gray-200
+          hookData.cell.styles.fontStyle = 'bold'
+        }
+
+        // Highlight restanță column if has value
+        if (col === tableHeaders.indexOf('Rest.') && hookData.section === 'body' && !isLastRow) {
+          const restanta = data.apartamente[row]?.restanta || 0
+          if (restanta > 0) {
+            hookData.cell.styles.fillColor = [254, 243, 199] // orange-100
+            hookData.cell.styles.fontStyle = 'bold'
+          }
+        }
+
+        // Highlight TOTAL column
+        if (col === tableHeaders.length - 1 && hookData.section === 'body') {
+          hookData.cell.styles.fillColor = isLastRow ? [187, 247, 208] : [220, 252, 231] // green shades
+          hookData.cell.styles.fontStyle = 'bold'
+        }
+      }
+    })
+
+    // Legend
+    const finalY = (doc as any).lastAutoTable.finalY + 5
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Legendă: ' + data.categoriiCheltuieli.map(cat => `${getCategoryShortCode(cat)}=${cat}`).join(', '), margin, finalY)
+
+    // Footer
+    doc.setFontSize(8)
+    doc.text(`Generat de BlocHub la ${new Date().toLocaleDateString('ro-RO')}`, margin, pageHeight - 5)
+    doc.text(`Zi scadență: ${data.asociatie.ziScadenta} | Penalizare: ${data.asociatie.penalizareZi}%/zi`, pageWidth - margin, pageHeight - 5, { align: 'right' })
+
+    // Save
+    doc.save(`avizier-${selectedMonth}-${selectedYear}.pdf`)
   }
 
   const handleGenerateChitante = async () => {
@@ -298,6 +484,10 @@ export default function AvizierPage() {
                   <span className="sm:hidden">Obligații</span>
                 </>
               )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportPDF} className="text-xs sm:text-sm bg-red-50 border-red-200 text-red-700 hover:bg-red-100">
+              <FileDown className="h-4 w-4 mr-1" />
+              PDF
             </Button>
             <Button variant="outline" size="sm" onClick={() => handleExport('xlsx')} className="text-xs sm:text-sm">
               <Download className="h-4 w-4 mr-1" />

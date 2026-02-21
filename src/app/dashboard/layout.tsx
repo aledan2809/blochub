@@ -29,6 +29,7 @@ import {
   Pencil,
   Truck,
   Shield,
+  ClipboardCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -534,6 +535,12 @@ const navigation = [
     href: '/dashboard/tichete',
     icon: MessageSquarePlus,
     description: 'Tichete și reclamații'
+  },
+  {
+    name: 'Jurnal Audit',
+    href: '/dashboard/audit',
+    icon: ClipboardCheck,
+    description: 'Istoric operații și audit'
   },
   {
     name: 'Setări',

@@ -16,6 +16,15 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  Droplets,
+  Flame,
+  Zap,
+  Thermometer,
+  Gauge,
+  RotateCcw,
+  Car,
+  Package,
+  Store,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,6 +32,18 @@ import { useToast } from '@/components/ui/toast'
 import { exportApartamenteToPDF, exportApartamenteToExcel } from '@/lib/export-utils'
 import Link from 'next/link'
 import { useAsociatie } from '@/contexts/AsociatieContext'
+import { ImportWizardModal } from '@/components/dashboard/import/ImportWizardModal'
+import { DocumenteUnitatePanel } from '@/components/dashboard/DocumenteUnitatePanel'
+
+interface Contor {
+  id: string
+  serie: string | null
+  tip: string
+  unitateMasura: string | null
+  dataInstalare: string | null
+  dataExpirare: string | null
+  esteActiv: boolean
+}
 
 interface Apartament {
   id: string
@@ -36,6 +57,10 @@ interface Apartament {
   scara?: { numar: string } | null
   tipApartamentId?: string | null
   asociatieId?: string
+  tipUnitate?: string
+  debransamente?: string | null
+  esteInchiriat?: boolean
+  contoare?: Contor[]
   proprietari: Array<{
     user: {
       id: string
@@ -73,6 +98,7 @@ export default function ApartamentePage() {
   const [filterScara, setFilterScara] = useState<string>('ALL')
   const [editingApt, setEditingApt] = useState<Apartament | null>(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showImportWizard, setShowImportWizard] = useState(false)
 
   useEffect(() => {
     if (currentAsociatie) {
@@ -250,6 +276,14 @@ export default function ApartamentePage() {
             )}
           </div>
           <Button
+            onClick={() => setShowImportWizard(true)}
+            variant="outline"
+            className="hidden sm:flex"
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+          <Button
             onClick={() => setShowBulkModal(true)}
             variant="outline"
             className="hidden sm:flex"
@@ -342,7 +376,17 @@ export default function ApartamentePage() {
                             <span className="text-lg font-bold text-blue-600">{apt.numar}</span>
                           </div>
                           <div>
-                            <h3 className="font-semibold">Apt. {apt.numar}</h3>
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="font-semibold">
+                                {apt.tipUnitate && apt.tipUnitate !== 'APARTAMENT'
+                                  ? `${TIP_UNITATE_OPTIONS.find(t => t.value === apt.tipUnitate)?.label || apt.tipUnitate} ${apt.numar}`
+                                  : `Apt. ${apt.numar}`
+                                }
+                              </h3>
+                              {apt.esteInchiriat && (
+                                <span className="text-[10px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium">Închiriat</span>
+                              )}
+                            </div>
                             <p className="text-xs text-gray-500">
                               {apt.scara ? `Sc. ${apt.scara.numar} • ` : ''}
                               {apt.etaj !== null ? `Etaj ${apt.etaj}` : ''}
@@ -404,6 +448,14 @@ export default function ApartamentePage() {
           ))}
         </div>
       )}
+
+      {/* Import Wizard */}
+      <ImportWizardModal
+        open={showImportWizard}
+        onClose={() => setShowImportWizard(false)}
+        onComplete={() => fetchData()}
+        asociatieId={asociatieId || ''}
+      />
 
       {/* Add Modal */}
       {showAddModal && (
@@ -1099,6 +1151,33 @@ function BulkAddModal({
   )
 }
 
+const TIP_UNITATE_OPTIONS = [
+  { value: 'APARTAMENT', label: 'Apartament', icon: Home },
+  { value: 'PARCARE', label: 'Parcare', icon: Car },
+  { value: 'BOXA', label: 'Boxă', icon: Package },
+  { value: 'SPATIU_COMERCIAL', label: 'Spațiu comercial', icon: Store },
+  { value: 'ALTUL', label: 'Altul', icon: Home },
+]
+
+const DEBRANSAMENTE_OPTIONS = [
+  { key: 'apaRece', label: 'Apă rece' },
+  { key: 'apaCalda', label: 'Apă caldă' },
+  { key: 'gaz', label: 'Gaz' },
+  { key: 'caldura', label: 'Căldură' },
+  { key: 'ascensor', label: 'Ascensor' },
+]
+
+const CONTOR_LABELS: Record<string, { label: string; unit: string; icon: typeof Droplets }> = {
+  APA_RECE: { label: 'Apă rece', unit: 'mc', icon: Droplets },
+  APA_CALDA: { label: 'Apă caldă', unit: 'mc', icon: Droplets },
+  GAZ: { label: 'Gaz', unit: 'mc', icon: Flame },
+  CURENT: { label: 'Curent', unit: 'kWh', icon: Zap },
+  CALDURA: { label: 'Căldură', unit: 'Gcal', icon: Thermometer },
+  IMPULS_BMS: { label: 'Impuls BMS', unit: 'impuls', icon: Gauge },
+  REPARTITOR_COSTURI: { label: 'Repartitor costuri', unit: 'unități', icon: Gauge },
+  CALORIMETRU: { label: 'Calorimetru', unit: 'kWh', icon: Thermometer },
+}
+
 function EditApartmentModal({
   apartament,
   scari,
@@ -1114,9 +1193,24 @@ function EditApartmentModal({
   onSuccess: (apt: Apartament) => void
   onAddTip: (tip: TipApartament) => void
 }) {
+  const toast = useToast()
   const [loading, setLoading] = useState(false)
   const [showAddTip, setShowAddTip] = useState(false)
   const [newTip, setNewTip] = useState({ denumire: '', nrCamere: 2, suprafata: 50, cotaIndiviza: 2.5 })
+  const [resetContor, setResetContor] = useState<Contor | null>(null)
+  const [resetNote, setResetNote] = useState('')
+  const [resetValue, setResetValue] = useState('0')
+  const [resetLoading, setResetLoading] = useState(false)
+
+  // Parse debransamente JSON
+  const parsedDebransamente = (() => {
+    try {
+      return apartament.debransamente ? JSON.parse(apartament.debransamente) : {}
+    } catch { return {} }
+  })()
+
+  const [debransamente, setDebransamente] = useState<Record<string, boolean>>(parsedDebransamente)
+
   const [formData, setFormData] = useState({
     numar: apartament.numar,
     etaj: apartament.etaj?.toString() || '',
@@ -1126,6 +1220,8 @@ function EditApartmentModal({
     cotaIndiviza: apartament.cotaIndiviza?.toString() || '',
     scaraId: apartament.scaraId || '',
     tipApartamentId: (apartament as any).tipApartamentId || '',
+    tipUnitate: apartament.tipUnitate || 'APARTAMENT',
+    esteInchiriat: apartament.esteInchiriat || false,
   })
 
   const handleSelectTip = (tipId: string) => {
@@ -1180,6 +1276,9 @@ function EditApartmentModal({
           cotaIndiviza: formData.cotaIndiviza ? parseFloat(formData.cotaIndiviza) : null,
           scaraId: formData.scaraId || null,
           tipApartamentId: formData.tipApartamentId || null,
+          tipUnitate: formData.tipUnitate,
+          esteInchiriat: formData.esteInchiriat,
+          debransamente: JSON.stringify(debransamente),
         }),
       })
 
@@ -1352,6 +1451,65 @@ function EditApartmentModal({
               </div>
             </div>
 
+            {/* Tip Unitate */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tip unitate</label>
+              <div className="flex flex-wrap gap-2">
+                {TIP_UNITATE_OPTIONS.map(opt => {
+                  const IconComp = opt.icon
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, tipUnitate: opt.value })}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                        formData.tipUnitate === opt.value
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      <IconComp className="h-3.5 w-3.5" />
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Este inchiriat */}
+            <div className="flex items-center gap-3">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.esteInchiriat}
+                  onChange={(e) => setFormData({ ...formData, esteInchiriat: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
+              </label>
+              <span className="text-sm text-gray-700">Este închiriat</span>
+            </div>
+
+            {/* Debransamente */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Debranșamente</label>
+              <div className="grid grid-cols-2 gap-2">
+                {DEBRANSAMENTE_OPTIONS.map(opt => (
+                  <label key={opt.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={debransamente[opt.key] || false}
+                      onChange={(e) => setDebransamente({ ...debransamente, [opt.key]: e.target.checked })}
+                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span className={debransamente[opt.key] ? 'text-red-600' : 'text-gray-600'}>
+                      {opt.label} {debransamente[opt.key] ? '(debranșat)' : ''}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
                 Anulează
@@ -1361,6 +1519,130 @@ function EditApartmentModal({
               </Button>
             </div>
           </form>
+
+          {/* Contoare (Meters) section */}
+          {apartament.contoare && apartament.contoare.length > 0 && (
+            <div className="mt-6 pt-4 border-t">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Contoare</h3>
+              <div className="space-y-2">
+                {apartament.contoare.map(contor => {
+                  const meta = CONTOR_LABELS[contor.tip] || { label: contor.tip, unit: '', icon: Gauge }
+                  const ContorIcon = meta.icon
+                  return (
+                    <div key={contor.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <ContorIcon className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <div className="text-sm font-medium">{meta.label}</div>
+                          <div className="text-xs text-gray-400">
+                            {contor.serie ? `Serie: ${contor.serie}` : 'Fără serie'}
+                            {contor.unitateMasura ? ` · ${contor.unitateMasura}` : meta.unit ? ` · ${meta.unit}` : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!contor.esteActiv && (
+                          <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-600 rounded">Inactiv</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => { setResetContor(contor); setResetNote(''); setResetValue('0') }}
+                          className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                          title="Resetare contor"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Reset Contor Dialog */}
+          {resetContor && (
+            <div className="mt-4 p-4 border-2 border-orange-200 bg-orange-50 rounded-lg">
+              <h4 className="text-sm font-semibold text-orange-800 mb-3">
+                Resetare {CONTOR_LABELS[resetContor.tip]?.label || resetContor.tip}
+                {resetContor.serie ? ` (${resetContor.serie})` : ''}
+              </h4>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Noul index</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500"
+                    value={resetValue}
+                    onChange={(e) => setResetValue(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Notă explicativă * <span className="text-gray-400">(minim 10 caractere)</span>
+                  </label>
+                  <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500"
+                    rows={2}
+                    placeholder="Ex: Înlocuire contor defect, serie nouă XYZ..."
+                    value={resetNote}
+                    onChange={(e) => setResetNote(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setResetContor(null)}
+                  >
+                    Anulează
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                    disabled={resetLoading || resetNote.length < 10}
+                    onClick={async () => {
+                      setResetLoading(true)
+                      try {
+                        const res = await fetch(`/api/apartamente/${apartament.id}/contoare/reset`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            contorId: resetContor.id,
+                            notaExplicativa: resetNote,
+                            noulIndex: parseFloat(resetValue) || 0,
+                          }),
+                        })
+                        if (res.ok) {
+                          toast.success('Contor resetat cu succes')
+                          setResetContor(null)
+                        } else {
+                          const data = await res.json()
+                          toast.error(data.error || 'Eroare la resetare')
+                        }
+                      } catch {
+                        toast.error('Eroare la resetare contor')
+                      } finally {
+                        setResetLoading(false)
+                      }
+                    }}
+                  >
+                    {resetLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Resetează'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Documents section */}
+          <div className="mt-6 pt-4 border-t">
+            <DocumenteUnitatePanel apartamentId={apartament.id} />
+          </div>
         </div>
       </div>
     </div>

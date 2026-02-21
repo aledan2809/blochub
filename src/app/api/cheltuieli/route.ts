@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+import { logAudit } from '@/lib/audit'
 
 const cheltuialaSchema = z.object({
   tip: z.enum([
@@ -135,6 +136,16 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    await logAudit({
+      userId,
+      userName: (session!.user as any).name || (session!.user as any).email || undefined,
+      actiune: 'CREARE_CHELTUIALA',
+      entitate: 'Cheltuiala',
+      entitatId: cheltuiala.id,
+      valoriNoi: { tip: cheltuiala.tip, suma: cheltuiala.suma, furnizor: cheltuiala.furnizor?.nume, luna: validatedData.luna, an: validatedData.an },
+      asociatieId: validatedData.asociatieId,
+    })
+
     return NextResponse.json({ cheltuiala }, { status: 201 })
   } catch (error) {
     console.error('POST cheltuiala error:', error)
@@ -213,6 +224,17 @@ export async function PUT(request: NextRequest) {
       }
     })
 
+    await logAudit({
+      userId,
+      userName: (session!.user as any).name || (session!.user as any).email || undefined,
+      actiune: 'MODIFICARE_CHELTUIALA',
+      entitate: 'Cheltuiala',
+      entitatId: id,
+      valoriVechi: { tip: existing.tip, suma: existing.suma },
+      valoriNoi: { tip: validatedData.tip, suma: validatedData.suma },
+      asociatieId: existing.asociatieId,
+    })
+
     return NextResponse.json({ cheltuiala })
   } catch (error) {
     console.error('PUT cheltuiala error:', error)
@@ -255,6 +277,16 @@ export async function DELETE(request: NextRequest) {
     }
 
     await db.cheltuiala.delete({ where: { id } })
+
+    await logAudit({
+      userId,
+      userName: (session!.user as any).name || (session!.user as any).email || undefined,
+      actiune: 'STERGERE_CHELTUIALA',
+      entitate: 'Cheltuiala',
+      entitatId: id,
+      valoriVechi: { tip: existing.tip, suma: existing.suma },
+      asociatieId: existing.asociatieId,
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

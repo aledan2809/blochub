@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 const createApartamentSchema = z.object({
   asociatieId: z.string(),
@@ -206,6 +207,16 @@ export async function POST(request: Request) {
         },
       })
 
+      await logAudit({
+        userId: (session!.user as any).id,
+        userName: (session!.user as any).name || (session!.user as any).email || undefined,
+        actiune: 'CREARE_APARTAMENT',
+        entitate: 'Apartament',
+        entitatId: apartament.id,
+        valoriNoi: { numar: apartament.numar, etaj: data.etaj, suprafata: data.suprafata },
+        asociatieId: data.asociatieId,
+      })
+
       return NextResponse.json({ apartament }, { status: 201 })
     }
   } catch (error) {
@@ -234,6 +245,8 @@ const updateApartamentSchema = z.object({
   scaraId: z.string().nullable().optional(),
   tipApartamentId: z.string().nullable().optional(),
   esteInchiriat: z.boolean().optional(),
+  tipUnitate: z.enum(['APARTAMENT', 'PARCARE', 'BOXA', 'SPATIU_COMERCIAL', 'ALTUL']).optional(),
+  debransamente: z.string().nullable().optional(),
 })
 
 // PUT update apartament
@@ -298,10 +311,23 @@ export async function PUT(request: Request) {
         cotaIndiviza: data.cotaIndiviza,
         nrPersoane: data.nrPersoane,
         esteInchiriat: data.esteInchiriat,
+        tipUnitate: data.tipUnitate,
+        debransamente: data.debransamente !== undefined ? data.debransamente : undefined,
         scaraId: data.scaraId === null ? null : data.scaraId || undefined,
         tipApartamentId: data.tipApartamentId === null ? null : data.tipApartamentId || undefined,
       },
       include: { scara: true, tipApartament: true },
+    })
+
+    await logAudit({
+      userId: (session!.user as any).id,
+      userName: (session!.user as any).name || (session!.user as any).email || undefined,
+      actiune: 'MODIFICARE_APARTAMENT',
+      entitate: 'Apartament',
+      entitatId: id,
+      valoriVechi: { numar: apartament.numar, etaj: apartament.etaj, suprafata: apartament.suprafata, cotaIndiviza: apartament.cotaIndiviza },
+      valoriNoi: data,
+      asociatieId: apartament.asociatieId,
     })
 
     return NextResponse.json({ apartament: updated })
@@ -352,6 +378,16 @@ export async function DELETE(request: Request) {
     }
 
     await db.apartament.delete({ where: { id } })
+
+    await logAudit({
+      userId: (session!.user as any).id,
+      userName: (session!.user as any).name || (session!.user as any).email || undefined,
+      actiune: 'STERGERE_APARTAMENT',
+      entitate: 'Apartament',
+      entitatId: id,
+      valoriVechi: { numar: apartament.numar, etaj: apartament.etaj, suprafata: apartament.suprafata },
+      asociatieId: apartament.asociatieId,
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {
