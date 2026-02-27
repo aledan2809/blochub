@@ -1,137 +1,181 @@
 import Link from 'next/link'
-import { Building2, ArrowLeft } from 'lucide-react'
 
 export const metadata = {
-  title: 'Termeni și Condiții - BlocHub',
-  description: 'Termenii și condițiile de utilizare a platformei BlocHub',
+  title: 'Termeni si Conditii — BlocHub',
+  description: 'Termenii si conditiile de utilizare a platformei BlocHub',
 }
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        {/* Header */}
-        <div className="mb-8">
-          <Link href="/" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Înapoi la pagina principală
-          </Link>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">BlocHub</span>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900">Termeni și Condiții</h1>
-          <p className="text-gray-500 mt-2">Ultima actualizare: Ianuarie 2026</p>
+    <div className="min-h-screen bg-white">
+      <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
+          <Link href="/" className="text-sm text-slate-500 hover:text-slate-900">← Inapoi</Link>
+          <span className="text-xs text-slate-400">Actualizat: 26 Februarie 2026</span>
         </div>
+      </header>
 
-        {/* Content */}
-        <div className="bg-white rounded-xl border p-8 prose prose-gray max-w-none">
-          <h2>1. Definiții</h2>
-          <ul>
-            <li><strong>"Platforma"</strong> - aplicația web BlocHub</li>
-            <li><strong>"Administrator"</strong> - persoana care gestionează o asociație de proprietari</li>
-            <li><strong>"Proprietar"</strong> - locatarul cu cont în platformă</li>
-            <li><strong>"Servicii"</strong> - funcționalitățile oferite de platformă</li>
+      <main className="mx-auto max-w-3xl px-4 py-10 space-y-8">
+        <h1 className="text-3xl font-bold">Termeni si Conditii</h1>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">1. Definitii</h2>
+          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+            <li><strong>&ldquo;Platforma&rdquo;</strong> — aplicatia web BlocHub, operata de TechBiz Hub L.L.C-FZ</li>
+            <li><strong>&ldquo;Administrator&rdquo;</strong> — persoana care gestioneaza o asociatie de proprietari in platforma</li>
+            <li><strong>&ldquo;Proprietar/Rezident&rdquo;</strong> — locatarul cu cont in platforma</li>
+            <li><strong>&ldquo;Servicii&rdquo;</strong> — functionalitatile oferite de platforma</li>
+            <li><strong>&ldquo;Utilizator&rdquo;</strong> — orice persoana care acceseaza sau utilizeaza platforma</li>
           </ul>
+        </section>
 
-          <h2>2. Acceptarea termenilor</h2>
-          <p>
-            Prin crearea unui cont sau utilizarea platformei, acceptați acești termeni în totalitate.
-            Dacă nu sunteți de acord, nu utilizați serviciile noastre.
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">2. Acceptarea termenilor</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Prin crearea unui cont sau utilizarea platformei, acceptati acesti termeni in totalitate.
+            Daca nu sunteti de acord cu oricare dintre prevederi, va rugam sa nu utilizati serviciile noastre.
+            Continuarea utilizarii dupa modificarea termenilor constituie acceptare.
           </p>
+        </section>
 
-          <h2>3. Descrierea serviciilor</h2>
-          <p>BlocHub oferă:</p>
-          <ul>
-            <li>Gestionarea asociațiilor de proprietari</li>
-            <li>Calculul și emiterea chitanțelor de întreținere</li>
-            <li>Înregistrarea plăților și încasărilor</li>
-            <li>Comunicare între administrator și proprietari</li>
-            <li>Rapoarte și statistici</li>
-            <li>Sistem de sesizări și tichete</li>
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">3. Descrierea serviciilor</h2>
+          <p className="text-slate-600 leading-relaxed">BlocHub ofera:</p>
+          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+            <li>Gestionarea asociatiilor de proprietari si a blocurilor</li>
+            <li>Calculul si emiterea chitantelor de intretinere</li>
+            <li>Inregistrarea platilor si incasarilor</li>
+            <li>Comunicare intre administrator si proprietari (anunturi, sesizari)</li>
+            <li>Rapoarte financiare si statistici</li>
+            <li>Sistem de sesizari si tichete de mentenanta</li>
+            <li>Portal dedicat pentru proprietari/rezidenti</li>
+            <li>Plati online securizate</li>
           </ul>
+        </section>
 
-          <h2>4. Înregistrare și cont</h2>
-          <ul>
-            <li>Trebuie să furnizați informații corecte și complete</li>
-            <li>Sunteți responsabil pentru securitatea contului</li>
-            <li>Un cont este personal și nu poate fi partajat</li>
-            <li>Administratorii sunt responsabili pentru datele introduse</li>
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">4. Inregistrare si cont</h2>
+          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+            <li>Trebuie sa furnizati informatii corecte si complete la inregistrare</li>
+            <li>Sunteti responsabil pentru securitatea contului si a parolei</li>
+            <li>Un cont este personal si nu poate fi partajat</li>
+            <li>Administratorii sunt responsabili pentru datele introduse despre proprietari</li>
+            <li>Trebuie sa aveti cel putin 18 ani pentru a crea un cont</li>
           </ul>
+        </section>
 
-          <h2>5. Utilizare acceptabilă</h2>
-          <p>Este interzis să:</p>
-          <ul>
-            <li>Introduceți date false sau înșelătoare</li>
-            <li>Încercați să accesați conturi ale altor utilizatori</li>
-            <li>Utilizați platforma pentru activități ilegale</li>
-            <li>Încărcați conținut malițios sau viruși</li>
-            <li>Copiați sau redistribuiți software-ul</li>
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">5. Utilizare acceptabila</h2>
+          <p className="text-slate-600 leading-relaxed">Este interzis sa:</p>
+          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+            <li>Introduceti date false sau inselatoare</li>
+            <li>Incercati sa accesati conturi ale altor utilizatori</li>
+            <li>Utilizati platforma pentru activitati ilegale</li>
+            <li>Incarcati continut malitios sau virusi</li>
+            <li>Copiati sau redistribuiti software-ul platformei</li>
+            <li>Utilizati instrumente automate (boti, scrapere) fara acord scris</li>
+            <li>Incercati sa exploatati vulnerabilitati ale platformei</li>
           </ul>
+        </section>
 
-          <h2>6. Plăți și facturare</h2>
-          <ul>
-            <li>Plățile online sunt procesate securizat prin Stripe</li>
-            <li>Nu stocăm datele cardului dvs.</li>
-            <li>Prețurile includ TVA conform legislației</li>
-            <li>Facturile sunt disponibile în cont</li>
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">6. Plati si facturare</h2>
+          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+            <li>Platile online sunt procesate securizat prin procesatori certificati PCI DSS</li>
+            <li>Nu stocam datele cardului dumneavoastra pe serverele noastre</li>
+            <li>Preturile includ TVA conform legislatiei in vigoare</li>
+            <li>Facturile sunt disponibile in contul dumneavoastra</li>
+            <li>Rambursarile sunt procesate conform politicii de rambursare</li>
           </ul>
+        </section>
 
-          <h2>7. Limitarea răspunderii</h2>
-          <p>
-            BlocHub oferă serviciile "ca atare". Nu garantăm disponibilitate 100%
-            sau lipsa erorilor. Nu suntem răspunzători pentru:
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">7. Disponibilitate si intreruperi</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Depunem eforturi pentru a asigura disponibilitatea continua a platformei, dar nu garantam
+            functionare 100% neintrerupta. Mentenanta planificata va fi anuntata cu minimum 24 de ore
+            in avans. Nu suntem responsabili pentru indisponibilitatea cauzata de factori externi
+            (furnizori de internet, atacuri cibernetice, forta majora).
           </p>
-          <ul>
-            <li>Pierderi indirecte sau consecvențiale</li>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">8. Limitarea raspunderii</h2>
+          <p className="text-slate-600 leading-relaxed">
+            BlocHub ofera serviciile &ldquo;ca atare&rdquo; (as is). Nu garantam lipsa erorilor.
+            Nu suntem raspunzatori pentru:
+          </p>
+          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+            <li>Pierderi indirecte sau consecventiale</li>
             <li>Date introduse incorect de utilizatori</li>
-            <li>Întreruperi cauzate de furnizori terți</li>
-            <li>Decizii luate bazate pe informațiile din platformă</li>
+            <li>Intreruperi cauzate de furnizori terti</li>
+            <li>Decizii luate bazate pe informatiile din platforma</li>
+            <li>Pierderi financiare rezultate din erori de calcul datorate datelor incorecte</li>
           </ul>
-          <p>
-            Răspunderea noastră maximă este limitată la sumele plătite în ultimele 12 luni.
+          <p className="text-slate-600 leading-relaxed">
+            Raspunderea noastra maxima este limitata la sumele platite de utilizator in ultimele 12 luni.
           </p>
+        </section>
 
-          <h2>8. Proprietate intelectuală</h2>
-          <p>
-            Toate drepturile asupra platformei, designului și codului aparțin BlocHub.
-            Utilizatorii păstrează drepturile asupra datelor introduse.
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">9. Proprietate intelectuala</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Toate drepturile asupra platformei, designului, codului sursa, marcilor si continutului
+            original apartin TechBiz Hub L.L.C-FZ. Utilizatorii pastreaza drepturile asupra datelor
+            introduse. Prin utilizarea platformei, nu vi se acorda nicio licenta asupra proprietatii
+            intelectuale, cu exceptia dreptului limitat de a utiliza serviciile conform acestor termeni.
           </p>
+        </section>
 
-          <h2>9. Suspendare și reziliere</h2>
-          <p>
-            Ne rezervăm dreptul de a suspenda sau șterge conturi care:
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">10. Suspendare si reziliere</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Ne rezervam dreptul de a suspenda sau sterge conturi care:
           </p>
-          <ul>
-            <li>Încalcă acești termeni</li>
+          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+            <li>Incalca acesti termeni sau legislatia in vigoare</li>
             <li>Sunt inactive mai mult de 12 luni</li>
-            <li>Sunt folosite fraudulos</li>
+            <li>Sunt folosite fraudulos sau abuziv</li>
           </ul>
-
-          <h2>10. Modificări ale termenilor</h2>
-          <p>
-            Putem modifica acești termeni cu notificare prealabilă de 30 de zile.
-            Continuarea utilizării după modificări constituie acceptare.
+          <p className="text-slate-600 leading-relaxed">
+            La stergerea contului, datele vor fi tratate conform Politicii de Confidentialitate.
+            Puteti solicita exportul datelor inainte de stergere.
           </p>
+        </section>
 
-          <h2>11. Legea aplicabilă</h2>
-          <p>
-            Acești termeni sunt guvernați de legea română.
-            Disputele vor fi soluționate de instanțele competente din București.
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">11. Modificari ale termenilor</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Putem modifica acesti termeni cu notificare prealabila de minimum 30 de zile prin email
+            sau notificare in aplicatie. Continuarea utilizarii dupa intrarea in vigoare a modificarilor
+            constituie acceptare.
           </p>
+        </section>
 
-          <h2>12. Contact</h2>
-          <p>
-            Pentru întrebări despre acești termeni:
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">12. Legea aplicabila</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Acesti termeni sunt guvernati de legislatia din Romania. Disputele vor fi solutionate
+            pe cale amiabila sau, in caz contrar, de instantele competente din Bucuresti, Romania.
           </p>
-          <ul>
-            <li>Email: <a href="mailto:legal@blochub.ro">legal@blochub.ro</a></li>
-            <li>Adresă: București, România</li>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">13. Contact</h2>
+          <p className="text-slate-600 leading-relaxed">
+            Pentru intrebari despre acesti termeni:
+          </p>
+          <ul className="list-disc pl-6 text-slate-600 space-y-1">
+            <li>Email: <a href="mailto:support@4pro.io" className="text-blue-600 hover:underline">support@4pro.io</a></li>
           </ul>
-        </div>
-      </div>
+        </section>
+
+        <footer className="border-t pt-8 mt-12 flex gap-6 text-sm text-slate-400">
+          <Link href="/privacy" className="hover:text-slate-600">Confidentialitate</Link>
+          <Link href="/terms" className="hover:text-slate-600 font-medium text-slate-600">Termeni</Link>
+          <Link href="/gdpr" className="hover:text-slate-600">GDPR</Link>
+        </footer>
+      </main>
     </div>
   )
 }
