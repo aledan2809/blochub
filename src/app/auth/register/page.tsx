@@ -7,6 +7,7 @@ import { Building2, Mail, Lock, User, Phone, ArrowRight, CheckCircle } from 'luc
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { analytics } from '@/lib/analytics'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -62,6 +63,9 @@ export default function RegisterPage() {
         setError(data.error || 'Eroare la înregistrare')
         return
       }
+
+      // Track successful signup
+      analytics.trackSignup('email')
 
       // Redirect to login
       router.push('/auth/login?registered=true')

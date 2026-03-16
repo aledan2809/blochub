@@ -24,8 +24,25 @@ export async function POST(request: NextRequest) {
       request.headers.get('revolut-signature') ||
       request.headers.get('Revolut-Signature')
 
-    // Verify signature if webhook secret is configured
+    // Webhook security: require signature verification in production
     const webhookSecret = process.env.REVOLUT_WEBHOOK_SECRET
+    const isProduction = process.env.NODE_ENV === 'production' ||
+                         process.env.REVOLUT_ENVIRONMENT === 'production'
+
+    if (isProduction && !webhookSecret) {
+      console.error('REVOLUT_WEBHOOK_SECRET not configured in production')
+      return NextResponse.json(
+        { error: 'Webhook security not configured' },
+        { status: 500 }
+      )
+    }
+
+    if (isProduction && !signature) {
+      console.error('Missing webhook signature in production')
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
+    }
+
+    // Verify signature if webhook secret is configured
     if (webhookSecret && signature) {
       const revolut = new RevolutClient({
         apiKey: process.env.REVOLUT_API_KEY || '',
@@ -77,6 +94,30 @@ export async function POST(request: NextRequest) {
     if (!facturaAbonament) {
       console.error('Invoice not found for order:', payload.order_id)
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    // Idempotency check: Skip if already processed
+    if (payload.event === 'ORDER_COMPLETED' && facturaAbonament.status === 'PLATITA') {
+      console.log('Invoice already paid, skipping duplicate webhook:', facturaAbonament.id)
+      return NextResponse.json({
+        received: true,
+        event: payload.event,
+        invoiceId: facturaAbonament.id,
+        skipped: true,
+        reason: 'Already processed',
+      })
+    }
+
+    if (['ORDER_PAYMENT_DECLINED', 'ORDER_PAYMENT_FAILED', 'ORDER_CANCELLED'].includes(payload.event) &&
+        facturaAbonament.status === 'ANULATA') {
+      console.log('Invoice already cancelled, skipping duplicate webhook:', facturaAbonament.id)
+      return NextResponse.json({
+        received: true,
+        event: payload.event,
+        invoiceId: facturaAbonament.id,
+        skipped: true,
+        reason: 'Already processed',
+      })
     }
 
     // Map Revolut events to invoice/subscription status

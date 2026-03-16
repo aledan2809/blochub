@@ -24,6 +24,9 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // GDPR soft delete
+  deletedAt     DateTime?
+
   // Relations
   accounts      Account[]
   sessions      Session[]
@@ -52,6 +55,9 @@ model User {
 
   // Import sessions
   importSessions   ImportSession[]
+
+  // GDPR consents
+  consents         Consent[]
 
   @@map("users")
 }
@@ -1583,6 +1589,38 @@ model ImportSession {
 
   @@index([asociatieId, status])
   @@map("import_sessions")
+}
+
+// ============================================
+// GDPR CONSENT TRACKING
+// ============================================
+
+model Consent {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        ConsentType
+  granted     Boolean
+  version     String      @default("1.0")
+
+  // IP and user agent for audit purposes
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt   DateTime    @default(now())
+
+  @@index([userId, type])
+  @@map("consents")
+}
+
+enum ConsentType {
+  COOKIE_NECESSARY
+  COOKIE_ANALYTICS
+  COOKIE_MARKETING
+  PRIVACY_POLICY
+  TERMS_OF_SERVICE
+  DATA_PROCESSING
 }
 
 // ============================================

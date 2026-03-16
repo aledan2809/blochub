@@ -361,6 +361,9 @@ export async function getCompanyBillingDetails(): Promise<{
 
 /**
  * Check payment status by order reference
+ *
+ * Note: For Plata records, the Revolut order ID is stored in `stripePaymentId` field.
+ * This is a shared field used for both Stripe and Revolut payment provider IDs.
  */
 export async function checkPaymentStatus(orderRef: string): Promise<{
   status: 'pending' | 'completed' | 'failed' | 'not_found'
@@ -368,7 +371,12 @@ export async function checkPaymentStatus(orderRef: string): Promise<{
 }> {
   const plata = await db.plata.findFirst({
     where: { referinta: orderRef },
-  }) as any
+    select: {
+      id: true,
+      status: true,
+      stripePaymentId: true, // Used for both Stripe and Revolut order IDs
+    },
+  })
 
   if (!plata) {
     return { status: 'not_found' }
@@ -376,13 +384,15 @@ export async function checkPaymentStatus(orderRef: string): Promise<{
 
   const client = await getRevolutClient()
   if (!client) {
+    // Fallback to database status if Revolut client is not configured
     const dbStatus = plata.status === 'CONFIRMED' ? 'completed' :
                      plata.status === 'FAILED' ? 'failed' : 'pending'
     return { status: dbStatus as 'pending' | 'completed' | 'failed' }
   }
 
   try {
-    const revolutOrderId = plata.stripePaymentId || plata.detalii?.revolutOrderId
+    // Revolut order ID is stored in stripePaymentId field
+    const revolutOrderId = plata.stripePaymentId
     if (!revolutOrderId) {
       return { status: 'pending' }
     }
@@ -414,4 +424,63 @@ export async function checkPaymentStatus(orderRef: string): Promise<{
     console.error('Failed to check payment status:', error)
     return { status: 'pending' }
   }
+}
+
+/**
+ * Validate Revolut configuration
+ * Call this at startup or before using Revolut features
+ */
+export function validateRevolutConfig(): {
+  valid: boolean
+  configured: boolean
+  errors: string[]
+  warnings: string[]
+} {
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  const apiKey = process.env.REVOLUT_API_KEY
+  const webhookSecret = process.env.REVOLUT_WEBHOOK_SECRET
+  const environment = process.env.REVOLUT_ENVIRONMENT || 'sandbox'
+  const isProduction = environment === 'production' || process.env.NODE_ENV === 'production'
+
+  // Check if Revolut is configured at all
+  const configured = !!apiKey
+
+  if (!apiKey) {
+    warnings.push('REVOLUT_API_KEY not set - Revolut payments disabled')
+    return { valid: true, configured: false, errors, warnings }
+  }
+
+  // Validate API key format (sk_ prefix for Revolut)
+  if (!apiKey.startsWith('sk_')) {
+    errors.push('REVOLUT_API_KEY should start with sk_')
+  }
+
+  // Webhook secret is required in production
+  if (isProduction && !webhookSecret) {
+    errors.push('REVOLUT_WEBHOOK_SECRET is required in production')
+  } else if (!webhookSecret) {
+    warnings.push('REVOLUT_WEBHOOK_SECRET not set - webhook verification disabled in sandbox')
+  }
+
+  // Environment validation
+  if (!['sandbox', 'production'].includes(environment)) {
+    errors.push(`Invalid REVOLUT_ENVIRONMENT: ${environment}. Must be 'sandbox' or 'production'`)
+  }
+
+  return {
+    valid: errors.length === 0,
+    configured,
+    errors,
+    warnings,
+  }
+}
+
+/**
+ * Check if Revolut is enabled and properly configured
+ */
+export function isRevolutEnabled(): boolean {
+  const validation = validateRevolutConfig()
+  return validation.configured && validation.valid
 }

@@ -1805,8 +1805,52 @@ function SetariContent() {
         {/* Date Tab */}
         {activeTab === 'date' && (
           <div className="space-y-6">
+            {/* GDPR Data Export Section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-blue-900">Export date personale (GDPR)</p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Conform Art. 20 GDPR, ai dreptul să primești toate datele tale personale
+                    într-un format structurat și portabil.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 bg-white"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/user/export', { method: 'POST' })
+                        if (res.ok) {
+                          const blob = await res.blob()
+                          const url = window.URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = `blochub-data-export-${new Date().toISOString().split('T')[0]}.json`
+                          document.body.appendChild(a)
+                          a.click()
+                          document.body.removeChild(a)
+                          window.URL.revokeObjectURL(url)
+                        } else {
+                          const error = await res.json()
+                          alert('Eroare: ' + (error.error || 'Nu s-au putut exporta datele'))
+                        }
+                      } catch (error) {
+                        console.error('Export failed:', error)
+                        alert('Eroare la exportul datelor')
+                      }
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Descarcă datele mele
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div>
-              <h2 className="text-lg font-semibold mb-4">Export date</h2>
+              <h2 className="text-lg font-semibold mb-4">Export date asociație</h2>
               <p className="text-gray-600 mb-4">
                 Descarcă toate datele asociației pentru arhivare sau analiză.
               </p>
@@ -1831,19 +1875,47 @@ function SetariContent() {
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-red-900">Șterge toate datele</p>
+                    <p className="font-medium text-red-900">Șterge contul (GDPR)</p>
                     <p className="text-sm text-red-700 mt-1">
-                      Această acțiune este ireversibilă. Toate apartamentele, proprietarii,
-                      cheltuielile și chitanțele vor fi șterse permanent.
+                      Conform Art. 17 GDPR, ai dreptul să ceri ștergerea datelor tale personale.
+                      Această acțiune este ireversibilă și va anonimiza contul tău.
                     </p>
                     <Button
                       variant="outline"
                       size="sm"
                       className="mt-3 text-red-600 border-red-300 hover:bg-red-100"
-                      onClick={() => alert('Contactează suportul pentru ștergerea contului')}
+                      onClick={async () => {
+                        const confirmation = prompt(
+                          'Pentru a confirma ștergerea contului, scrie "DELETE" (majuscule):'
+                        )
+                        if (confirmation !== 'DELETE') {
+                          if (confirmation !== null) {
+                            alert('Confirmare incorectă. Contul nu a fost șters.')
+                          }
+                          return
+                        }
+
+                        try {
+                          const res = await fetch('/api/user/delete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ confirmation }),
+                          })
+                          const data = await res.json()
+                          if (res.ok) {
+                            alert(data.message)
+                            window.location.href = '/auth/login'
+                          } else {
+                            alert('Eroare: ' + (data.error || 'Nu s-a putut șterge contul'))
+                          }
+                        } catch (error) {
+                          console.error('Delete failed:', error)
+                          alert('Eroare la ștergerea contului')
+                        }
+                      }}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Șterge datele
+                      Șterge contul meu
                     </Button>
                   </div>
                 </div>

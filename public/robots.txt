@@ -1,0 +1,12 @@
+# BlocHub - robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /portal/
+Disallow: /auth/reset-password
+Disallow: /invite/
+
+# Sitemap
+Sitemap: https://blochub.ro/sitemap.xml

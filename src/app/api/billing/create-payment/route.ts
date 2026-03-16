@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { getRevolutClient, calculateSubscriptionPrice } from '@/lib/revolut'
+import { getRevolutClient, calculateSubscriptionPrice, validateRevolutConfig } from '@/lib/revolut'
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,11 +82,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate Revolut configuration
+    const configValidation = validateRevolutConfig()
+    if (!configValidation.configured) {
+      return NextResponse.json(
+        { error: 'Sistemul de plăți Revolut nu este configurat' },
+        { status: 500 }
+      )
+    }
+    if (!configValidation.valid) {
+      console.error('Revolut configuration errors:', configValidation.errors)
+      return NextResponse.json(
+        { error: 'Configurație Revolut invalidă', details: configValidation.errors },
+        { status: 500 }
+      )
+    }
+
     // Get Revolut client
     const revolut = await getRevolutClient()
     if (!revolut) {
       return NextResponse.json(
-        { error: 'Sistemul de plăți nu este configurat' },
+        { error: 'Nu s-a putut inițializa clientul Revolut' },
         { status: 500 }
       )
     }

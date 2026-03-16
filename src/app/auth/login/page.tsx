@@ -8,6 +8,7 @@ import { Building2, Mail, Lock, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { analytics } from '@/lib/analytics'
 
 function LoginForm() {
   const router = useRouter()
@@ -34,6 +35,7 @@ function LoginForm() {
       if (result?.error) {
         setError(result.error)
       } else {
+        analytics.trackLogin('email')
         router.push(callbackUrl)
         router.refresh()
       }
