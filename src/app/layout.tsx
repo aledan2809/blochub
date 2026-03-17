@@ -104,8 +104,8 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <GoogleAnalytics />
         <Providers>
+          <GoogleAnalytics />
           {children}
           <CookieConsentBanner />
         </Providers>
