@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { createPasswordResetToken } from '@/lib/password-reset'
 import { sendEmail, emailTemplates } from '@/lib/email'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Adresa de email invalidă'),
@@ -10,6 +11,24 @@ const forgotPasswordSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - use strict passwordReset config
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(`forgot-password:${clientId}`, RATE_LIMIT_CONFIGS.passwordReset)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Prea multe încercări. Te rugăm să aștepți câteva minute.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
     const body = await request.json()
     const { email } = forgotPasswordSchema.parse(body)
 

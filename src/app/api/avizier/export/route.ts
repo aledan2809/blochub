@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import * as XLSX from 'xlsx'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
 
 const tipCheltuialaLabels: Record<string, string> = {
   APA_RECE: 'Apă rece',
@@ -22,6 +23,24 @@ const tipCheltuialaLabels: Record<string, string> = {
 
 export async function GET(request: NextRequest) {
   try {
+    // Rate limiting for export operations
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(`avizier-export:${clientId}`, RATE_LIMIT_CONFIGS.api)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Prea multe cereri. Te rugăm să aștepți.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {

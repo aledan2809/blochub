@@ -4,10 +4,29 @@ import { db } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
 
 // GET — export audit log as PDF
 export async function GET(request: Request) {
   try {
+    // Rate limiting for export operations
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(`audit-export:${clientId}`, RATE_LIMIT_CONFIGS.api)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Prea multe cereri. Te rugăm să aștepți.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
     const session = await getServerSession(authOptions)
     if (!(session?.user as any)?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

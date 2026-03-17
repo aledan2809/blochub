@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { z } from 'zod'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
+
+const exportPaymentsSchema = z.object({
+  asociatieId: z.string().min(1, 'ID asociație lipsă'),
+  contBancarId: z.string().min(1, 'ID cont bancar lipsă'),
+  format: z.enum(['csv', 'xml', 'bt', 'bcr', 'ing', 'raiffeisen', 'brd', 'cec', 'unicredit', 'alpha']),
+  markAsExported: z.boolean().optional().default(false),
+})
 
 // Type definitions
 interface Plata {

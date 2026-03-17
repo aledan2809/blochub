@@ -10,9 +10,35 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { randomBytes } from 'crypto'
+import { z } from 'zod'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
+
+const deleteAccountSchema = z.object({
+  confirmation: z.literal('DELETE', {
+    errorMap: () => ({ message: 'Confirmarea este incorectă. Scrieți "DELETE" pentru a confirma.' })
+  }),
+})
 
 export async function POST(request: NextRequest) {
   try {
+    // Strict rate limiting for account deletion (very sensitive operation)
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(`account-delete:${clientId}`, RATE_LIMIT_CONFIGS.passwordReset)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Prea multe încercări. Te rugăm să aștepți.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user) {
       return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
@@ -20,16 +46,9 @@ export async function POST(request: NextRequest) {
 
     const userId = (session.user as any).id
 
-    // Parse confirmation from request
+    // Parse and validate confirmation
     const body = await request.json()
-    const { confirmation } = body
-
-    if (confirmation !== 'DELETE') {
-      return NextResponse.json(
-        { error: 'Confirmarea este incorectă. Scrieți "DELETE" pentru a confirma.' },
-        { status: 400 }
-      )
-    }
+    const { confirmation } = deleteAccountSchema.parse(body)
 
     // Check if user exists and is not already deleted
     const user = await db.user.findUnique({

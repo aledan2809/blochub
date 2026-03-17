@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { verifyResetToken, deleteResetToken } from '@/lib/password-reset'
 import bcrypt from 'bcryptjs'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Token necesar'),
@@ -11,6 +12,24 @@ const resetPasswordSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - use strict passwordReset config
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(`reset-password:${clientId}`, RATE_LIMIT_CONFIGS.passwordReset)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Prea multe încercări. Te rugăm să aștepți câteva minute.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
     const body = await request.json()
     const { token, password } = resetPasswordSchema.parse(body)
 

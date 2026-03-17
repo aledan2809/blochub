@@ -10,9 +10,34 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getRevolutClient, calculateSubscriptionPrice, validateRevolutConfig } from '@/lib/revolut'
+import { z } from 'zod'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
+
+const createPaymentSchema = z.object({
+  organizatieId: z.string().min(1, 'ID organizație lipsă'),
+  ciclulFacturare: z.enum(['LUNAR', 'TRIMESTRIAL', 'ANUAL']).optional().default('LUNAR'),
+})
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting for billing operations
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(`billing:${clientId}`, RATE_LIMIT_CONFIGS.api)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Prea multe cereri. Te rugăm să aștepți.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
     // Verify authentication
     const session = await getServerSession(authOptions)
     if (!(session?.user as any)?.id) {
@@ -22,16 +47,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse request body
+    // Parse and validate request body
     const body = await request.json()
-    const { organizatieId, ciclulFacturare = 'LUNAR' } = body
-
-    if (!organizatieId) {
-      return NextResponse.json(
-        { error: 'ID organizație lipsă' },
-        { status: 400 }
-      )
-    }
+    const validatedData = createPaymentSchema.parse(body)
+    const { organizatieId, ciclulFacturare } = validatedData
 
     // Verify user has access to this organization
     const membership = await db.utilizatorOrganizatie.findFirst({
@@ -185,6 +204,13 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      )
+    }
+
     console.error('Create payment error:', error)
     return NextResponse.json(
       { error: 'Eroare la crearea plății', details: (error as Error).message },

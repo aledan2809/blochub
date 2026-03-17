@@ -2,10 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { db } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
 
 // GET - Export all data for asociatie (admin) or user data (proprietar)
 export async function GET(request: NextRequest) {
   try {
+    // Rate limiting for export operations
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(`export:${clientId}`, RATE_LIMIT_CONFIGS.api)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Prea multe cereri de export. Te rugăm să aștepți.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user) {
       return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })

@@ -3,23 +3,40 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { stripe, formatAmountForStripe, STRIPE_CONFIG } from '@/lib/stripe'
+import { z } from 'zod'
+import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
+
+const createIntentSchema = z.object({
+  chitantaId: z.string().min(1, 'ID chitanță necesar'),
+})
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting for payment operations
+    const clientId = getClientIdentifier(request)
+    const rateLimitResult = checkRateLimit(`payment-intent:${clientId}`, RATE_LIMIT_CONFIGS.api)
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Prea multe cereri. Te rugăm să aștepți.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user) {
       return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
     }
 
     const body = await request.json()
-    const { chitantaId } = body
-
-    if (!chitantaId) {
-      return NextResponse.json(
-        { error: 'ID chitanță necesar' },
-        { status: 400 }
-      )
-    }
+    const { chitantaId } = createIntentSchema.parse(body)
 
     const chitanta = await db.chitanta.findUnique({
       where: { id: chitantaId },
