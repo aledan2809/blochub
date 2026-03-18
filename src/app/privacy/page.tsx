@@ -1,8 +1,8 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Politica de Confidențialitate — BlocHub',
-  description: 'Politica de confidențialitate și protecția datelor personale BlocHub',
+  title: 'Politica de Confidențialitate — BlocX',
+  description: 'Politica de confidențialitate și protecția datelor personale BlocX',
 }
 
 export default function PrivacyPage() {
@@ -21,7 +21,7 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">1. Introducere</h2>
           <p className="text-slate-600 leading-relaxed">
-            BlocHub (&ldquo;noi&rdquo;, &ldquo;platforma&rdquo;), operat de TechBiz Hub L.L.C-FZ, respecta
+            BlocX (&ldquo;noi&rdquo;, &ldquo;platforma&rdquo;), operat de TechBiz Hub L.L.C-FZ, respecta
             confidentialitatea utilizatorilor sai. Aceasta politica descrie modul in care colectam, utilizam
             si protejam datele dumneavoastra personale in conformitate cu Regulamentul General privind
             Protectia Datelor (GDPR) si legislatia romana in vigoare.

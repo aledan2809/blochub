@@ -138,7 +138,7 @@ export default function DashboardPage() {
           <Building2 className="h-16 w-16 text-blue-600" />
         </div>
         <div className="text-center max-w-md">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Bun venit in BlocHub!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Bun venit in BlocX!</h2>
           <p className="text-gray-500 leading-relaxed">
             Pentru a incepe, adauga prima ta cladire din meniul din stanga.
             Vei putea gestiona apartamente, proprietari, cheltuieli si incasari — totul intr-un singur loc.
@@ -778,7 +778,7 @@ function SetupWizard() {
           <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Building2 className="h-8 w-8 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl">Bine ai venit în BlocHub!</CardTitle>
+          <CardTitle className="text-2xl">Bine ai venit în BlocX!</CardTitle>
           <CardDescription>
             Să configurăm asociația ta în câțiva pași simpli
           </CardDescription>

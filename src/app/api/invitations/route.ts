@@ -140,11 +140,11 @@ export async function POST(request: NextRequest) {
 
     const emailResult = await sendEmail({
       to: data.email,
-      subject: `Invitație BlocHub - ${asociatie.nume}`,
+      subject: `Invitație BlocX - ${asociatie.nume}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #2563eb; margin: 0;">BlocHub</h1>
+            <h1 style="color: #2563eb; margin: 0;">BlocX</h1>
             <p style="color: #6b7280; margin: 5px 0;">Administrare Asociații de Proprietari</p>
           </div>
 
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
 
           <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
             Ai fost invitat de <strong>${adminName}</strong> să te alături asociației
-            <strong>${asociatie.nume}</strong> pe platforma BlocHub.
+            <strong>${asociatie.nume}</strong> pe platforma BlocX.
           </p>
 
           ${apartamentInfo ? `
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
           ` : ''}
 
           <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
-            Cu BlocHub poți:
+            Cu BlocX poți:
           </p>
           <ul style="color: #4b5563; font-size: 14px; line-height: 1.8;">
             <li>Vizualiza chitanțele și întreținerea lunară</li>
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
 
           <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-            Email trimis automat de BlocHub. Nu răspunde la acest email.
+            Email trimis automat de BlocX. Nu răspunde la acest email.
           </p>
         </div>
       `,

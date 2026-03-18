@@ -12,14 +12,14 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://blochub.ro'
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: 'BlocHub - Administrare Blocuri Inteligentă',
-    template: '%s | BlocHub',
+    default: 'BlocX - Administrare Blocuri Inteligentă',
+    template: '%s | BlocX',
   },
   description: 'Platformă modernă de administrare a asociațiilor de proprietari, cu AI și automatizare 95%+. Generează chitanțe în 30 secunde, plăți online, portal proprietari.',
   keywords: ['administrare bloc', 'asociatie proprietari', 'chitante', 'intretinere', 'romania', 'software administrare', 'plati online bloc'],
-  authors: [{ name: 'BlocHub' }],
-  creator: 'BlocHub',
-  publisher: 'BlocHub',
+  authors: [{ name: 'BlocX' }],
+  creator: 'BlocX',
+  publisher: 'BlocX',
   formatDetection: {
     email: false,
     address: false,
@@ -29,21 +29,21 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ro_RO',
     url: BASE_URL,
-    siteName: 'BlocHub',
-    title: 'BlocHub - Administrare Blocuri Inteligentă',
+    siteName: 'BlocX',
+    title: 'BlocX - Administrare Blocuri Inteligentă',
     description: 'Platformă modernă de administrare a asociațiilor de proprietari, cu AI și automatizare 95%+. Generează chitanțe în 30 secunde.',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'BlocHub - Administrare Blocuri Inteligentă',
+        alt: 'BlocX - Administrare Blocuri Inteligentă',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'BlocHub - Administrare Blocuri Inteligentă',
+    title: 'BlocX - Administrare Blocuri Inteligentă',
     description: 'Platformă modernă de administrare a asociațiilor de proprietari, cu AI și automatizare 95%+.',
     images: ['/og-image.png'],
   },
@@ -77,7 +77,7 @@ export default function RootLayout({
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'SoftwareApplication',
-              name: 'BlocHub',
+              name: 'BlocX',
               applicationCategory: 'BusinessApplication',
               operatingSystem: 'Web',
               description: 'Platformă modernă de administrare a asociațiilor de proprietari din România, cu AI și automatizare 95%+',
@@ -96,7 +96,7 @@ export default function RootLayout({
               },
               provider: {
                 '@type': 'Organization',
-                name: 'BlocHub',
+                name: 'BlocX',
                 url: BASE_URL,
               },
             }),

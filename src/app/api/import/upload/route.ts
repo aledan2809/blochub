@@ -108,7 +108,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Import upload error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Eroare la procesarea fișierului' },
+      { error: 'Eroare la procesarea fișierului' },
       { status: 500 }
     )
   }

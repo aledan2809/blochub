@@ -74,7 +74,7 @@ async function sendViaSMTP(
     socketTimeout: 15000,
   })
 
-  const fromName = smtpConfig.fromName || 'BlocHub'
+  const fromName = smtpConfig.fromName || 'BlocX'
   const result = await transporter.sendMail({
     from: `"${fromName}" <${smtpConfig.fromEmail}>`,
     to: Array.isArray(to) ? to.join(', ') : to,
@@ -118,7 +118,7 @@ export async function sendEmail({ to, subject, html, from, asociatieId }: EmailO
 
   try {
     const result = await resend.emails.send({
-      from: from || 'BlocHub <notificari@blochub.ro>',
+      from: from || 'BlocX <notificari@blochub.ro>',
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
@@ -147,7 +147,7 @@ export const emailTemplates = {
     apartament?: string
     link: string
   }) => ({
-    subject: `[BlocHub] Sesizare nouă: ${ticket.titlu}`,
+    subject: `[BlocX] Sesizare nouă: ${ticket.titlu}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -189,8 +189,8 @@ export const emailTemplates = {
       <a href="${ticket.link}" class="btn">Vezi sesizarea</a>
     </div>
     <div class="footer">
-      <p>Ai primit acest email pentru că ești administrator al asociației pe BlocHub.</p>
-      <p>© ${new Date().getFullYear()} BlocHub - Administrare inteligentă</p>
+      <p>Ai primit acest email pentru că ești administrator al asociației pe BlocX.</p>
+      <p>© ${new Date().getFullYear()} BlocX - Administrare inteligentă</p>
     </div>
   </div>
 </body>
@@ -204,7 +204,7 @@ export const emailTemplates = {
     comentariu?: string
     link: string
   }) => ({
-    subject: `[BlocHub] Sesizare actualizată: ${ticket.titlu}`,
+    subject: `[BlocX] Sesizare actualizată: ${ticket.titlu}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -241,8 +241,8 @@ export const emailTemplates = {
       <a href="${ticket.link}" class="btn">Vezi detalii</a>
     </div>
     <div class="footer">
-      <p>Ai primit acest email pentru că ai raportat această sesizare pe BlocHub.</p>
-      <p>© ${new Date().getFullYear()} BlocHub - Administrare inteligentă</p>
+      <p>Ai primit acest email pentru că ai raportat această sesizare pe BlocX.</p>
+      <p>© ${new Date().getFullYear()} BlocX - Administrare inteligentă</p>
     </div>
   </div>
 </body>
@@ -257,7 +257,7 @@ export const emailTemplates = {
     scadenta: string
     link: string
   }) => ({
-    subject: `[BlocHub] Reminder: Chitanță de plată - ${data.suma} lei`,
+    subject: `[BlocX] Reminder: Chitanță de plată - ${data.suma} lei`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -296,8 +296,8 @@ export const emailTemplates = {
       </p>
     </div>
     <div class="footer">
-      <p>Ai primit acest email pentru că ești proprietar înregistrat pe BlocHub.</p>
-      <p>© ${new Date().getFullYear()} BlocHub - Administrare inteligentă</p>
+      <p>Ai primit acest email pentru că ești proprietar înregistrat pe BlocX.</p>
+      <p>© ${new Date().getFullYear()} BlocX - Administrare inteligentă</p>
     </div>
   </div>
 </body>
@@ -316,7 +316,7 @@ export const emailTemplates = {
     asociatie: string
     link: string
   }) => ({
-    subject: `[BlocHub] ⚠️ Restanță întreținere - ${data.totalDePlata.toLocaleString('ro-RO')} lei`,
+    subject: `[BlocX] ⚠️ Restanță întreținere - ${data.totalDePlata.toLocaleString('ro-RO')} lei`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -378,8 +378,8 @@ export const emailTemplates = {
       </p>
     </div>
     <div class="footer">
-      <p>Ai primit acest email pentru că ești proprietar înregistrat pe BlocHub.</p>
-      <p>© ${new Date().getFullYear()} BlocHub - Administrare inteligentă</p>
+      <p>Ai primit acest email pentru că ești proprietar înregistrat pe BlocX.</p>
+      <p>© ${new Date().getFullYear()} BlocX - Administrare inteligentă</p>
     </div>
   </div>
 </body>
@@ -398,7 +398,7 @@ export const emailTemplates = {
     topRestantieri: Array<{ apartament: string; suma: number; zile: number }>
     link: string
   }) => ({
-    subject: `[BlocHub] Rezumat săptămânal - ${data.asociatie}`,
+    subject: `[BlocX] Rezumat săptămânal - ${data.asociatie}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -467,8 +467,8 @@ export const emailTemplates = {
       <a href="${data.link}" class="btn">Vezi detalii în dashboard</a>
     </div>
     <div class="footer">
-      <p>Ai primit acest email pentru că ești administrator al asociației pe BlocHub.</p>
-      <p>© ${new Date().getFullYear()} BlocHub - Administrare inteligentă</p>
+      <p>Ai primit acest email pentru că ești administrator al asociației pe BlocX.</p>
+      <p>© ${new Date().getFullYear()} BlocX - Administrare inteligentă</p>
     </div>
   </div>
 </body>
@@ -484,7 +484,7 @@ export const emailTemplates = {
     const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${data.resetToken}`
 
     return {
-      subject: 'BlocHub - Resetare Parolă',
+      subject: 'BlocX - Resetare Parolă',
       html: `
 <!DOCTYPE html>
 <html>
@@ -506,11 +506,11 @@ export const emailTemplates = {
   <div class="container">
     <div class="header">
       <h1 style="margin: 0; font-size: 28px;">🔐 Resetare Parolă</h1>
-      <p style="margin: 8px 0 0 0; opacity: 0.95; font-size: 14px;">BlocHub</p>
+      <p style="margin: 8px 0 0 0; opacity: 0.95; font-size: 14px;">BlocX</p>
     </div>
     <div class="content">
       <h2 style="margin-top: 0; color: #111827;">Salut!</h2>
-      <p>Ai solicitat resetarea parolei pentru contul tău BlocHub asociat cu adresa <strong>${data.email}</strong>.</p>
+      <p>Ai solicitat resetarea parolei pentru contul tău BlocX asociat cu adresa <strong>${data.email}</strong>.</p>
 
       <p>Apasă butonul de mai jos pentru a-ți reseta parola:</p>
 
@@ -531,8 +531,8 @@ export const emailTemplates = {
       </p>
     </div>
     <div class="footer">
-      <p><strong>BlocHub</strong> - Administrare inteligentă</p>
-      <p>© ${new Date().getFullYear()} BlocHub. Toate drepturile rezervate.</p>
+      <p><strong>BlocX</strong> - Administrare inteligentă</p>
+      <p>© ${new Date().getFullYear()} BlocX. Toate drepturile rezervate.</p>
       <p style="margin-top: 12px;">Acest email a fost trimis automat. Te rugăm să nu răspunzi.</p>
     </div>
   </div>

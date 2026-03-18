@@ -589,7 +589,7 @@ function DashboardLayoutContent({
               <div className="h-9 w-9 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Building2 className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">BlocHub</span>
+              <span className="text-xl font-bold text-gray-900">BlocX</span>
             </Link>
             <button
               className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"

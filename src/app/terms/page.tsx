@@ -1,8 +1,8 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Termeni si Conditii — BlocHub',
-  description: 'Termenii si conditiile de utilizare a platformei BlocHub',
+  title: 'Termeni si Conditii — BlocX',
+  description: 'Termenii si conditiile de utilizare a platformei BlocX',
 }
 
 export default function TermsPage() {
@@ -21,7 +21,7 @@ export default function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">1. Definitii</h2>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
-            <li><strong>&ldquo;Platforma&rdquo;</strong> — aplicatia web BlocHub, operata de TechBiz Hub L.L.C-FZ</li>
+            <li><strong>&ldquo;Platforma&rdquo;</strong> — aplicatia web BlocX, operata de TechBiz Hub L.L.C-FZ</li>
             <li><strong>&ldquo;Administrator&rdquo;</strong> — persoana care gestioneaza o asociatie de proprietari in platforma</li>
             <li><strong>&ldquo;Proprietar/Rezident&rdquo;</strong> — locatarul cu cont in platforma</li>
             <li><strong>&ldquo;Servicii&rdquo;</strong> — functionalitatile oferite de platforma</li>
@@ -40,7 +40,7 @@ export default function TermsPage() {
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">3. Descrierea serviciilor</h2>
-          <p className="text-slate-600 leading-relaxed">BlocHub ofera:</p>
+          <p className="text-slate-600 leading-relaxed">BlocX ofera:</p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
             <li>Gestionarea asociatiilor de proprietari si a blocurilor</li>
             <li>Calculul si emiterea chitantelor de intretinere</li>
@@ -102,7 +102,7 @@ export default function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">8. Limitarea raspunderii</h2>
           <p className="text-slate-600 leading-relaxed">
-            BlocHub ofera serviciile &ldquo;ca atare&rdquo; (as is). Nu garantam lipsa erorilor.
+            BlocX ofera serviciile &ldquo;ca atare&rdquo; (as is). Nu garantam lipsa erorilor.
             Nu suntem raspunzatori pentru:
           </p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">

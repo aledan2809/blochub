@@ -1,8 +1,8 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Politica GDPR — BlocHub',
-  description: 'Conformitatea cu Regulamentul General privind Protectia Datelor (GDPR) — BlocHub',
+  title: 'Politica GDPR — BlocX',
+  description: 'Conformitatea cu Regulamentul General privind Protectia Datelor (GDPR) — BlocX',
 }
 
 export default function GDPRPage() {
@@ -18,7 +18,7 @@ export default function GDPRPage() {
       <main className="mx-auto max-w-3xl px-4 py-10 space-y-8">
         <h1 className="text-3xl font-bold">Politica GDPR</h1>
         <p className="text-slate-600 leading-relaxed">
-          Acest document descrie modul in care BlocHub, operat de TechBiz Hub L.L.C-FZ, asigura
+          Acest document descrie modul in care BlocX, operat de TechBiz Hub L.L.C-FZ, asigura
           conformitatea cu Regulamentul (UE) 2016/679 privind protectia persoanelor fizice in ceea
           ce priveste prelucrarea datelor cu caracter personal (GDPR).
         </p>

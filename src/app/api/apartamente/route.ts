@@ -40,6 +40,19 @@ export async function GET(request: Request) {
       )
     }
 
+    // Verify user owns the association (IDOR fix)
+    const userId = (session.user as any).id
+    const asociatie = await db.asociatie.findFirst({
+      where: { id: asociatieId, adminId: userId },
+    })
+
+    if (!asociatie) {
+      return NextResponse.json(
+        { error: 'Asociație negăsită' },
+        { status: 404 }
+      )
+    }
+
     const apartamente = await db.apartament.findMany({
       where: { asociatieId },
       include: {

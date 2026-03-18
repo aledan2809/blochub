@@ -540,7 +540,7 @@ function SetariContent() {
   }
 
   const handleDeleteSMTP = async () => {
-    if (!confirm('Sigur vrei să ștergi configurația SMTP? Notificările vor fi trimise prin serviciul BlocHub.')) {
+    if (!confirm('Sigur vrei să ștergi configurația SMTP? Notificările vor fi trimise prin serviciul BlocX.')) {
       return
     }
 
@@ -1600,7 +1600,7 @@ function SetariContent() {
             <div className="pt-6 border-t">
               <h2 className="text-lg font-semibold mb-4">Configurare Server Email (SMTP)</h2>
               <p className="text-gray-600 mb-4">
-                Folosește propriul server SMTP pentru a trimite notificări. Implicit se folosește serviciul BlocHub.
+                Folosește propriul server SMTP pentru a trimite notificări. Implicit se folosește serviciul BlocX.
               </p>
 
               <div className="space-y-4">
@@ -1614,7 +1614,7 @@ function SetariContent() {
                         <p className="font-medium">Activează server SMTP propriu</p>
                         <p className="text-sm text-gray-500">
                           {smtpConfig.configured ? 'Configurat' : 'Nu este configurat'} -
-                          {useSMTP ? ' Activ' : ' Inactiv (folosește BlocHub)'}
+                          {useSMTP ? ' Activ' : ' Inactiv (folosește BlocX)'}
                         </p>
                       </div>
                     </div>
@@ -1791,7 +1791,7 @@ function SetariContent() {
                   {!useSMTP && (
                     <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
                       <p className="text-sm text-amber-700">
-                        <strong>Notă:</strong> Serverul SMTP propriu este dezactivat. Notificările sunt trimise prin serviciul BlocHub.
+                        <strong>Notă:</strong> Serverul SMTP propriu este dezactivat. Notificările sunt trimise prin serviciul BlocX.
                         Completează câmpurile de mai sus și activează opțiunea pentru a folosi serverul tău.
                       </p>
                     </div>

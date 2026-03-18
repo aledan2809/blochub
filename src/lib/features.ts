@@ -1,5 +1,5 @@
 /**
- * Feature Flags System for BlocHub Multi-Tenant Architecture
+ * Feature Flags System for BlocX Multi-Tenant Architecture
  *
  * This module defines all features available in the platform and maps them
  * to functional modules. Used for checking feature access based on subscription plans.

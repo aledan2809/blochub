@@ -61,13 +61,24 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, adminId, ...updateData } = body
+    const { id, adminId, nume, adresa, codPostal, localitate, judet, cui, iban, banca, telefon, email } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID asociație lipsă' }, { status: 400 })
     }
 
-    const updatePayload: any = { ...updateData }
+    // Build update payload with explicit allowed fields only (prevent mass assignment)
+    const updatePayload: Record<string, unknown> = {}
+    if (nume !== undefined) updatePayload.nume = nume
+    if (adresa !== undefined) updatePayload.adresa = adresa
+    if (codPostal !== undefined) updatePayload.codPostal = codPostal
+    if (localitate !== undefined) updatePayload.localitate = localitate
+    if (judet !== undefined) updatePayload.judet = judet
+    if (cui !== undefined) updatePayload.cui = cui
+    if (iban !== undefined) updatePayload.iban = iban
+    if (banca !== undefined) updatePayload.banca = banca
+    if (telefon !== undefined) updatePayload.telefon = telefon
+    if (email !== undefined) updatePayload.email = email
 
     // If changing admin, verify the new admin exists
     if (adminId) {

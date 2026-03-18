@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
         prioritate: prioritateLabels[tichet.prioritate] || tichet.prioritate,
         autor: tichet.creator.name || tichet.creator.email || 'Necunoscut',
         apartament: apartamentNumar,
-        link: `${process.env.NEXTAUTH_URL || 'https://blochub-cyan.vercel.app'}/dashboard/tichete/${tichet.id}`
+        link: `${process.env.NEXTAUTH_URL || 'https://blocx.ro'}/dashboard/tichete/${tichet.id}`
       })
 
       // Send async - don't wait

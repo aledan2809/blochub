@@ -1,5 +1,5 @@
 /**
- * Invoice Generation & Sending for BlocHub Subscriptions
+ * Invoice Generation & Sending for BlocX Subscriptions
  *
  * Generates PDF invoices for subscription payments and sends them via email.
  */
@@ -18,7 +18,7 @@ export interface InvoiceData {
   dataScadenta: Date
   dataPlatii?: Date | null
 
-  // Seller (BlocHub)
+  // Seller (BlocX)
   vanzator: {
     nume: string
     cui: string
@@ -101,7 +101,7 @@ export async function generateInvoicePDF(facturaId: string): Promise<Buffer | nu
       dataPlatii: factura.dataPlatii,
 
       vanzator: {
-        nume: company?.name || 'BlocHub SRL',
+        nume: company?.name || 'BlocX SRL',
         cui: company?.cui || 'Neconfigurat',
         adresa: [company?.address, company?.city, company?.county, company?.country]
           .filter(Boolean)
@@ -484,7 +484,7 @@ export async function sendInvoiceEmail(options: SendInvoiceEmailOptions): Promis
     <div class="content">
       <p>Bună,</p>
 
-      <p>Vă confirmăm că plata pentru abonamentul BlocHub a fost procesată cu succes.</p>
+      <p>Vă confirmăm că plata pentru abonamentul BlocX a fost procesată cu succes.</p>
 
       <div class="invoice-box">
         <p><strong>Organizație:</strong> ${organizationName}</p>
@@ -495,12 +495,12 @@ export async function sendInvoiceEmail(options: SendInvoiceEmailOptions): Promis
       <p>Factura este atașată la acest email în format PDF.</p>
 
       <p style="margin-top: 24px;">
-        Vă mulțumim că folosiți BlocHub pentru administrarea asociației!
+        Vă mulțumim că folosiți BlocX pentru administrarea asociației!
       </p>
     </div>
     <div class="footer">
-      <p>Acest email a fost trimis automat de BlocHub.</p>
-      <p>© ${new Date().getFullYear()} BlocHub - Administrare inteligentă</p>
+      <p>Acest email a fost trimis automat de BlocX.</p>
+      <p>© ${new Date().getFullYear()} BlocX - Administrare inteligentă</p>
     </div>
   </div>
 </body>
@@ -510,7 +510,7 @@ export async function sendInvoiceEmail(options: SendInvoiceEmailOptions): Promis
   try {
     const result = await sendEmail({
       to,
-      subject: `[BlocHub] Factură ${invoiceNumber} - Plată confirmată`,
+      subject: `[BlocX] Factură ${invoiceNumber} - Plată confirmată`,
       html,
       // Note: For attachments, you'll need to modify sendEmail to support them
       // or use a different email sending method for invoices

@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 
-// Generate standard BlocHub import template
+// Generate standard BlocX import template
 export function generateStandardTemplate(): Buffer {
   const headers = [
     'Numar',
@@ -51,7 +51,7 @@ export function generateStandardTemplate(): Buffer {
 
   // Instructions sheet
   const instrData = [
-    ['Instrucțiuni Import BlocHub'],
+    ['Instrucțiuni Import BlocX'],
     [''],
     ['Câmpuri obligatorii: Numar'],
     ['Câmpuri recomandate: Suprafata, Cota Indiviza, Nr Persoane, Proprietar Nume'],

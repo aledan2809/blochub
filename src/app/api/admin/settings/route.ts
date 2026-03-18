@@ -46,6 +46,12 @@ const updateSettingsSchema = z.object({
   revolutApiKey: z.string().max(200).optional().nullable(),
   revolutWebhookSecret: z.string().max(200).optional().nullable(),
 
+  // Stripe Payment Gateway
+  stripeSecretKey: z.string().max(200).optional().nullable(),
+  stripePublishableKey: z.string().max(200).optional().nullable(),
+  stripeWebhookSecret: z.string().max(200).optional().nullable(),
+  stripeEnvironment: z.enum(['test', 'live']).optional(),
+
   // Company billing
   companyName: z.string().max(200).optional().nullable(),
   companyCui: z.string().max(20).optional().nullable(),
@@ -92,6 +98,10 @@ export async function GET(request: NextRequest) {
       revolutApiKey: settings.revolutApiKey ? '••••••••' + settings.revolutApiKey.slice(-4) : null,
       revolutWebhookSecret: settings.revolutWebhookSecret
         ? '••••••••' + settings.revolutWebhookSecret.slice(-4)
+        : null,
+      stripeSecretKey: settings.stripeSecretKey ? '••••••••' + settings.stripeSecretKey.slice(-4) : null,
+      stripeWebhookSecret: settings.stripeWebhookSecret
+        ? '••••••••' + settings.stripeWebhookSecret.slice(-4)
         : null,
     }
 
@@ -154,6 +164,12 @@ export async function PUT(request: NextRequest) {
       'revolutApiKey',
       'revolutWebhookSecret',
 
+      // Stripe Payment Gateway
+      'stripeSecretKey',
+      'stripePublishableKey',
+      'stripeWebhookSecret',
+      'stripeEnvironment',
+
       // Company billing
       'companyName',
       'companyCui',
@@ -176,7 +192,8 @@ export async function PUT(request: NextRequest) {
       if ((validatedBody as Record<string, unknown>)[field] !== undefined) {
         // Don't update masked values (keep existing)
         if (
-          (field === 'revolutApiKey' || field === 'revolutWebhookSecret') &&
+          (field === 'revolutApiKey' || field === 'revolutWebhookSecret' ||
+           field === 'stripeSecretKey' || field === 'stripeWebhookSecret') &&
           ((validatedBody as Record<string, unknown>)[field] as string)?.startsWith('••••')
         ) {
           continue
@@ -203,6 +220,10 @@ export async function PUT(request: NextRequest) {
       revolutApiKey: settings.revolutApiKey ? '••••••••' + settings.revolutApiKey.slice(-4) : null,
       revolutWebhookSecret: settings.revolutWebhookSecret
         ? '••••••••' + settings.revolutWebhookSecret.slice(-4)
+        : null,
+      stripeSecretKey: settings.stripeSecretKey ? '••••••••' + settings.stripeSecretKey.slice(-4) : null,
+      stripeWebhookSecret: settings.stripeWebhookSecret
+        ? '••••••••' + settings.stripeWebhookSecret.slice(-4)
         : null,
     }
 

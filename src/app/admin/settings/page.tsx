@@ -67,6 +67,12 @@ interface PlatformSettings {
   revolutApiKey: string | null
   revolutWebhookSecret: string | null
 
+  // Stripe
+  stripeSecretKey: string | null
+  stripePublishableKey: string | null
+  stripeWebhookSecret: string | null
+  stripeEnvironment: string
+
   // Company
   companyName: string
   companyCui: string | null
@@ -185,7 +191,7 @@ export default function AdminSettingsPage() {
             Setări Platformă
           </h1>
           <p className="text-muted-foreground mt-1">
-            Configurări globale pentru BlocHub (Super Admin)
+            Configurări globale pentru BlocX (Super Admin)
           </p>
         </div>
         <Button onClick={handleSave} disabled={isSaving}>
@@ -317,6 +323,94 @@ export default function AdminSettingsPage() {
                     value={settings.graceDays}
                     onChange={(e) => updateField('graceDays', parseInt(e.target.value) || 0)}
                   />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Stripe Payment Gateway
+              </CardTitle>
+              <CardDescription>
+                Configurare Stripe pentru plăți proprietari către asociații
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Plăți Stripe (proprietari)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Permite proprietarilor să plătească online prin Stripe
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.stripeEnabled}
+                  onCheckedChange={(checked) => updateField('stripeEnabled', checked)}
+                />
+              </div>
+
+              <Separator />
+
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="stripeEnvironment">Mediu</Label>
+                  <Select
+                    value={settings.stripeEnvironment}
+                    onValueChange={(value) => updateField('stripeEnvironment', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="test">Sandbox (Test)</SelectItem>
+                      <SelectItem value="live">Producție (Live)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="stripeSecretKey">Secret Key</Label>
+                  <Input
+                    id="stripeSecretKey"
+                    type="password"
+                    placeholder="sk_test_... sau sk_live_..."
+                    value={settings.stripeSecretKey || ''}
+                    onChange={(e) => updateField('stripeSecretKey', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Din Stripe Dashboard → Developers → API keys → Secret key
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="stripePublishableKey">Publishable Key</Label>
+                  <Input
+                    id="stripePublishableKey"
+                    type="text"
+                    placeholder="pk_test_... sau pk_live_..."
+                    value={settings.stripePublishableKey || ''}
+                    onChange={(e) => updateField('stripePublishableKey', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Din Stripe Dashboard → Developers → API keys → Publishable key
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="stripeWebhookSecret">Webhook Secret</Label>
+                  <Input
+                    id="stripeWebhookSecret"
+                    type="password"
+                    placeholder="whsec_..."
+                    value={settings.stripeWebhookSecret || ''}
+                    onChange={(e) => updateField('stripeWebhookSecret', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Webhook URL: https://blocx.ro/api/payments/webhook
+                  </p>
                 </div>
               </div>
             </CardContent>

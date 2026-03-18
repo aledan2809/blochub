@@ -224,7 +224,7 @@ export async function POST(
     }).catch(() => {})
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Eroare la executarea importului' },
+      { error: 'Eroare la executarea importului' },
       { status: 500 }
     )
   }

@@ -7,7 +7,7 @@ import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/r
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Token necesar'),
-  password: z.string().min(6, 'Parola trebuie să aibă minim 6 caractere'),
+  password: z.string().min(8, 'Parola trebuie să aibă minim 8 caractere'),
 })
 
 export async function POST(request: NextRequest) {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 12)
 
     // Update user password
     await db.user.update({

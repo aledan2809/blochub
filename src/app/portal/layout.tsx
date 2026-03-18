@@ -38,7 +38,7 @@ export default function PortalLayout({
           <div className="flex items-center justify-between h-16">
             <Link href="/portal" className="flex items-center gap-2">
               <Building2 className="h-8 w-8 text-blue-600" />
-              <span className="font-bold text-lg">BlocHub</span>
+              <span className="font-bold text-lg">BlocX</span>
             </Link>
 
             <div className="flex items-center gap-2">

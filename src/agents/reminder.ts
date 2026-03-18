@@ -287,10 +287,10 @@ Vă reamintim că întreținerea pentru ${lunaFormatata} la apartamentul ${apart
 
 Suma de plată: ${sumaFormatata}
 
-Puteți plăti online în contul dvs. BlocHub pentru a evita penalitățile.
+Puteți plăti online în contul dvs. BlocX pentru a evita penalitățile.
 
 Cu respect,
-Echipa BlocHub`
+Echipa BlocX`
 
       case ReminderType.ON_DUE:
         return `Bună ziua, ${nume}!
@@ -302,7 +302,7 @@ Suma de plată: ${sumaFormatata}
 Vă rugăm să efectuați plata astăzi pentru a evita penalitățile de întârziere.
 
 Cu respect,
-Echipa BlocHub`
+Echipa BlocX`
 
       case ReminderType.AFTER_DUE:
         const zileLate = Math.abs(zile)
@@ -322,7 +322,7 @@ Echipa BlocHub`
 Vă rugăm să efectuați plata cât mai curând posibil pentru a evita acumularea de penalizări suplimentare.
 
 Cu respect,
-Echipa BlocHub`
+Echipa BlocX`
 
       default:
         return `Bună ziua, ${nume}!
@@ -332,7 +332,7 @@ Vă notificăm cu privire la plata întreținerii pentru ${lunaFormatata} la apa
 Suma de plată: ${sumaFormatata}
 
 Cu respect,
-Echipa BlocHub`
+Echipa BlocX`
     }
   }
 

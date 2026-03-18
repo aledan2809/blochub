@@ -295,7 +295,7 @@ function convertToCSV(data: any, type: string): string {
   let csv = ''
 
   // Header with export info
-  csv += `# Export BlocHub - ${new Date().toLocaleDateString('ro-RO')}\n`
+  csv += `# Export BlocX - ${new Date().toLocaleDateString('ro-RO')}\n`
   csv += `# Tip: ${data.type}\n\n`
 
   if (data.chitante && (type === 'full' || type === 'chitante')) {

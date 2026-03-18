@@ -136,7 +136,7 @@ export async function PUT(
       const emailData = emailTemplates.ticketStatusUpdate({
         titlu: updated.titlu,
         status: statusLabels[updated.status] || updated.status,
-        link: `${process.env.NEXTAUTH_URL || 'https://blochub-cyan.vercel.app'}/portal`
+        link: `${process.env.NEXTAUTH_URL || 'https://blocx.ro'}/portal`
       })
 
       // Send async - don't wait

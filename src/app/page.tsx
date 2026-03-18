@@ -10,7 +10,7 @@ export default function HomePage() {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2">
               <Building2 className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">BlocHub</span>
+              <span className="text-xl font-bold text-gray-900">BlocX</span>
             </div>
             <div className="flex items-center gap-4">
               <Link href="/auth/login" className="text-gray-600 hover:text-gray-900">
@@ -204,7 +204,7 @@ export default function HomePage() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Building2 className="h-6 w-6 text-blue-400" />
-                <span className="text-lg font-bold text-white">BlocHub</span>
+                <span className="text-lg font-bold text-white">BlocX</span>
               </div>
               <p className="text-sm">
                 Platformă modernă de administrare a asociațiilor de proprietari din România.
@@ -236,7 +236,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-sm">
-            &copy; {new Date().getFullYear()} BlocHub. Toate drepturile rezervate.
+            &copy; {new Date().getFullYear()} BlocX. Toate drepturile rezervate.
           </div>
         </div>
       </footer>

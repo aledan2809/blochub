@@ -24,7 +24,7 @@ export default function ChatPage() {
     {
       id: '1',
       role: 'assistant',
-      content: 'Bună! Sunt asistentul virtual BlocHub. Te pot ajuta cu informații despre chitanțe, plăți, indexuri sau documente. Cu ce te pot ajuta?',
+      content: 'Bună! Sunt asistentul virtual BlocX. Te pot ajuta cu informații despre chitanțe, plăți, indexuri sau documente. Cu ce te pot ajuta?',
       timestamp: new Date(),
     },
   ])

@@ -128,7 +128,7 @@ export function trackEvent(
   }
 }
 
-// Predefined events for BlocHub
+// Predefined events for BlocX
 export const analytics = {
   // Auth events
   trackSignup: (method: string = 'email') => {

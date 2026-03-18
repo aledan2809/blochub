@@ -225,7 +225,7 @@ ${getPageHelp(fromPage)}
 
 Ai vreo întrebare specifică?`
     }
-    return `Bună! Sunt asistentul BlocHub.
+    return `Bună! Sunt asistentul BlocX.
 
 Te pot ajuta cu:
 • Configurarea clădirii și scărilor
@@ -422,7 +422,7 @@ Echipa noastră citește toate mesajele și îmbunătățește constant aplicaț
           <Bot className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Asistent BlocHub</h1>
+          <h1 className="text-xl font-bold text-gray-900">Asistent BlocX</h1>
           <p className="text-sm text-gray-500">Întreabă orice despre administrarea blocului</p>
         </div>
       </div>
@@ -595,7 +595,7 @@ export default function ChatPage() {
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Asistent BlocHub</h1>
+            <h1 className="text-xl font-bold text-gray-900">Asistent BlocX</h1>
             <p className="text-sm text-gray-500">Se încarcă...</p>
           </div>
         </div>

@@ -144,7 +144,7 @@ export default function InvitePage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Bine ai venit!</h1>
           <p className="text-gray-600 mb-6">
-            Contul tău a fost creat cu succes. Acum te poți autentifica pentru a accesa platforma BlocHub.
+            Contul tău a fost creat cu succes. Acum te poți autentifica pentru a accesa platforma BlocX.
           </p>
           <Link href="/auth/login">
             <Button className="w-full">
@@ -164,7 +164,7 @@ export default function InvitePage() {
           <div className="h-14 w-14 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
             <Building2 className="h-7 w-7 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Bine ai venit pe BlocHub!</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Bine ai venit pe BlocX!</h1>
           <p className="text-gray-600 mt-2">
             Ai fost invitat să te alături asociației
           </p>

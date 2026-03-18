@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 // ANAF API pentru verificare date firmă
 // Documentație: https://www.anaf.ro/anaf/internet/ANAF/servicii_online/servicii_oferite_persoane_juridice/
@@ -101,6 +103,12 @@ interface ANAFResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check - prevent unauthenticated ANAF proxy abuse
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { cui } = body
 

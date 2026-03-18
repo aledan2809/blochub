@@ -15,7 +15,7 @@ interface ChatMessage {
 
 // Application knowledge base - real-time documentation
 const APP_KNOWLEDGE = `
-## BlocHub - Ghid complet pentru administratori
+## BlocX - Ghid complet pentru administratori
 
 ### Flux de lucru recomandat:
 1. Configurează clădirea (Clădire) - date asociație, scări
@@ -181,7 +181,7 @@ const BLOCKED_TOPICS = [
 export class ChatbotAgent extends BaseAgent {
   type = AgentType.CHATBOT
   name = 'Chatbot Agent'
-  description = 'Răspunde la întrebări despre chitanțe, plăți, consum și aplicația BlocHub'
+  description = 'Răspunde la întrebări despre chitanțe, plăți, consum și aplicația BlocX'
 
   private isOnTopic(message: string): boolean {
     const lowerMessage = message.toLowerCase()
@@ -232,7 +232,7 @@ export class ChatbotAgent extends BaseAgent {
 • Apartamente și proprietari
 • Cheltuieli și chitanțe
 • Plăți și încasări
-• Utilizarea aplicației BlocHub
+• Utilizarea aplicației BlocX
 
 Cu ce te pot ajuta în legătură cu administrarea blocului?`,
           intents: ['OFF_TOPIC'],
@@ -316,7 +316,7 @@ Cu ce te pot ajuta în legătură cu administrarea blocului?`,
       const messages: ChatMessage[] = [
         {
           role: 'system',
-          content: `Ești asistentul virtual BlocHub, specializat în administrarea asociațiilor de proprietari din România.
+          content: `Ești asistentul virtual BlocX, specializat în administrarea asociațiilor de proprietari din România.
 
 ${APP_KNOWLEDGE}
 

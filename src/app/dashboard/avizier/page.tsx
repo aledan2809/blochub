@@ -322,7 +322,7 @@ function AvizierContent() {
 
     // Footer
     doc.setFontSize(8)
-    doc.text(`Generat de BlocHub la ${new Date().toLocaleDateString('ro-RO')}`, margin, pageHeight - 5)
+    doc.text(`Generat de BlocX la ${new Date().toLocaleDateString('ro-RO')}`, margin, pageHeight - 5)
     doc.text(`Zi scadență: ${data.asociatie.ziScadenta} | Penalizare: ${data.asociatie.penalizareZi}%/zi`, pageWidth - margin, pageHeight - 5, { align: 'right' })
 
     // Save
@@ -802,7 +802,7 @@ function AvizierContent() {
 
         {/* Print footer */}
         <div className="hidden print:block mt-4 pt-2 border-t text-xs text-gray-500">
-          <p>Generat de BlocHub la {new Date().toLocaleDateString('ro-RO')}</p>
+          <p>Generat de BlocX la {new Date().toLocaleDateString('ro-RO')}</p>
         </div>
       </div>
 

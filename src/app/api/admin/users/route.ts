@@ -63,17 +63,21 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, password, ...updateData } = body
+    const { id, password, name, email, phone, role } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID utilizator lipsă' }, { status: 400 })
     }
 
-    // Build update payload
-    const updatePayload: any = { ...updateData }
+    // Build update payload with explicit allowed fields only (prevent mass assignment)
+    const updatePayload: Record<string, unknown> = {}
+    if (name !== undefined) updatePayload.name = name
+    if (email !== undefined) updatePayload.email = email
+    if (phone !== undefined) updatePayload.phone = phone
+    if (role !== undefined) updatePayload.role = role
 
     // If password is provided, hash it
-    if (password && password.length >= 6) {
+    if (password && password.length >= 8) {
       updatePayload.password = await hashPassword(password)
     }
 

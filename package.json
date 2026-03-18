@@ -1,5 +1,5 @@
 {
-  "name": "blochub",
+  "name": "blocx",
   "version": "1.0.0",
   "description": "Platformă modernă de administrare a asociațiilor de proprietari cu AI 95%+ automatizare",
   "scripts": {
@@ -35,7 +35,7 @@
   "author": "BlocHub",
   "license": "MIT",
   "dependencies": {
-    "@aledan/revolut-integration": "file:../revolut-integration",
+    "@aledan/revolut-integration": "file:./packages/revolut-integration",
     "@auth/prisma-adapter": "^2.11.1",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^5.22.0",

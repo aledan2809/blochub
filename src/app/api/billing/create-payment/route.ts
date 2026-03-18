@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       amount: totalAmount,
       merchantOrderRef: facturaAbonament.id,
       customerEmail: organizatie.emailFacturare || organizatie.email || (session!.user as any).email!,
-      description: `BlocHub - Abonament ${organizatie.abonament.plan.nume} (${perioadaText}) - ${pricing.apartamente} apartamente`,
+      description: `BlocX - Abonament ${organizatie.abonament.plan.nume} (${perioadaText}) - ${pricing.apartamente} apartamente`,
       redirectUrl: `${appUrl}/dashboard/billing/success?factura_id=${facturaAbonament.id}`,
       cancelUrl: `${appUrl}/dashboard/billing/failed?factura_id=${facturaAbonament.id}`,
     })

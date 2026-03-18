@@ -82,13 +82,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Send test email
-    const fromName = smtpConfig.fromName || asociatie.nume || 'BlocHub'
+    const fromName = smtpConfig.fromName || asociatie.nume || 'BlocX'
 
     try {
       await transporter.sendMail({
         from: `"${fromName}" <${smtpConfig.fromEmail}>`,
         to: testEmail,
-        subject: '✅ Test SMTP - BlocHub',
+        subject: '✅ Test SMTP - BlocX',
         html: `
           <!DOCTYPE html>
           <html>
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
                 </p>
 
                 <div class="footer">
-                  <p>Acest email a fost trimis automat de BlocHub pentru a testa configurația SMTP.</p>
+                  <p>Acest email a fost trimis automat de BlocX pentru a testa configurația SMTP.</p>
                   <p>Data test: ${new Date().toLocaleString('ro-RO')}</p>
                 </div>
               </div>
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('SMTP test error:', error)
     return NextResponse.json(
-      { error: `Eroare: ${error.message}` },
+      { error: 'Eroare la testarea configurației SMTP' },
       { status: 500 }
     )
   }

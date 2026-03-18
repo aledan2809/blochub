@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
             <div className="h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center">
               <Building2 className="h-7 w-7 text-white" />
             </div>
-            <span className="text-2xl font-bold text-gray-900">BlocHub</span>
+            <span className="text-2xl font-bold text-gray-900">BlocX</span>
           </Link>
         </div>
 

@@ -52,7 +52,7 @@ function LoginForm() {
         <CardHeader className="text-center">
           <Link href="/" className="flex items-center justify-center gap-2 mb-4">
             <Building2 className="h-10 w-10 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">BlocHub</span>
+            <span className="text-2xl font-bold text-gray-900">BlocX</span>
           </Link>
           <CardTitle>Bine ai revenit!</CardTitle>
           <CardDescription>

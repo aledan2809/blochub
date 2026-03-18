@@ -31,7 +31,7 @@ export async function GET() {
         checks: {
           database: 'failed',
         },
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Database connection failed',
       },
       { status: 503 }
     )

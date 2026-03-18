@@ -1,5 +1,5 @@
 /**
- * Revolut Integration for BlocHub
+ * Revolut Integration for BlocX
  *
  * Inlined from @aledan/revolut-integration (Turbopack can't resolve file: links)
  */
@@ -347,7 +347,7 @@ export async function getCompanyBillingDetails(): Promise<{
   if (!settings) return null
 
   return {
-    name: settings.companyName || 'BlocHub SRL',
+    name: settings.companyName || 'BlocX SRL',
     cui: settings.companyCui || '',
     address: settings.companyAddress || '',
     city: settings.companyCity || '',
