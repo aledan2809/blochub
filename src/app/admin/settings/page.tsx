@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+
+export const dynamic = 'force-dynamic'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {

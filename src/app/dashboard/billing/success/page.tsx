@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,7 @@ interface FacturaDetails {
   organizatie: string
 }
 
-export default function BillingSuccessPage() {
+function BillingSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const facturaId = searchParams.get('factura_id')
@@ -135,3 +135,13 @@ export default function BillingSuccessPage() {
     </div>
   )
 }
+
+function BillingSuccessPageWrapper() {
+  return (
+    <Suspense fallback={<div className="container mx-auto py-10 px-4"><div className="max-w-lg mx-auto"><Card><CardContent className="py-10 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></CardContent></Card></div></div>}>
+      <BillingSuccessContent />
+    </Suspense>
+  )
+}
+
+export default BillingSuccessPageWrapper

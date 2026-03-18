@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -84,7 +84,7 @@ function getCategoryShortCode(category: string): string {
   return categoryShortCodes[category] || category.substring(0, 2).toUpperCase()
 }
 
-export default function AvizierPage() {
+function AvizierContent() {
   const { currentAsociatie } = useAsociatie()
   const searchParams = useSearchParams()
   const [data, setData] = useState<AvizierData | null>(null)
@@ -825,3 +825,13 @@ export default function AvizierPage() {
     </div>
   )
 }
+
+function AvizierPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>}>
+      <AvizierContent />
+    </Suspense>
+  )
+}
+
+export default AvizierPageWrapper

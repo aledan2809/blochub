@@ -1,11 +1,12 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { XCircle, RefreshCw, ArrowLeft, HelpCircle } from 'lucide-react'
 
-export default function BillingFailedPage() {
+function BillingFailedContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const facturaId = searchParams.get('factura_id')
@@ -86,3 +87,13 @@ export default function BillingFailedPage() {
     </div>
   )
 }
+
+function BillingFailedPageWrapper() {
+  return (
+    <Suspense fallback={<div className="container mx-auto py-10 px-4"><div className="max-w-lg mx-auto"><Card><CardContent className="py-10 text-center">Loading...</CardContent></Card></div></div>}>
+      <BillingFailedContent />
+    </Suspense>
+  )
+}
+
+export default BillingFailedPageWrapper

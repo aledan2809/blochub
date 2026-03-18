@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Search,
@@ -42,7 +42,7 @@ const statusLabels: Record<string, { label: string; color: string; icon: React.R
   RESTANTA: { label: 'Restanță', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-3 w-3" /> },
 }
 
-export default function ChitantePage() {
+function ChitantePageContent() {
   const { currentAsociatie } = useAsociatie()
   const searchParams = useSearchParams()
   const [chitante, setChitante] = useState<Chitanta[]>([])
@@ -254,5 +254,17 @@ export default function ChitantePage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function ChitantePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    }>
+      <ChitantePageContent />
+    </Suspense>
   )
 }

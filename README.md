@@ -251,39 +251,94 @@ Open [http://localhost:3004](http://localhost:3004)
 
 Detailed deployment guide: [DEPLOYMENT.md](DEPLOYMENT.md)
 
-**Quick Deploy:**
-
+**Prerequisites:**
 ```bash
 # Install Vercel CLI
 npm i -g vercel
 
 # Login to Vercel
 vercel login
-
-# Deploy to production
-npm run deploy
 ```
 
-### Environment Variables
+**Deploy Steps:**
 
-Set these in Vercel Dashboard → Project Settings → Environment Variables:
+1. **Environment Variables**
 
-```env
-DATABASE_URL=postgresql://...
-DIRECT_URL=postgresql://...
-NEXTAUTH_URL=https://your-app.vercel.app
-NEXTAUTH_SECRET=<generated-secret>
-OPENAI_API_KEY=sk-proj-...
-STRIPE_SECRET_KEY=sk_live_...
-CRON_SECRET=<generated-secret>
-```
+   Add these in Vercel Dashboard → Project Settings → Environment Variables:
 
-### Post-Deployment
+   ```env
+   # Database (Supabase)
+   DATABASE_URL=postgresql://user:password@host:6543/postgres?pgbouncer=true
+   DIRECT_URL=postgresql://user:password@host:5432/postgres
 
-1. Push database schema: `npx prisma db push`
-2. Verify health: `https://your-app.vercel.app`
-3. Configure Stripe webhooks
-4. Test cron jobs
+   # NextAuth
+   NEXTAUTH_URL=https://your-app.vercel.app
+   NEXTAUTH_SECRET=<generated-with-openssl-rand-base64-32>
+
+   # OpenAI
+   OPENAI_API_KEY=sk-proj-your-api-key
+
+   # Stripe
+   STRIPE_SECRET_KEY=sk_live_your-secret-key
+   STRIPE_WEBHOOK_SECRET=whsec_your-webhook-secret
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_your-publishable-key
+
+   # Revolut Merchant API
+   REVOLUT_API_KEY=sk_xxx-your-api-key
+   REVOLUT_WEBHOOK_SECRET=whsec_xxx-your-webhook-secret
+   REVOLUT_ENVIRONMENT=production
+
+   # BlocHub Company Details
+   BLOCHUB_CUI=RO00000000
+   BLOCHUB_ADRESA=București, România
+   BLOCHUB_IBAN=RO00XXXX0000000000000000
+   BLOCHUB_BANCA=Banca Transilvania
+
+   # Cron Jobs
+   CRON_SECRET=<generated-secret>
+
+   # App Config
+   APP_URL=https://your-app.vercel.app
+   APP_NAME=BlocHub
+   NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+   ```
+
+2. **Deploy to Production**
+
+   ```bash
+   # Deploy to production
+   vercel --prod
+
+   # Or use npm script
+   npm run deploy
+   ```
+
+3. **Post-Deployment Configuration**
+
+   ```bash
+   # Push database schema (if needed)
+   npx prisma db push
+
+   # Verify deployment
+   curl https://your-app.vercel.app
+   ```
+
+4. **Configure Webhooks**
+
+   - **Stripe:** `https://your-app.vercel.app/api/webhooks/stripe`
+   - **Revolut:** `https://your-app.vercel.app/api/webhooks/revolut`
+
+5. **Test Cron Jobs**
+
+   Verify that cron jobs are running in Vercel Dashboard → Deployments → Cron Logs
+
+**Build Configuration:**
+
+The project includes `vercel.json` with optimized settings:
+- Build command: `prisma generate && next build`
+- Function timeouts: 10s (default), 30s (agents), 60s (cron)
+- Security headers: CSP, X-Frame-Options, etc.
+- Cron jobs: Daily/weekly automation tasks
 
 ---
 

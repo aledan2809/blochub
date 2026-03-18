@@ -139,12 +139,17 @@ export function I18nProvider({ children, initialLocale }: { children: ReactNode;
     availableLocales: Object.values(LOCALES),
   }
 
-  // Prevent hydration mismatch by not rendering until mounted
-  if (!mounted) {
-    return null
+  // Prevent hydration mismatch by rendering with default locale until mounted
+  const contextValue: I18nContextType = mounted ? value : {
+    locale: DEFAULT_LOCALE,
+    setLocale,
+    t,
+    localeInfo: LOCALES[DEFAULT_LOCALE],
+    isRTL: false,
+    availableLocales: Object.values(LOCALES),
   }
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
+  return <I18nContext.Provider value={contextValue}>{children}</I18nContext.Provider>
 }
 
 /**
