@@ -92,7 +92,11 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
-    if (!currentAsociatie?.id) return
+    if (!currentAsociatie?.id) {
+      setLoading(false)
+      setData(null)
+      return
+    }
     async function fetchData() {
       try {
         setLoading(true)
@@ -127,8 +131,29 @@ export default function DashboardPage() {
     )
   }
 
-  if (!data?.hasAsociatie) {
-    return <SetupWizard />
+  if (!currentAsociatie?.id || !data?.hasAsociatie) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] gap-6">
+        <div className="bg-blue-50 rounded-full p-6">
+          <Building2 className="h-16 w-16 text-blue-600" />
+        </div>
+        <div className="text-center max-w-md">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Bun venit in BlocHub!</h2>
+          <p className="text-gray-500 leading-relaxed">
+            Pentru a incepe, adauga prima ta cladire din meniul din stanga.
+            Vei putea gestiona apartamente, proprietari, cheltuieli si incasari — totul intr-un singur loc.
+          </p>
+        </div>
+        <div className="flex gap-3 mt-2">
+          <Link href="/dashboard/cladire">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Adauga prima cladire
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   const stats = data.stats!

@@ -9,7 +9,7 @@ const createAsociatieSchema = z.object({
   cui: z.string().optional(),
   adresa: z.string().min(5, 'Adresa este obligatorie'),
   oras: z.string().min(2, 'Orașul este obligatoriu'),
-  judet: z.string().min(2, 'Județul este obligatoriu'),
+  judet: z.string().min(1, 'Județul este obligatoriu'),
   codPostal: z.string().optional(),
   email: z.string().email().optional(),
   telefon: z.string().optional(),
