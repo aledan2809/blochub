@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useAsociatie } from '@/contexts/AsociatieContext'
+import { SetupGuide } from '@/components/gamification/setup-guide'
 
 // Lazy load analytics charts for better performance
 const AnalyticsCharts = lazy(() =>
@@ -164,6 +165,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Setup Guide */}
+      <SetupGuide />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>

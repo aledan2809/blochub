@@ -30,10 +30,12 @@ import {
   Truck,
   Shield,
   ClipboardCheck,
+  Trophy,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { AsociatieProvider, useAsociatie } from '@/contexts/AsociatieContext'
+import { GamificationRing } from '@/components/gamification/gamification-ring'
 
 // Modal pentru adăugare clădire nouă
 function AddBuildingModal({
@@ -543,6 +545,12 @@ const navigation = [
     description: 'Istoric operații și audit'
   },
   {
+    name: 'Realizări',
+    href: '/dashboard/gamification',
+    icon: Trophy,
+    description: 'Progres și realizări'
+  },
+  {
     name: 'Setări',
     href: '/dashboard/setari',
     icon: Settings,
@@ -658,6 +666,11 @@ function DashboardLayoutContent({
               </>
             )}
           </nav>
+
+          {/* Gamification Ring */}
+          <div className="mx-3 mb-2">
+            <GamificationRing />
+          </div>
 
           {/* Help Card */}
           <div className="mx-3 mb-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">

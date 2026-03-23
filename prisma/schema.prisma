@@ -59,6 +59,13 @@ model User {
   // GDPR consents
   consents         Consent[]
 
+  // Gamification
+  achievements     UserAchievement[]
+  setupCompleted   Boolean  @default(false)
+  setupProgress    String?  // JSON: { completedSteps: string[], dismissedAt?: string }
+  gamificationLevel String  @default("Incepator")
+  lastLoginAt      DateTime?
+
   @@map("users")
 }
 
@@ -1662,4 +1669,35 @@ model DocumentUnitate {
 
   @@index([apartamentId])
   @@map("documente_unitati")
+}
+
+// ============================================
+// GAMIFICATION SYSTEM
+// ============================================
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  achievementId String   // e.g. "first_building", "first_receipt"
+  xpEarned      Int      @default(0)
+  earnedAt      DateTime @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+model GamificationSnapshot {
+  id          String   @id @default(cuid())
+  userId      String
+  totalScore  Int
+  level       String
+  pillars     String   // JSON: { administrare: 80, financiar: 60, ... }
+  earnedCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("gamification_snapshots")
 }
