@@ -1,0 +1,28 @@
+{
+  "name": "@aledan/revolut-integration",
+  "version": "1.0.0",
+  "description": "Reusable Revolut Merchant API integration for payment processing",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "echo 'Pre-built dist included'"
+  },
+  "keywords": [
+    "revolut",
+    "payments",
+    "merchant",
+    "checkout",
+    "romania",
+    "ron"
+  ],
+  "author": "Alex Danciulescu",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1447,6 +1447,14 @@ model PlatformSettings {
   revolutWebhookSecret String? // whsec_xxx...
 
   // ============================================
+  // STRIPE PAYMENT GATEWAY
+  // ============================================
+  stripeSecretKey       String?
+  stripePublishableKey  String?
+  stripeWebhookSecret   String?
+  stripeEnvironment     String   @default("test")  // test or live
+
+  // ============================================
   // COMPANY BILLING DETAILS (for invoices)
   // ============================================
   companyName         String  @default("BlocHub SRL")
