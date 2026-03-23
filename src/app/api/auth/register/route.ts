@@ -9,6 +9,7 @@ const registerSchema = z.object({
   password: z.string().min(8, 'Parola trebuie să aibă minim 8 caractere'),
   name: z.string().min(2, 'Numele trebuie să aibă minim 2 caractere'),
   phone: z.string().optional(),
+  referralCode: z.string().optional(),
 })
 
 export async function POST(request: Request) {
@@ -55,9 +56,51 @@ export async function POST(request: Request) {
         password: hashedPassword,
         name: data.name,
         phone: data.phone,
-        role: 'ADMIN', // New users are admins by default (they create associations)
+        role: 'ADMIN',
+        referredByCode: data.referralCode || null,
       },
     })
+
+    // Process referral if code provided
+    if (data.referralCode) {
+      const referrer = await db.user.findUnique({
+        where: { referralCode: data.referralCode },
+        select: { id: true },
+      })
+
+      if (referrer) {
+        // Update existing PENDING referral or create new one
+        const existingReferral = await db.referral.findFirst({
+          where: {
+            referrerId: referrer.id,
+            referredEmail: data.email.toLowerCase(),
+            status: 'PENDING',
+          },
+        })
+
+        if (existingReferral) {
+          await db.referral.update({
+            where: { id: existingReferral.id },
+            data: {
+              referredId: user.id,
+              status: 'REGISTERED',
+              registeredAt: new Date(),
+            },
+          })
+        } else {
+          await db.referral.create({
+            data: {
+              referrerId: referrer.id,
+              referredId: user.id,
+              referralCode: data.referralCode,
+              referredEmail: data.email.toLowerCase(),
+              status: 'REGISTERED',
+              registeredAt: new Date(),
+            },
+          })
+        }
+      }
+    }
 
     return NextResponse.json({
       user: {

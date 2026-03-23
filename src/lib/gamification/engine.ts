@@ -111,6 +111,15 @@ export const SETUP_STEPS: SetupStep[] = [
     icon: '✉️',
     check: (ctx) => ctx.inviteCount > 0,
   },
+  {
+    id: 'share_referral',
+    title: 'Recomandă BlocX',
+    description: 'Trimite codul tău de referral unui alt administrator de bloc',
+    href: '/dashboard/referral',
+    xp: 30,
+    icon: '🤝',
+    check: (ctx) => ctx.totalReferralCount > 0,
+  },
 ]
 
 // ─── ACHIEVEMENTS ────────────────────────────────
@@ -120,7 +129,7 @@ export interface AchievementDef {
   description: string
   icon: string
   xp: number
-  category: 'setup' | 'administrare' | 'financiar' | 'comunitate' | 'avansat'
+  category: 'setup' | 'administrare' | 'financiar' | 'comunitate' | 'avansat' | 'referral'
   check: (ctx: DataContext) => boolean
 }
 
@@ -154,6 +163,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'ocr_used', title: 'AI la putere', description: 'Ai folosit OCR pentru scanarea unei facturi', icon: '🤖', xp: 50, category: 'avansat', check: (ctx) => ctx.ocrUsedCount >= 1 },
   { id: 'import_done', title: 'Import reușit', description: 'Ai importat date din Excel', icon: '📥', xp: 40, category: 'avansat', check: (ctx) => ctx.importCount >= 1 },
   { id: 'full_year', title: 'Un an complet', description: 'Ai chitanțe generate pentru 12 luni consecutive', icon: '🗓️', xp: 150, category: 'avansat', check: (ctx) => ctx.consecutiveMonths >= 12 },
+
+  // Referral
+  { id: 'first_referral', title: 'Prima recomandare', description: 'Ai adus prima asociație nouă pe BlocX', icon: '🤝', xp: 80, category: 'referral', check: (ctx) => ctx.activeReferralCount >= 1 },
+  { id: 'referrals_5', title: 'Influencer local', description: 'Ai adus 5 asociații noi pe BlocX', icon: '📣', xp: 150, category: 'referral', check: (ctx) => ctx.activeReferralCount >= 5 },
+  { id: 'referral_ambassador', title: 'Ambasador BlocX', description: 'Ai adus 10 asociații — ești ambasador oficial!', icon: '🏅', xp: 250, category: 'referral', check: (ctx) => ctx.activeReferralCount >= 10 },
+  { id: 'referral_streak', title: 'Streak de referral-uri', description: '3 referral-uri active în aceeași lună', icon: '🔥', xp: 100, category: 'referral', check: (ctx) => ctx.referralMonthStreak >= 3 },
 ]
 
 // ─── DATA CONTEXT ────────────────────────────────
@@ -176,6 +191,10 @@ export interface DataContext {
   importCount: number
   consecutiveMonths: number
   setupStepsCompleted: number
+  // Referral
+  totalReferralCount: number
+  activeReferralCount: number
+  referralMonthStreak: number
 }
 
 export async function buildDataContext(userId: string, asociatieId: string): Promise<DataContext> {
@@ -196,6 +215,9 @@ export async function buildDataContext(userId: string, asociatieId: string): Pro
     ocrUsedCount,
     importCount,
     receiptMonths,
+    totalReferralCount,
+    activeReferralCount,
+    activeReferrals,
   ] = await Promise.all([
     prisma.cladire.count({ where: { asociatieId } }),
     prisma.apartament.count({ where: { asociatieId } }),
@@ -224,6 +246,17 @@ export async function buildDataContext(userId: string, asociatieId: string): Pro
       distinct: ['luna', 'an'],
       orderBy: [{ an: 'desc' }, { luna: 'desc' }],
     }),
+    // Referral counts
+    prisma.referral.count({ where: { referrerId: userId } }),
+    prisma.referral.count({ where: { referrerId: userId, status: { in: ['ACTIVE', 'REWARDED'] } } }),
+    prisma.referral.findMany({
+      where: {
+        referrerId: userId,
+        status: { in: ['ACTIVE', 'REWARDED'] },
+        activatedAt: { not: null },
+      },
+      select: { activatedAt: true },
+    }),
   ])
 
   const hasStripeKeys = !!(platformSettings?.stripeSecretKey && platformSettings?.stripePublishableKey)
@@ -250,6 +283,15 @@ export async function buildDataContext(userId: string, asociatieId: string): Pro
     }
   }
 
+  // Calculate referral month streak (how many active referrals in the current month)
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  const referralMonthStreak = activeReferrals.filter((r) => {
+    if (!r.activatedAt) return false
+    return r.activatedAt.getMonth() === currentMonth && r.activatedAt.getFullYear() === currentYear
+  }).length
+
   // Count completed setup steps
   const ctx: DataContext = {
     buildingCount,
@@ -270,6 +312,9 @@ export async function buildDataContext(userId: string, asociatieId: string): Pro
     importCount,
     consecutiveMonths,
     setupStepsCompleted: 0,
+    totalReferralCount,
+    activeReferralCount,
+    referralMonthStreak,
   }
 
   ctx.setupStepsCompleted = SETUP_STEPS.filter((s) => s.check(ctx)).length
@@ -327,10 +372,11 @@ function calculatePillars(ctx: DataContext): Pillar[] {
       icon: '👥',
       maxScore: 200,
       score: Math.min(200,
-        Math.min(60, ctx.inviteCount * 6) +
-        Math.min(60, ctx.portalUsersCount * 12) +
-        Math.min(40, ctx.announcementCount * 10) +
-        (ctx.ticketCount > 0 ? 40 : 0)
+        Math.min(40, ctx.inviteCount * 4) +
+        Math.min(40, ctx.portalUsersCount * 8) +
+        Math.min(30, ctx.announcementCount * 10) +
+        (ctx.ticketCount > 0 ? 30 : 0) +
+        Math.min(60, ctx.activeReferralCount * 12)
       ),
     },
     {
@@ -425,6 +471,8 @@ export async function calculateGamification(userId: string, asociatieId: string)
   else if (ctx.inviteCount === 0) tips.push('Invită proprietarii pe platformă.')
   if (ctx.ocrUsedCount === 0 && ctx.expenseCount > 3) tips.push('Încearcă scanarea facturilor cu AI OCR.')
   if (ctx.announcementCount === 0 && ctx.ownerCount > 0) tips.push('Postează un anunț pe avizierul digital.')
+  if (ctx.activeReferralCount === 0) tips.push('Recomandă BlocX unui alt administrator și câștigă XP bonus!')
+  if (ctx.activeReferralCount > 0 && ctx.activeReferralCount < 5) tips.push(`Ai ${ctx.activeReferralCount} referral-uri active — mai ai nevoie de ${5 - ctx.activeReferralCount} pentru badge-ul "Influencer local"!`)
 
   // Save snapshot (max once per hour)
   const lastSnapshot = await prisma.gamificationSnapshot.findFirst({

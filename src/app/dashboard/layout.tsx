@@ -31,6 +31,7 @@ import {
   Shield,
   ClipboardCheck,
   Trophy,
+  Gift,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -543,6 +544,12 @@ const navigation = [
     href: '/dashboard/audit',
     icon: ClipboardCheck,
     description: 'Istoric operații și audit'
+  },
+  {
+    name: 'Referral',
+    href: '/dashboard/referral',
+    icon: Gift,
+    description: 'Recomandă și câștigă'
   },
   {
     name: 'Realizări',

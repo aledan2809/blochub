@@ -9,6 +9,7 @@ const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
   financiar: { label: 'Financiar', icon: '💰' },
   comunitate: { label: 'Comunitate', icon: '👥' },
   avansat: { label: 'Funcții avansate', icon: '🤖' },
+  referral: { label: 'Referral', icon: '🤝' },
 }
 
 const RADIUS = 60

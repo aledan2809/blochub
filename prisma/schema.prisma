@@ -66,6 +66,12 @@ model User {
   gamificationLevel String  @default("Incepator")
   lastLoginAt      DateTime?
 
+  // Referral
+  referralCode       String?   @unique // e.g. "BLOCX-A3F8K2"
+  referredByCode     String?   // the referral code used at registration
+  referralsSent      Referral[] @relation("ReferralSender")
+  referralsReceived  Referral[] @relation("ReferralReceiver")
+
   @@map("users")
 }
 
@@ -1700,4 +1706,48 @@ model GamificationSnapshot {
 
   @@index([userId, createdAt])
   @@map("gamification_snapshots")
+}
+
+// ============================================
+// REFERRAL SYSTEM
+// ============================================
+
+enum ReferralStatus {
+  PENDING      // Invitation sent, not yet registered
+  REGISTERED   // User registered via referral link
+  ACTIVE       // Referred user created an association (reward eligible)
+  REWARDED     // Reward claimed/applied
+  EXPIRED      // Link expired (30 days)
+}
+
+model Referral {
+  id              String         @id @default(cuid())
+
+  // Who referred
+  referrerId      String
+  referrer        User           @relation("ReferralSender", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  // Who was referred (null until they register)
+  referredId      String?
+  referred        User?          @relation("ReferralReceiver", fields: [referredId], references: [id], onDelete: SetNull)
+
+  // Tracking
+  referralCode    String         // The code used
+  referredEmail   String?        // Email invited (optional, for tracking)
+  status          ReferralStatus @default(PENDING)
+
+  // Reward
+  rewardType      String?        // "XP_BONUS", "DISCOUNT_1_MONTH", "DISCOUNT_3_MONTHS"
+  rewardAmount    Int?           // XP amount or discount percentage
+  rewardClaimedAt DateTime?
+
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  registeredAt    DateTime?      // When referred user registered
+  activatedAt     DateTime?      // When referred user created an association
+
+  @@index([referrerId])
+  @@index([referralCode])
+  @@index([referredEmail])
+  @@map("referrals")
 }

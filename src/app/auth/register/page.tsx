@@ -1,16 +1,26 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Building2, Mail, Lock, User, Phone, ArrowRight, CheckCircle } from 'lucide-react'
+import { Building2, Mail, Lock, User, Phone, ArrowRight, CheckCircle, Gift } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { analytics } from '@/lib/analytics'
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Se încarcă...</div>}>
+      <RegisterContent />
+    </Suspense>
+  )
+}
+
+function RegisterContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const refCode = searchParams.get('ref') || ''
 
   const [formData, setFormData] = useState({
     name: '',
@@ -19,8 +29,13 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
   })
+  const [referralCode, setReferralCode] = useState(refCode)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (refCode) setReferralCode(refCode)
+  }, [refCode])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -54,6 +69,7 @@ export default function RegisterPage() {
           email: formData.email,
           phone: formData.phone,
           password: formData.password,
+          referralCode: referralCode || undefined,
         }),
       })
 
@@ -161,6 +177,23 @@ export default function RegisterPage() {
                   required
                 />
               </div>
+
+              {/* Referral code */}
+              <div className="relative">
+                <Gift className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Cod de referral (opțional)"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  className="pl-10"
+                />
+              </div>
+              {referralCode && (
+                <p className="text-xs text-green-600 -mt-2">
+                  Ai fost recomandat! Vei primi beneficii speciale.
+                </p>
+              )}
 
               <div className="flex items-start gap-2">
                 <input
