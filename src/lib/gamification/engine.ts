@@ -169,6 +169,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'referrals_5', title: 'Influencer local', description: 'Ai adus 5 asociații noi pe BlocX', icon: '📣', xp: 150, category: 'referral', check: (ctx) => ctx.activeReferralCount >= 5 },
   { id: 'referral_ambassador', title: 'Ambasador BlocX', description: 'Ai adus 10 asociații — ești ambasador oficial!', icon: '🏅', xp: 250, category: 'referral', check: (ctx) => ctx.activeReferralCount >= 10 },
   { id: 'referral_streak', title: 'Streak de referral-uri', description: '3 referral-uri active în aceeași lună', icon: '🔥', xp: 100, category: 'referral', check: (ctx) => ctx.referralMonthStreak >= 3 },
+  { id: 'referral_whatsapp', title: 'Referral personal', description: 'Ai adus un referral prin WhatsApp', icon: '💬', xp: 40, category: 'referral', check: (ctx) => ctx.whatsappReferralCount >= 1 },
+  { id: 'referral_multichannel', title: 'Multi-canal', description: 'Ai referral-uri active pe cel puțin 2 canale diferite', icon: '📡', xp: 80, category: 'referral', check: (ctx) => [ctx.whatsappReferralCount, ctx.smsReferralCount, ctx.emailReferralCount].filter(c => c > 0).length >= 2 },
 ]
 
 // ─── DATA CONTEXT ────────────────────────────────
@@ -195,6 +197,9 @@ export interface DataContext {
   totalReferralCount: number
   activeReferralCount: number
   referralMonthStreak: number
+  whatsappReferralCount: number
+  smsReferralCount: number
+  emailReferralCount: number
 }
 
 export async function buildDataContext(userId: string, asociatieId: string): Promise<DataContext> {
@@ -255,7 +260,7 @@ export async function buildDataContext(userId: string, asociatieId: string): Pro
         status: { in: ['ACTIVE', 'REWARDED'] },
         activatedAt: { not: null },
       },
-      select: { activatedAt: true },
+      select: { activatedAt: true, channel: true },
     }),
   ])
 
@@ -283,7 +288,7 @@ export async function buildDataContext(userId: string, asociatieId: string): Pro
     }
   }
 
-  // Calculate referral month streak (how many active referrals in the current month)
+  // Calculate referral month streak and channel counts
   const now = new Date()
   const currentMonth = now.getMonth()
   const currentYear = now.getFullYear()
@@ -291,6 +296,9 @@ export async function buildDataContext(userId: string, asociatieId: string): Pro
     if (!r.activatedAt) return false
     return r.activatedAt.getMonth() === currentMonth && r.activatedAt.getFullYear() === currentYear
   }).length
+  const whatsappReferralCount = activeReferrals.filter((r) => r.channel === 'WHATSAPP').length
+  const smsReferralCount = activeReferrals.filter((r) => r.channel === 'SMS').length
+  const emailReferralCount = activeReferrals.filter((r) => r.channel === 'EMAIL').length
 
   // Count completed setup steps
   const ctx: DataContext = {
@@ -315,6 +323,9 @@ export async function buildDataContext(userId: string, asociatieId: string): Pro
     totalReferralCount,
     activeReferralCount,
     referralMonthStreak,
+    whatsappReferralCount,
+    smsReferralCount,
+    emailReferralCount,
   }
 
   ctx.setupStepsCompleted = SETUP_STEPS.filter((s) => s.check(ctx)).length

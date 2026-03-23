@@ -1714,40 +1714,83 @@ model GamificationSnapshot {
 
 enum ReferralStatus {
   PENDING      // Invitation sent, not yet registered
+  LINK_OPENED  // User clicked the referral link
   REGISTERED   // User registered via referral link
   ACTIVE       // Referred user created an association (reward eligible)
   REWARDED     // Reward claimed/applied
+  NOT_INTERESTED // User declined (marked by referrer)
   EXPIRED      // Link expired (30 days)
 }
 
+enum ReferralChannel {
+  EMAIL
+  WHATSAPP
+  SMS
+  LINK_ONLY    // Just shared the link/code manually
+}
+
 model Referral {
-  id              String         @id @default(cuid())
+  id              String          @id @default(cuid())
 
   // Who referred
   referrerId      String
-  referrer        User           @relation("ReferralSender", fields: [referrerId], references: [id], onDelete: Cascade)
+  referrer        User            @relation("ReferralSender", fields: [referrerId], references: [id], onDelete: Cascade)
 
   // Who was referred (null until they register)
   referredId      String?
-  referred        User?          @relation("ReferralReceiver", fields: [referredId], references: [id], onDelete: SetNull)
+  referred        User?           @relation("ReferralReceiver", fields: [referredId], references: [id], onDelete: SetNull)
 
   // Tracking
-  referralCode    String         // The code used
-  referredEmail   String?        // Email invited (optional, for tracking)
-  status          ReferralStatus @default(PENDING)
+  referralCode    String          // The code used
+  referredEmail   String?         // Email (for email channel)
+  referredPhone   String?         // Phone (for WhatsApp/SMS channel)
+  referredName    String?         // Name of person invited
+  channel         ReferralChannel @default(EMAIL)
+  status          ReferralStatus  @default(PENDING)
 
-  // Reward
-  rewardType      String?        // "XP_BONUS", "DISCOUNT_1_MONTH", "DISCOUNT_3_MONTHS"
-  rewardAmount    Int?           // XP amount or discount percentage
+  // Link tracking
+  linkClickedAt   DateTime?       // When they first clicked the link
+  linkClickCount  Int             @default(0)
+
+  // Reward (XP varies by channel)
+  rewardType      String?         // "XP_BONUS", "DISCOUNT_1_MONTH"
+  rewardAmount    Int?            // XP or discount amount
   rewardClaimedAt DateTime?
 
+  // CRM Follow-up
+  lastReminderAt  DateTime?       // When last reminder was shown
+  reminderCount   Int             @default(0) // How many reminders sent
+  contactedAt     DateTime?       // When referrer confirmed they spoke
+  contactResult   String?         // "will_access" | "not_interested" | null
+  notes           String?         // Free-text notes from referrer
+
   // Timestamps
-  createdAt       DateTime       @default(now())
-  registeredAt    DateTime?      // When referred user registered
-  activatedAt     DateTime?      // When referred user created an association
+  createdAt       DateTime        @default(now())
+  registeredAt    DateTime?       // When referred user registered
+  activatedAt     DateTime?       // When referred user created association
+
+  reminders       ReferralReminder[]
 
   @@index([referrerId])
   @@index([referralCode])
   @@index([referredEmail])
+  @@index([status])
   @@map("referrals")
+}
+
+model ReferralReminder {
+  id          String   @id @default(cuid())
+  referralId  String
+  referral    Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  type        String   // "no_click", "no_register", "follow_up"
+  message     String   @db.Text // The reminder message shown to referrer
+  dismissedAt DateTime? // When the referrer dismissed/acknowledged
+  actionTaken String?  // "called", "will_access", "not_interested", "resend"
+
+  createdAt   DateTime @default(now())
+
+  @@index([referralId])
+  @@index([dismissedAt])
+  @@map("referral_reminders")
 }
