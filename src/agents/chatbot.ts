@@ -1,17 +1,9 @@
 import { AgentType } from '@prisma/client'
 import { BaseAgent, AgentInput, AgentOutput } from './base'
 import { db } from '@/lib/db'
-import OpenAI from 'openai'
+import { aiChat } from '@/lib/ai-router'
+import type { AIMessage } from '@/lib/ai-router'
 import { formatCurrency, formatMonth } from '@/lib/utils'
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
-interface ChatMessage {
-  role: 'user' | 'assistant' | 'system'
-  content: string
-}
 
 // Application knowledge base - real-time documentation
 const APP_KNOWLEDGE = `
@@ -313,7 +305,7 @@ Cu ce te pot ajuta în legătură cu administrarea blocului?`,
       }
 
       // Build conversation with app knowledge
-      const messages: ChatMessage[] = [
+      const messages: AIMessage[] = [
         {
           role: 'system',
           content: `Ești asistentul virtual BlocX, specializat în administrarea asociațiilor de proprietari din România.
@@ -350,16 +342,12 @@ ${pageContext ? `\n--- PAGINA CURENTĂ ---\nUtilizatorul se află pe: ${currentP
         content: message,
       })
 
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages,
-        max_tokens: 600,
-        temperature: 0.5, // Lower for more consistent responses
+      const response = await aiChat(messages, {
+        maxTokens: 600,
+        temperature: 0.5,
       })
 
-      const assistantMessage = response.choices[0]?.message?.content
-
-      if (!assistantMessage) {
+      if (!response.content) {
         return {
           success: false,
           error: 'No response from AI',
@@ -372,9 +360,11 @@ ${pageContext ? `\n--- PAGINA CURENTĂ ---\nUtilizatorul se află pe: ${currentP
       return {
         success: true,
         data: {
-          response: assistantMessage,
+          response: response.content,
           intents,
-          tokensUsed: response.usage?.total_tokens,
+          tokensUsed: response.tokenUsage?.total,
+          aiProvider: response.provider,
+          aiModel: response.model,
         },
       }
     } catch (error: any) {
