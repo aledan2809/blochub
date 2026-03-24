@@ -1,6 +1,10 @@
-import { createAIRouteHandler } from "ai-router/next"
+import { NextResponse } from 'next/server'
 
-const handler = createAIRouteHandler({ projectName: "blochub" })
+// ai-router package not installed — stub route
+export async function POST() {
+  return NextResponse.json({ error: 'AI router not configured' }, { status: 501 })
+}
 
-export const POST = handler.POST
-export const GET = handler.GET
+export async function GET() {
+  return NextResponse.json({ status: 'ai-router not configured' })
+}

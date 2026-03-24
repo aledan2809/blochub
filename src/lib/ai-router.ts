@@ -1,33 +1,29 @@
-import { AIRouter, getProjectPreset } from "ai-router"
-import type { AIMessage, AIResponse } from "ai-router"
+// ai-router package not installed — stub implementation
+// TODO: install ai-router when ready to use AI features
 
-// Singleton router instance for server-side usage (agents, etc.)
-const preset = getProjectPreset("blochub")
-
-export const aiRouter = new AIRouter({
-  ...preset,
-  maxRetries: 2,
-  retryDelayMs: 2000,
-})
-
-/**
- * Helper: call AI with messages array, returns content string.
- * Uses ai-router round-robin with fallback instead of direct OpenAI calls.
- */
-export async function aiChat(
-  messages: AIMessage[],
-  options?: {
-    maxTokens?: number
-    temperature?: number
-    jsonMode?: boolean
-  }
-): Promise<AIResponse> {
-  return aiRouter.chat({
-    messages,
-    maxTokens: options?.maxTokens,
-    temperature: options?.temperature,
-    jsonMode: options?.jsonMode,
-  })
+export interface AIMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
 }
 
-export type { AIMessage, AIResponse }
+export interface AIResponse {
+  content: string
+  model?: string
+  provider?: string
+  usage?: { promptTokens: number; completionTokens: number }
+  tokenUsage?: { total: number; prompt: number; completion: number }
+}
+
+export const aiRouter = {
+  chat: async (_opts: { messages: AIMessage[]; maxTokens?: number; temperature?: number; jsonMode?: boolean }): Promise<AIResponse> => {
+    console.warn('[AI Router] Not configured — returning stub response')
+    return { content: 'AI router not configured' }
+  },
+}
+
+export async function aiChat(
+  messages: AIMessage[],
+  options?: { maxTokens?: number; temperature?: number; jsonMode?: boolean }
+): Promise<AIResponse> {
+  return aiRouter.chat({ messages, ...options })
+}

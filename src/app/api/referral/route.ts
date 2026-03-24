@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db as prisma } from '@/lib/db'
+import { sendReferralEmail, sendReferralWhatsApp, sendReferralSMS } from '@/lib/referral-channels'
 
 // XP rewards by channel (higher for personal channels, lower for email/spam-prone)
 const CHANNEL_XP: Record<string, number> = {
@@ -261,21 +262,21 @@ export async function POST(req: NextRequest) {
 
     // Send via channel
     const referralLink = `${process.env.NEXTAUTH_URL || 'https://blocx.ro'}/auth/register?ref=${user.referralCode}`
+    const referrerName = user.name || 'Un administrator BlocX'
+
+    let sendResult: { success: boolean; error?: string } = { success: true }
 
     if (channel === 'EMAIL' && normalizedEmail) {
-      // TODO: integrate with email service (nodemailer/resend)
-      // await sendReferralEmail(normalizedEmail, user.name, referralLink)
-      console.log(`[Referral] Email to ${normalizedEmail}: ${referralLink}`)
+      sendResult = await sendReferralEmail(normalizedEmail, referrerName, referralLink)
     } else if (channel === 'WHATSAPP' && normalizedPhone) {
-      // TODO: integrate with @aledan/whatsapp
-      // const wa = new WhatsAppClient({ ... })
-      // await wa.sendTemplate(normalizedPhone, 'referral_invite', 'ro', [...])
-      console.log(`[Referral] WhatsApp to ${normalizedPhone}: ${referralLink}`)
+      sendResult = await sendReferralWhatsApp(normalizedPhone, referrerName, referralLink)
     } else if (channel === 'SMS' && normalizedPhone) {
-      // TODO: integrate with @aledan/sms
-      // const sms = new SMSClient({ ... })
-      // await sms.send({ to: normalizedPhone, message: `...${referralLink}` })
-      console.log(`[Referral] SMS to ${normalizedPhone}: ${referralLink}`)
+      sendResult = await sendReferralSMS(normalizedPhone, referrerName, referralLink)
+    }
+
+    if (!sendResult.success) {
+      console.error(`[Referral] Failed to send via ${channel}:`, sendResult.error)
+      // Don't fail the referral creation, just log the error
     }
 
     return NextResponse.json({
@@ -359,10 +360,18 @@ export async function PATCH(req: NextRequest) {
         data: { dismissedAt: new Date(), actionTaken: 'dismissed' },
       })
     } else if (action === 'resend') {
-      // Re-send the referral via original channel
       const referralLink = `${process.env.NEXTAUTH_URL || 'https://blocx.ro'}/auth/register?ref=${referral.referralCode}`
-      console.log(`[Referral] Resend via ${referral.channel} to ${referral.referredEmail || referral.referredPhone}: ${referralLink}`)
-      // TODO: actual resend logic per channel
+      const referrer = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } })
+      const referrerName = referrer?.name || 'Un administrator BlocX'
+
+      if (referral.channel === 'EMAIL' && referral.referredEmail) {
+        await sendReferralEmail(referral.referredEmail, referrerName, referralLink)
+      } else if (referral.channel === 'WHATSAPP' && referral.referredPhone) {
+        await sendReferralWhatsApp(referral.referredPhone, referrerName, referralLink)
+      } else if (referral.channel === 'SMS' && referral.referredPhone) {
+        await sendReferralSMS(referral.referredPhone, referrerName, referralLink)
+      }
+
       if (reminderId) {
         await prisma.referralReminder.update({
           where: { id: reminderId },
