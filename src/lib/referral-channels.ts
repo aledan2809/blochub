@@ -162,7 +162,7 @@ export async function sendReferralWhatsApp(
 }
 
 // ─── SMS ─────────────────────────────────────────
-// Uses SMSLink.ro API directly (same pattern as @aledan/sms)
+// Uses Twilio API (international, reliable)
 
 interface SMSSendResult {
   success: boolean
@@ -175,44 +175,48 @@ export async function sendReferralSMS(
   referrerName: string,
   referralLink: string
 ): Promise<SMSSendResult> {
-  const connectionId = process.env.SMSLINK_CONNECTION_ID
-  const password = process.env.SMSLINK_PASSWORD
+  const accountSid = process.env.TWILIO_ACCOUNT_SID
+  const authToken = process.env.TWILIO_AUTH_TOKEN
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER
 
-  if (!connectionId || !password) {
-    console.log(`[Referral SMS] No SMSLink credentials. Would send to ${toPhone}: ${referrerName} te invita pe BlocX: ${referralLink}`)
+  if (!accountSid || !authToken || !fromNumber) {
+    console.log(`[Referral SMS] No Twilio credentials. Would send to ${toPhone}: ${referrerName} te invita pe BlocX: ${referralLink}`)
     return { success: true, messageId: `sms_dev_${Date.now()}` }
   }
 
   try {
     const phone = normalizePhone(toPhone)
-    // Remove + for SMSLink (they want 40712...)
-    const smsPhone = phone.startsWith('+') ? phone.slice(1) : phone
+    // Twilio needs E.164 format with +
+    const twilioPhone = phone.startsWith('+') ? phone : `+${phone}`
 
     const message = `${referrerName} te invita pe BlocX! Administrare de bloc gratuita, 95% automatizare. Creaza cont: ${referralLink}`
 
-    // SMSLink.ro API
-    const params = new URLSearchParams({
-      connection_id: connectionId,
-      password: password,
-      to: smsPhone,
-      message: message,
-      sender: 'BlocX',
+    // Twilio REST API
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
+    const body = new URLSearchParams({
+      To: twilioPhone,
+      From: fromNumber,
+      Body: message,
     })
 
-    const url = `https://secure.smslink.ro/sms/gateway/communicate/?${params.toString()}`
-    const res = await fetch(url)
-    const text = await res.text()
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    })
 
-    // Response format: MESSAGE_ID;STATUS (1=sent, -1=error)
-    const [messageId, status] = text.trim().split(';')
+    const data = await res.json()
 
-    if (status === '1' || parseInt(status) > 0) {
-      console.log(`[Referral SMS] Sent to ${smsPhone}: ${messageId}`)
-      return { success: true, messageId }
+    if (res.ok && data.sid) {
+      console.log(`[Referral SMS] Sent to ${twilioPhone}: ${data.sid}`)
+      return { success: true, messageId: data.sid }
     }
 
-    console.error(`[Referral SMS] Error: ${text}`)
-    return { success: false, error: `SMSLink error: ${text}` }
+    console.error('[Referral SMS] Twilio error:', data)
+    return { success: false, error: data.message || 'Twilio error' }
   } catch (error) {
     console.error('[Referral SMS] Error:', error)
     return { success: false, error: String(error) }
