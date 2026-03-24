@@ -85,50 +85,72 @@ async function sendViaSMTP(
   return result
 }
 
-export async function sendEmail({ to, subject, html, from, asociatieId }: EmailOptions) {
-  // Development mode - no email services configured
-  if (!resend && !asociatieId) {
-    console.log('[Email] Would send email (dev mode):')
-    console.log(`  To: ${Array.isArray(to) ? to.join(', ') : to}`)
-    console.log(`  Subject: ${subject}`)
-    console.log(`  HTML: ${html.substring(0, 200)}...`)
-    return { success: true, development: true }
-  }
+// Global SMTP config from env vars (fallback when no Resend and no per-asociatie SMTP)
+function getGlobalSMTPConfig(): SMTPConfig | null {
+  const host = process.env.SMTP_HOST
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+  if (!host || !user || !pass) return null
 
-  // Try SMTP first if asociatieId provided
+  return {
+    host,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user,
+    password: pass,
+    fromEmail: process.env.SMTP_FROM_EMAIL || user,
+    fromName: process.env.SMTP_FROM_NAME || 'BlocX',
+  }
+}
+
+export async function sendEmail({ to, subject, html, from, asociatieId }: EmailOptions) {
+  // 1. Try per-asociatie SMTP first (highest priority)
   if (asociatieId) {
     const smtpConfig = await getSMTPConfig(asociatieId)
     if (smtpConfig) {
       try {
-        console.log(`[Email] Sending via SMTP (${smtpConfig.host})`)
+        console.log(`[Email] Sending via asociatie SMTP (${smtpConfig.host})`)
         const result = await sendViaSMTP(smtpConfig, { to, subject, html })
         return { success: true, data: result, via: 'smtp' }
       } catch (error: any) {
-        console.error('[Email] SMTP error, falling back to Resend:', error.message)
-        // Fall through to Resend if SMTP fails
+        console.error('[Email] Asociatie SMTP error, falling back:', error.message)
       }
     }
   }
 
-  // Fallback to Resend
-  if (!resend) {
-    console.log('[Email] No email service available')
-    return { success: false, error: 'No email service configured' }
+  // 2. Try Resend
+  if (resend) {
+    try {
+      const result = await resend.emails.send({
+        from: from || 'BlocX <notificari@blochub.ro>',
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+      })
+      return { success: true, data: result, via: 'resend' }
+    } catch (error: any) {
+      console.error('[Email] Resend error, falling back:', error.message)
+    }
   }
 
-  try {
-    const result = await resend.emails.send({
-      from: from || 'BlocX <notificari@blochub.ro>',
-      to: Array.isArray(to) ? to : [to],
-      subject,
-      html,
-    })
-
-    return { success: true, data: result, via: 'resend' }
-  } catch (error) {
-    console.error('[Email] Error sending email via Resend:', error)
-    return { success: false, error }
+  // 3. Try global SMTP (env vars: SMTP_HOST, SMTP_USER, SMTP_PASS)
+  const globalSmtp = getGlobalSMTPConfig()
+  if (globalSmtp) {
+    try {
+      console.log(`[Email] Sending via global SMTP (${globalSmtp.host})`)
+      const result = await sendViaSMTP(globalSmtp, { to, subject, html })
+      return { success: true, data: result, via: 'global-smtp' }
+    } catch (error: any) {
+      console.error('[Email] Global SMTP error:', error.message)
+      return { success: false, error: error.message }
+    }
   }
+
+  // 4. No email service available — log in dev mode
+  console.log('[Email] No email service configured. Would send:')
+  console.log(`  To: ${Array.isArray(to) ? to.join(', ') : to}`)
+  console.log(`  Subject: ${subject}`)
+  return { success: false, error: 'No email service configured' }
 }
 
 // Clear SMTP config cache (call after config update)
