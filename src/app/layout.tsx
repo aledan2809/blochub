@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+
+export const dynamic = 'force-dynamic'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import { CookieConsentBanner } from '@/components/CookieConsentBanner'
