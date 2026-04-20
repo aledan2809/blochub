@@ -92,8 +92,8 @@ function LoginForm() {
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="rounded border-gray-300" />
+              <label htmlFor="remember-me" className="flex items-center gap-2">
+                <input id="remember-me" name="rememberMe" type="checkbox" className="rounded border-gray-300" />
                 <span className="text-gray-600">Ține-mă minte</span>
               </label>
               <Link href="/auth/forgot-password" className="text-blue-600 hover:underline">
