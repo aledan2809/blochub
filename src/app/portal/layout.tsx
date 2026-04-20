@@ -44,17 +44,19 @@ export default function PortalLayout({
             <div className="flex items-center gap-2">
               <Link
                 href="/portal/chat"
+                aria-label="Chat"
                 className="p-2 text-gray-600 hover:text-blue-600 rounded-lg hover:bg-gray-100"
               >
                 <MessageSquare className="h-5 w-5" />
               </Link>
               <Link
                 href="/portal/setari"
+                aria-label="Setări"
                 className="p-2 text-gray-600 hover:text-blue-600 rounded-lg hover:bg-gray-100"
               >
                 <Settings className="h-5 w-5" />
               </Link>
-              <button className="p-2 text-gray-600 hover:text-red-600 rounded-lg hover:bg-gray-100">
+              <button aria-label="Deconectare" className="p-2 text-gray-600 hover:text-red-600 rounded-lg hover:bg-gray-100">
                 <LogOut className="h-5 w-5" />
               </button>
             </div>
@@ -63,7 +65,7 @@ export default function PortalLayout({
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-6">{children}</main>
+      <main className="max-w-4xl mx-auto px-4 py-6 pb-24 md:pb-6">{children}</main>
 
       {/* Bottom Navigation (Mobile) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden">

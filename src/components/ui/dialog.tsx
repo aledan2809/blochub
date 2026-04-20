@@ -29,13 +29,18 @@ export function Dialog({
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose()
+      }
+      document.addEventListener('keydown', handleKeyDown)
+      return () => {
+        document.body.style.overflow = 'unset'
+        document.removeEventListener('keydown', handleKeyDown)
+      }
     } else {
       document.body.style.overflow = 'unset'
     }
-    return () => {
-      document.body.style.overflow = 'unset'
-    }
-  }, [open])
+  }, [open, onClose])
 
   if (!open) return null
 
@@ -56,6 +61,9 @@ export function Dialog({
 
       {/* Dialog */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className={cn(
           'relative bg-white rounded-lg shadow-xl w-full animate-in zoom-in-95 duration-200',
           sizes[size],
@@ -75,6 +83,7 @@ export function Dialog({
             </div>
             <button
               onClick={onClose}
+              aria-label="Închide"
               className="ml-4 p-1 hover:bg-gray-100 rounded transition-colors"
             >
               <X className="h-5 w-5 text-gray-500" />
@@ -83,7 +92,7 @@ export function Dialog({
         )}
 
         {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 max-h-[70vh] overflow-y-auto">{children}</div>
 
         {/* Footer */}
         {footer && (

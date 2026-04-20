@@ -174,7 +174,7 @@ export default function PortalHomePage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {contoareData.map((contor, i) => (
               <div key={i} className="text-center p-3 rounded-lg bg-gray-50">
                 <Gauge className="h-6 w-6 text-gray-400 mx-auto mb-2" />

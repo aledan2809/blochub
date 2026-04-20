@@ -57,8 +57,8 @@ function ResetPasswordForm() {
     setError('')
 
     // Validation
-    if (password.length < 6) {
-      setError('Parola trebuie să aibă minim 6 caractere')
+    if (password.length < 8) {
+      setError('Parola trebuie să aibă minim 8 caractere')
       return
     }
 

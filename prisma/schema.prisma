@@ -347,6 +347,7 @@ model ProprietarApartament {
   createdAt     DateTime @default(now())
 
   @@unique([userId, apartamentId])
+  @@index([apartamentId])
   @@map("proprietari_apartamente")
 }
 
@@ -573,6 +574,7 @@ model Cheltuiala {
 
   createdAt       DateTime       @default(now())
 
+  @@index([asociatieId, luna, an])
   @@map("cheltuieli")
 }
 
@@ -656,6 +658,8 @@ model Chitanta {
   updatedAt       DateTime       @updatedAt
 
   @@unique([asociatieId, apartamentId, luna, an])
+  @@index([status])
+  @@index([asociatieId, luna, an])
   @@map("chitante")
 }
 
@@ -699,6 +703,7 @@ model Plata {
 
   createdAt       DateTime    @default(now())
 
+  @@index([chitantaId, status])
   @@map("plati")
 }
 

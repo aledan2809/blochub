@@ -711,6 +711,7 @@ function DashboardLayoutContent({
                 onClick={() => signOut({ callbackUrl: '/auth/login' })}
                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 title="Deconectare"
+                aria-label="Deconectare"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -727,6 +728,7 @@ function DashboardLayoutContent({
             <button
               className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
               onClick={() => setSidebarOpen(true)}
+              aria-label="Deschide meniu"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -736,7 +738,7 @@ function DashboardLayoutContent({
             </div>
 
             <div className="flex items-center gap-2">
-              <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+              <button aria-label="Notificări" className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
                 <Bell className="h-5 w-5" />
                 {notifications > 0 && (
                   <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">

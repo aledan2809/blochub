@@ -278,9 +278,14 @@ export async function DELETE(request: NextRequest) {
     const userId = (session.user as { id: string }).id
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const notaExplicativa = searchParams.get('nota')
 
     if (!id) {
       return NextResponse.json({ error: 'ID necesar' }, { status: 400 })
+    }
+
+    if (!notaExplicativa) {
+      return NextResponse.json({ error: 'Nota explicativă este obligatorie pentru ștergere' }, { status: 400 })
     }
 
     // Verify ownership
@@ -305,6 +310,7 @@ export async function DELETE(request: NextRequest) {
       entitatId: id,
       valoriVechi: { apartament: link.apartament.numar },
       asociatieId: link.apartament.asociatie.id,
+      notaExplicativa,
     })
 
     return NextResponse.json({ success: true })
