@@ -1,6 +1,22 @@
 # Project Status - BlocHub
 
-Last Updated: 2026-03-17
+Last Updated: 2026-04-17
+
+## ⚠️ ML2 AUDIT REPORT — 72 issues (10/72 LOCAL FIXED) (2026-04-17)
+
+**Status critic**: App **RESTORED** pe VPS2 (2026-04-17 16:00) — `https://blocx.ro/` HTTP 200. Permanent package.json fix aplicat (`next start -p ${PORT:-3004}`).
+
+**Audit reports**:
+- [/Users/danciulescu/Projects/Master/reports/audit-2026-04-16/blochub/SUMMARY.md](../Master/reports/audit-2026-04-16/blochub/SUMMARY.md) — overview 72 issues
+- [AUDIT-REPORT-2026-04-17-FULL.md](../Master/reports/audit-2026-04-16/blochub/AUDIT-REPORT-2026-04-17-FULL.md) — 65 code issues
+- [AUDIT-REPORT-2026-04-17.md](../Master/reports/audit-2026-04-16/blochub/AUDIT-REPORT-2026-04-17.md) — 7 infra issues (BH-001..BH-007)
+- [FIX-PHASE-2026-04-17.md](../Master/reports/audit-2026-04-16/blochub/FIX-PHASE-2026-04-17.md) — 8 code-level fixes detail
+- [CONFIRM-PHASE-2026-04-17.md](../Master/reports/audit-2026-04-16/blochub/CONFIRM-PHASE-2026-04-17.md)
+
+**Status**: 10/72 LOCAL DONE (build prerender fix + 8 code-level: U-01..U-05, U-18, D-01 Prisma indexes, S-03 audit trail). LIVE confirm DONE (VPS restored). 62 issues rămase (lower priority + 1 P0 SSH restore — rezolvat).
+**TODO la fiecare sesiune nouă pe acest proiect**: citește audit reports + decide dacă alocăm sesiune Direct pentru cele 62 issues rămase.
+
+---
 
 ## Current State
 

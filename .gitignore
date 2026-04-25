@@ -47,3 +47,11 @@ prisma/*.db-journal
 
 # Governance session tracking
 .claude-session-base
+
+# Build/runtime artifacts (added 2026-04-25 stale-recovery)
+build.log
+
+# 🚨 GDPR-sensitive customer data — NEVER commit
+# Contains HOA member payment lists + ownership shares (real personal data)
+feedback-Razvan/
+feedback-*/
