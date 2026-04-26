@@ -55,3 +55,7 @@ build.log
 # Contains HOA member payment lists + ownership shares (real personal data)
 feedback-Razvan/
 feedback-*/
+
+# Journey audit artifacts (regeneratable from .journey-audit.json)
+.tester/
+journey-audit-results/

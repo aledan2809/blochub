@@ -1,0 +1,40 @@
+{
+  "name": "BlocHub",
+  "baseUrl": "https://blocx.ro",
+  "login": {
+    "path": "/auth/login",
+    "emailSelector": "input[type=email]",
+    "passwordSelector": "input[type=password]",
+    "submitSelector": "button[type=submit]",
+    "successUrlPattern": "/dashboard"
+  },
+  "credentials": {
+    "emailEnv": "JOURNEY_EMAIL",
+    "passwordEnv": "JOURNEY_PASSWORD"
+  },
+  "navLinks": [
+    { "name": "Dashboard", "href": "/dashboard" },
+    { "name": "Clădire", "href": "/dashboard/cladire" },
+    { "name": "Apartamente", "href": "/dashboard/apartamente" },
+    { "name": "Proprietari", "href": "/dashboard/proprietari" },
+    { "name": "Cheltuieli", "href": "/dashboard/cheltuieli" },
+    { "name": "Furnizori", "href": "/dashboard/furnizori" },
+    { "name": "Facturi", "href": "/dashboard/facturi" },
+    { "name": "Avizier", "href": "/dashboard/avizier" },
+    { "name": "Încasări", "href": "/dashboard/incasari" },
+    { "name": "Plăți", "href": "/dashboard/plati" },
+    { "name": "Tichete", "href": "/dashboard/tichete" },
+    { "name": "Audit", "href": "/dashboard/audit" },
+    { "name": "Referral", "href": "/dashboard/referral" },
+    { "name": "Gamification", "href": "/dashboard/gamification" },
+    { "name": "Setări", "href": "/dashboard/setari" },
+    { "name": "Privacy", "href": "/privacy" },
+    { "name": "Terms", "href": "/terms" }
+  ],
+  "onboardingMarkers": "Verifică emailul|Confirmă|Activează|Onboarding|Welcome.*setup|Configurează",
+  "emptyStateMarkers": "Nicio.*găsită|Nu există|No data|Empty|Nu sunt|Adaugă primul",
+  "errorMarkers": "Eroare|Error|crashed|Server error|Network error|Failed to load|Pagina nu a putut",
+  "viewport": { "width": 1440, "height": 900 },
+  "pageTimeout": 25000,
+  "settleDelay": 2500
+}
