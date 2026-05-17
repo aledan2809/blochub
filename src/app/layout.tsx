@@ -6,6 +6,7 @@ import './globals.css'
 import { Providers } from '@/components/providers'
 import { CookieConsentBanner } from '@/components/CookieConsentBanner'
 import { GoogleAnalytics } from '@/components/GoogleAnalytics'
+import { BlocConsentGate } from '@/components/consent/BlocConsentGate'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -110,6 +111,7 @@ export default function RootLayout({
           <GoogleAnalytics />
           {children}
           <CookieConsentBanner />
+          <BlocConsentGate />
         </Providers>
       </body>
     </html>
