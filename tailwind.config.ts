@@ -9,6 +9,11 @@ const config: Config = {
     // Exclude API routes (*.ts files) from content scanning - they contain regexes that confuse Tailwind
     '!./src/app/api/**/*',
   ],
+  // Regex character-classes in scanned components (e.g. /^[-:\s]+$/ in
+  // BlocConsentModal) get mis-extracted by Tailwind as arbitrary-property
+  // classes and emit invalid CSS (`.[-:\s] { -: \s }`) that breaks the
+  // Turbopack CSS parser. Block these bogus candidates from being generated.
+  blocklist: ['[-:\\s]'],
   theme: {
     extend: {
       colors: {
