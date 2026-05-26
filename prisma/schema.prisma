@@ -1799,3 +1799,24 @@ model ReferralReminder {
   @@index([dismissedAt])
   @@map("referral_reminders")
 }
+
+// ============================================
+// EARLY-ADOPTER OFFER (public lead capture)
+// ============================================
+// Leads from the public /oferta landing page (administrator recruitment
+// campaign). NOT a payment record — pure lead capture. tierMonths snapshots
+// the free-months offer the lead claimed at registration time.
+model EarlyAdopterRegistration {
+  id          String   @id @default(cuid())
+  name        String
+  association String   // numele asociației / blocului
+  email       String
+  phone       String
+  city        String
+  tierMonths  Int      // luni gratis oferite la momentul înscrierii
+  createdAt   DateTime @default(now())
+
+  @@index([tierMonths])
+  @@index([createdAt])
+  @@map("early_adopter_registrations")
+}
