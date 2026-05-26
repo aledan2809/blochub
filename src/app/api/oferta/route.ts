@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { z } from 'zod'
-import { getCurrentTier, OFFER_CONFIG } from '@/lib/offer'
+import { getCurrentTier } from '@/lib/offer'
 
 // Public route — NOT in middleware matcher, NOT a payment route.
-
-const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
 
 const registrationSchema = z.object({
   name: z.string().min(2, 'Numele este obligatoriu').max(120),
@@ -15,15 +13,12 @@ const registrationSchema = z.object({
   city: z.string().min(2, 'Orașul este obligatoriu').max(120),
 })
 
-/** Start of the current weekly tier window (used for limited-spots counting). */
-function currentWeekStart(weekIndex: number): Date {
-  return new Date(new Date(OFFER_CONFIG.start).getTime() + weekIndex * MS_PER_WEEK)
-}
-
-async function spotsRemaining(weekIndex: number, spotsTotal: number): Promise<number> {
-  const used = await db.earlyAdopterRegistration.count({
-    where: { createdAt: { gte: currentWeekStart(weekIndex) } },
-  })
+// Spots are limited PER TIER (per free-months value). Each distinct weekly
+// tier (12, 11, …, 7) gets a fresh allotment; the 6-month floor is terminal.
+// Counting by tierMonths (not a time window) also works pre-launch — early
+// birds consume the opening tier's spots.
+async function spotsRemaining(tierMonths: number, spotsTotal: number): Promise<number> {
+  const used = await db.earlyAdopterRegistration.count({ where: { tierMonths } })
   return Math.max(0, spotsTotal - used)
 }
 
@@ -31,7 +26,7 @@ async function spotsRemaining(weekIndex: number, spotsTotal: number): Promise<nu
 export async function GET() {
   try {
     const tier = getCurrentTier()
-    const remaining = await spotsRemaining(tier.weekIndex, tier.spotsTotal)
+    const remaining = await spotsRemaining(tier.tierMonths, tier.spotsTotal)
     return NextResponse.json({
       tierMonths: tier.tierMonths,
       spotsRemaining: remaining,
@@ -56,15 +51,15 @@ export async function POST(request: NextRequest) {
     }
 
     const tier = getCurrentTier()
-    const remainingBefore = await spotsRemaining(tier.weekIndex, tier.spotsTotal)
+    const remainingBefore = await spotsRemaining(tier.tierMonths, tier.spotsTotal)
 
     // Always capture the lead (never lose a contact); `full` just signals the
-    // weekly allotment was already reached so the UI can adjust the message.
+    // tier allotment was already reached so the UI can adjust the message.
     await db.earlyAdopterRegistration.create({
       data: { ...parsed.data, tierMonths: tier.tierMonths },
     })
 
-    const remainingAfter = await spotsRemaining(tier.weekIndex, tier.spotsTotal)
+    const remainingAfter = await spotsRemaining(tier.tierMonths, tier.spotsTotal)
 
     return NextResponse.json(
       {
