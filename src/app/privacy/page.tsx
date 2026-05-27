@@ -21,7 +21,7 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">1. Introducere</h2>
           <p className="text-slate-600 leading-relaxed">
-            BlocX (&ldquo;noi&rdquo;, &ldquo;platforma&rdquo;), operat de TechBiz Hub L.L.C-FZ, respecta
+            BlocX (&ldquo;noi&rdquo;, &ldquo;platforma&rdquo;), operat de Class RDA Impex SRL, respecta
             confidentialitatea utilizatorilor sai. Aceasta politica descrie modul in care colectam, utilizam
             si protejam datele dumneavoastra personale in conformitate cu Regulamentul General privind
             Protectia Datelor (GDPR) si legislatia romana in vigoare.
@@ -31,12 +31,13 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">2. Operator de date</h2>
           <p className="text-slate-600 leading-relaxed">
-            Operatorul de date personale este TechBiz Hub L.L.C-FZ. Pentru orice intrebari legate
-            de prelucrarea datelor personale, ne puteti contacta la:
+            Operatorul de date personale este Class RDA Impex SRL (CUI 29867320), cu sediul in
+            Str. Pridvorului nr. 5, bl. 6, ap. 1, Sector 4, Bucuresti, Romania. Pentru orice intrebari
+            legate de prelucrarea datelor personale, ne puteti contacta la:
           </p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
-            <li>Email: <a href="mailto:gdpr@4pro.io" className="text-blue-600 hover:underline">gdpr@4pro.io</a></li>
-            <li>Email suport: <a href="mailto:support@4pro.io" className="text-blue-600 hover:underline">support@4pro.io</a></li>
+            <li>Email: <a href="mailto:dpo@blocx.ro" className="text-blue-600 hover:underline">dpo@blocx.ro</a></li>
+            <li>Email suport: <a href="mailto:support@blocx.ro" className="text-blue-600 hover:underline">support@blocx.ro</a></li>
           </ul>
         </section>
 
@@ -136,7 +137,7 @@ export default function PrivacyPage() {
           </ul>
           <p className="text-slate-600 leading-relaxed">
             Pentru exercitarea drepturilor, contactati-ne la{' '}
-            <a href="mailto:gdpr@4pro.io" className="text-blue-600 hover:underline">gdpr@4pro.io</a>.
+            <a href="mailto:dpo@blocx.ro" className="text-blue-600 hover:underline">dpo@blocx.ro</a>.
             Vom raspunde in maximum 30 de zile.
           </p>
         </section>
@@ -173,8 +174,8 @@ export default function PrivacyPage() {
             Pentru orice intrebari legate de aceasta politica de confidentialitate:
           </p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
-            <li>Email protectia datelor: <a href="mailto:gdpr@4pro.io" className="text-blue-600 hover:underline">gdpr@4pro.io</a></li>
-            <li>Email suport: <a href="mailto:support@4pro.io" className="text-blue-600 hover:underline">support@4pro.io</a></li>
+            <li>Email protectia datelor: <a href="mailto:dpo@blocx.ro" className="text-blue-600 hover:underline">dpo@blocx.ro</a></li>
+            <li>Email suport: <a href="mailto:support@blocx.ro" className="text-blue-600 hover:underline">support@blocx.ro</a></li>
           </ul>
         </section>
 

@@ -18,7 +18,7 @@ export default function GDPRPage() {
       <main className="mx-auto max-w-3xl px-4 py-10 space-y-8">
         <h1 className="text-3xl font-bold">Politica GDPR</h1>
         <p className="text-slate-600 leading-relaxed">
-          Acest document descrie modul in care BlocX, operat de TechBiz Hub L.L.C-FZ, asigura
+          Acest document descrie modul in care BlocX, operat de Class RDA Impex SRL, asigura
           conformitatea cu Regulamentul (UE) 2016/679 privind protectia persoanelor fizice in ceea
           ce priveste prelucrarea datelor cu caracter personal (GDPR).
         </p>
@@ -89,7 +89,7 @@ export default function GDPRPage() {
           <h2 className="text-xl font-semibold">5. Exercitarea drepturilor</h2>
           <p className="text-slate-600 leading-relaxed">
             Pentru exercitarea oricarui drept, trimiteti un email la{' '}
-            <a href="mailto:gdpr@4pro.io" className="text-blue-600 hover:underline">gdpr@4pro.io</a>{' '}
+            <a href="mailto:dpo@blocx.ro" className="text-blue-600 hover:underline">dpo@blocx.ro</a>{' '}
             cu subiectul &ldquo;Exercitare drepturi GDPR&rdquo;. Va rugam sa includeti:
           </p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
@@ -150,7 +150,7 @@ export default function GDPRPage() {
             drepturilor GDPR, contactati:
           </p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
-            <li>Email: <a href="mailto:gdpr@4pro.io" className="text-blue-600 hover:underline">gdpr@4pro.io</a></li>
+            <li>Email: <a href="mailto:dpo@blocx.ro" className="text-blue-600 hover:underline">dpo@blocx.ro</a></li>
           </ul>
         </section>
 

@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest) {
 
   try {
     const res = await fetch(
-      `${legalUrl}/api/v1/consent/status/${APP_SLUG}/${encodeURIComponent(globalUserId)}`,
+      `${legalUrl}/api/v1/public/consent-status?appSlug=${APP_SLUG}&globalUserId=${encodeURIComponent(globalUserId)}`,
       {
         headers: { 'x-app-slug': APP_SLUG },
         cache: 'no-store',

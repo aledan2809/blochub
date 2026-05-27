@@ -21,7 +21,7 @@ export default function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">1. Definitii</h2>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
-            <li><strong>&ldquo;Platforma&rdquo;</strong> — aplicatia web BlocX, operata de TechBiz Hub L.L.C-FZ</li>
+            <li><strong>&ldquo;Platforma&rdquo;</strong> — aplicatia web BlocX, operata de Class RDA Impex SRL</li>
             <li><strong>&ldquo;Administrator&rdquo;</strong> — persoana care gestioneaza o asociatie de proprietari in platforma</li>
             <li><strong>&ldquo;Proprietar/Rezident&rdquo;</strong> — locatarul cu cont in platforma</li>
             <li><strong>&ldquo;Servicii&rdquo;</strong> — functionalitatile oferite de platforma</li>
@@ -121,7 +121,7 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold">9. Proprietate intelectuala</h2>
           <p className="text-slate-600 leading-relaxed">
             Toate drepturile asupra platformei, designului, codului sursa, marcilor si continutului
-            original apartin TechBiz Hub L.L.C-FZ. Utilizatorii pastreaza drepturile asupra datelor
+            original apartin Class RDA Impex SRL. Utilizatorii pastreaza drepturile asupra datelor
             introduse. Prin utilizarea platformei, nu vi se acorda nicio licenta asupra proprietatii
             intelectuale, cu exceptia dreptului limitat de a utiliza serviciile conform acestor termeni.
           </p>
@@ -166,7 +166,7 @@ export default function TermsPage() {
             Pentru intrebari despre acesti termeni:
           </p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
-            <li>Email: <a href="mailto:support@4pro.io" className="text-blue-600 hover:underline">support@4pro.io</a></li>
+            <li>Email: <a href="mailto:support@blocx.ro" className="text-blue-600 hover:underline">support@blocx.ro</a></li>
           </ul>
         </section>
 
