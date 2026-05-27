@@ -249,6 +249,9 @@ export default function RoataPage() {
             <li>Doar primele {status?.maxTwelve ?? 20} conturi pot primi 12 luni gratis. După aceea, maximul scade.</li>
             <li>Participarea e gratuită. Rezultatul se activează după ce te contactăm și îți creăm contul.</li>
           </ul>
+          <p className="mt-3">
+            <Link href="/regulament" className="text-blue-600 hover:underline">Regulamentul oficial al campaniei →</Link>
+          </p>
         </section>
       </main>
     </div>
