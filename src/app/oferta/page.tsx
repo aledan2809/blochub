@@ -123,6 +123,16 @@ export default function OfertaPage() {
               </span>
             </div>
           )}
+
+          {/* Lucky wheel CTA */}
+          <div className="mt-6">
+            <Link
+              href="/roata"
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 font-semibold text-amber-950 hover:bg-amber-300"
+            >
+              🎡 Învârte roata și vezi câte luni gratis primești
+            </Link>
+          </div>
         </div>
 
         {/* Benefits + Form */}
