@@ -95,7 +95,7 @@ export default function OfertaPage() {
           <h1 className="mt-5 text-4xl sm:text-5xl font-bold text-gray-900">
             {months != null ? (
               <>
-                <span className="text-blue-600">{months} luni</span> gratis pe BlocX
+                până la <span className="text-blue-600">{months} luni</span> gratis pe BlocX
               </>
             ) : (
               <>Luni gratis pe BlocX</>
