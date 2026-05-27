@@ -1814,9 +1814,12 @@ model EarlyAdopterRegistration {
   phone       String
   city        String
   tierMonths  Int      // luni gratis oferite la momentul înscrierii
+  source      String   @default("oferta") // "oferta" (tier) | "roata" (wheel)
+  freeMonths  Int?     // luni câștigate la roată (null pentru leads din /oferta)
   createdAt   DateTime @default(now())
 
   @@index([tierMonths])
+  @@index([source, freeMonths])
   @@index([createdAt])
   @@map("early_adopter_registrations")
 }
