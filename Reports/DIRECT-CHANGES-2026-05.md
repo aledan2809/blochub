@@ -63,3 +63,19 @@
 **Decision noted**: `support@4pro.io` → `support@blocx.ro` (user's principle: emails must match the domain; user said "aplică" without objecting). `dpo@blocx.ro` / `support@blocx.ro` mailboxes are the user's responsibility to provision.
 
 **Scope**: 5 source files + 1 Legal mapping row. No code/schema in payment flows. NO-TOUCH payment paths untouched.
+
+---
+
+## 2026-05-28 — Regulament page: filled CUI / J / sediu from Legal
+
+**Trigger**: User noticed the `/regulament` page (lottery rules for the "Roata administratorilor" campaign) had unfilled placeholders `[CUI — de completat]`, `[J.. / .. / .. — de completat]`, `[sediul social — de completat]`. Directive: source values from Legal hub.
+
+**Change** (`src/app/regulament/page.tsx`, ORG constant, 4 lines):
+- `cui`: `[CUI — de completat]` → `29867320` (from Legal `LegalEntity.cui` for `class-rda`)
+- `reg`: `[J.. / .. / .. — de completat]` → `J40/2439/2012` (from Legal `LegalEntity.registrationNumber`, set 2026-05-28 — new column)
+- `sediu`: `[sediul social — de completat]` → `Str. Pridvorului nr. 5, bl. 6, ap. 1, Sector 4, București, România` (from Legal `LegalEntity.address` JSON)
+- Updated comment to point at Legal as source of truth (vs old "TBD before relying legally").
+
+**Pair commit on Legal**: `441d90e` — added nullable `registrationNumber` column to `LegalEntity` schema (Legal commit) + UPDATE `class-rda` SET `registrationNumber='J40/2439/2012'`. See `Legal/Reports/DIRECT-CHANGES-2026-05.md` 2026-05-28 entry.
+
+**Scope**: 1 source file (ORG constant only, no JSX), 4 values. No payment-flow files. Values hardcoded for now (runtime fetch from Legal `/api/v1/public/active-entity` is a future improvement if user wants true runtime single-source).

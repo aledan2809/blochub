@@ -6,14 +6,14 @@ export const metadata: Metadata = {
   description: "Regulamentul oficial al campaniei promoționale „Roata administratorilor” (luni gratuite BlocX).",
 };
 
-// ⚠️ Date organizator — Class RDA Impex S.R.L. este entitatea care operează BlocX
-// (controller BlocHub în Legal hub). Completează CUI / nr. reg. com. / sediu reale
-// înainte de a te baza legal pe această pagină (sau înlocuiește prin env/CMS).
+// Date organizator — Class RDA Impex S.R.L. este controller BlocHub în Legal hub
+// (slug `class-rda`). Sursa de adevăr a acestor valori e Legal hub; dacă se schimbă
+// (mutare sediu, schimbare nr. reg. com.), update în Legal mai întâi, apoi sincronizare aici.
 const ORG = {
   name: "Class RDA Impex S.R.L.",
-  cui: "[CUI — de completat]",
-  reg: "[J.. / .. / .. — de completat]",
-  sediu: "[sediul social — de completat]",
+  cui: "29867320",
+  reg: "J40/2439/2012",
+  sediu: "Str. Pridvorului nr. 5, bl. 6, ap. 1, Sector 4, București, România",
   email: "contact@blocx.ro",
 };
 
