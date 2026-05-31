@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { findOwnedApartament } from '@/lib/ownership'
 
 const resetSchema = z.object({
   contorId: z.string(),
@@ -35,12 +36,8 @@ export async function POST(
 
     const { contorId, notaExplicativa, noulIndex } = parsed.data
 
-    // Verify the apartment belongs to caller's association (IDOR fix — G-BLOC-003)
-    const ownsApt = await db.apartament.findFirst({
-      where: { id: apartamentId, asociatie: { adminId: (session!.user as any).id } },
-      select: { id: true },
-    })
-    if (!ownsApt) {
+    // Tenant-ownership guard (IDOR — G-BLOC-003)
+    if (!(await findOwnedApartament(apartamentId, (session!.user as any).id))) {
       return NextResponse.json({ error: 'Contor negăsit' }, { status: 404 })
     }
 

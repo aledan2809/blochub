@@ -111,7 +111,11 @@ export async function DELETE(
 
     await db.asociatie.delete({ where: { id } })
 
-    // Audit trail for association deletion (G-BLOC-007)
+    // Audit trail for association deletion (G-BLOC-007).
+    // NOTE: `asociatieId` is intentionally omitted — it is a FK to Asociatie and the
+    // row was just deleted, so populating it would throw a FK violation (and the
+    // try/catch would silently swallow it, leaving the deletion un-audited). The
+    // deleted id is preserved in `entitatId` + `valoriVechi`.
     try {
       await logAudit({
         userId,
@@ -119,8 +123,7 @@ export async function DELETE(
         actiune: 'STERGERE_ASOCIATIE',
         entitate: 'Asociatie',
         entitatId: id,
-        valoriVechi: { nume: existing.nume },
-        asociatieId: id,
+        valoriVechi: { id, nume: existing.nume },
       })
     } catch (e) {
       console.error('audit log (STERGERE_ASOCIATIE) failed:', e)

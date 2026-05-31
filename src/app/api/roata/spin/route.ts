@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
     // Server-side throttle (G-BLOC-012): client enforces the daily/cooldown UX
     // limits; this caps automated loops that would otherwise spin repeatedly to
     // land on the best tier before claiming.
+    // NOTE: in-memory limiter — adequate on the current single-process (PM2
+    // `next start`) deploy. If blochub ever runs multi-instance/serverless, swap
+    // to a shared store (Redis). The hard cap stays the persisted 12-month claim
+    // limit (EarlyAdopterRegistration), not this soft deterrent.
     const rl = checkRateLimit(`roata-spin:${getClientIdentifier(request)}`, {
       windowMs: 60 * 1000,
       max: 10,

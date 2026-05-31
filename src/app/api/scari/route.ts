@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { ownsAsociatie } from '@/lib/ownership'
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,12 +18,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'asociatieId necesar' }, { status: 400 })
     }
 
-    // Verify user owns the association (IDOR fix — G-BLOC-008)
-    const asociatie = await db.asociatie.findFirst({
-      where: { id: asociatieId, adminId: (session.user as { id: string }).id },
-      select: { id: true },
-    })
-    if (!asociatie) {
+    // Tenant-ownership guard (IDOR — G-BLOC-008)
+    if (!(await ownsAsociatie(asociatieId, (session.user as { id: string }).id))) {
       return NextResponse.json({ error: 'Asociație negăsită' }, { status: 404 })
     }
 

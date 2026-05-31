@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { db } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { findOwnedApartament, ownsAsociatie } from '@/lib/ownership'
 
 // GET — list documents for a unit
 export async function GET(
@@ -16,12 +17,8 @@ export async function GET(
     }
 
     const { id } = await params
-    // Verify the unit belongs to caller's association (IDOR fix — G-BLOC-002)
-    const owns = await db.apartament.findFirst({
-      where: { id, asociatie: { adminId: (session!.user as any).id } },
-      select: { id: true },
-    })
-    if (!owns) {
+    // Tenant-ownership guard (IDOR — G-BLOC-002)
+    if (!(await findOwnedApartament(id, (session!.user as any).id))) {
       return NextResponse.json({ error: 'Unitate negăsită' }, { status: 404 })
     }
     const documente = await db.documentUnitate.findMany({
@@ -55,11 +52,8 @@ export async function POST(
       return NextResponse.json({ error: 'Câmpuri obligatorii lipsă' }, { status: 400 })
     }
 
-    // Verify apartment exists AND belongs to caller's association (IDOR fix — G-BLOC-002)
-    const apartament = await db.apartament.findFirst({
-      where: { id, asociatie: { adminId: (session!.user as any).id } },
-      select: { id: true, numar: true, asociatieId: true },
-    })
+    // Tenant-ownership guard (IDOR — G-BLOC-002)
+    const apartament = await findOwnedApartament(id, (session!.user as any).id)
     if (!apartament) {
       return NextResponse.json({ error: 'Unitate negăsită' }, { status: 404 })
     }
@@ -121,12 +115,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Document negăsit' }, { status: 404 })
     }
 
-    // Verify the document's unit belongs to caller's association (IDOR fix — G-BLOC-002)
-    const ownsDoc = await db.asociatie.findFirst({
-      where: { id: document.apartament.asociatieId, adminId: (session!.user as any).id },
-      select: { id: true },
-    })
-    if (!ownsDoc) {
+    // Tenant-ownership guard (IDOR — G-BLOC-002)
+    if (!(await ownsAsociatie(document.apartament.asociatieId, (session!.user as any).id))) {
       return NextResponse.json({ error: 'Document negăsit' }, { status: 404 })
     }
 
