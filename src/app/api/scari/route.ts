@@ -17,6 +17,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'asociatieId necesar' }, { status: 400 })
     }
 
+    // Verify user owns the association (IDOR fix — G-BLOC-008)
+    const asociatie = await db.asociatie.findFirst({
+      where: { id: asociatieId, adminId: (session.user as { id: string }).id },
+      select: { id: true },
+    })
+    if (!asociatie) {
+      return NextResponse.json({ error: 'Asociație negăsită' }, { status: 404 })
+    }
+
     const scari = await db.scara.findMany({
       where: { asociatieId },
       include: { _count: { select: { apartamente: true } } },

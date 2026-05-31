@@ -16,6 +16,14 @@ export async function GET(
     }
 
     const { id } = await params
+    // Verify the unit belongs to caller's association (IDOR fix — G-BLOC-002)
+    const owns = await db.apartament.findFirst({
+      where: { id, asociatie: { adminId: (session!.user as any).id } },
+      select: { id: true },
+    })
+    if (!owns) {
+      return NextResponse.json({ error: 'Unitate negăsită' }, { status: 404 })
+    }
     const documente = await db.documentUnitate.findMany({
       where: { apartamentId: id },
       orderBy: { createdAt: 'desc' },
@@ -47,9 +55,9 @@ export async function POST(
       return NextResponse.json({ error: 'Câmpuri obligatorii lipsă' }, { status: 400 })
     }
 
-    // Verify apartment exists
-    const apartament = await db.apartament.findUnique({
-      where: { id },
+    // Verify apartment exists AND belongs to caller's association (IDOR fix — G-BLOC-002)
+    const apartament = await db.apartament.findFirst({
+      where: { id, asociatie: { adminId: (session!.user as any).id } },
       select: { id: true, numar: true, asociatieId: true },
     })
     if (!apartament) {
@@ -110,6 +118,15 @@ export async function DELETE(
     })
 
     if (!document) {
+      return NextResponse.json({ error: 'Document negăsit' }, { status: 404 })
+    }
+
+    // Verify the document's unit belongs to caller's association (IDOR fix — G-BLOC-002)
+    const ownsDoc = await db.asociatie.findFirst({
+      where: { id: document.apartament.asociatieId, adminId: (session!.user as any).id },
+      select: { id: true },
+    })
+    if (!ownsDoc) {
       return NextResponse.json({ error: 'Document negăsit' }, { status: 404 })
     }
 

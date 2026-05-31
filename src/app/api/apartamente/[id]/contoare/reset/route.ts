@@ -35,6 +35,15 @@ export async function POST(
 
     const { contorId, notaExplicativa, noulIndex } = parsed.data
 
+    // Verify the apartment belongs to caller's association (IDOR fix — G-BLOC-003)
+    const ownsApt = await db.apartament.findFirst({
+      where: { id: apartamentId, asociatie: { adminId: (session!.user as any).id } },
+      select: { id: true },
+    })
+    if (!ownsApt) {
+      return NextResponse.json({ error: 'Contor negăsit' }, { status: 404 })
+    }
+
     // Get contor with last index
     const contor = await db.contor.findUnique({
       where: { id: contorId },

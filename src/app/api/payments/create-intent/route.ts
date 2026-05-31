@@ -53,6 +53,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Authorization (IDOR fix — G-BLOC-004): caller must own the apartment
+    // (active proprietar) OR administer the association. Otherwise treat as not found.
+    const callerId = (session.user as any).id
+    const [isOwner, isAdmin] = await Promise.all([
+      db.proprietarApartament.findFirst({
+        where: { apartamentId: chitanta.apartamentId, userId: callerId, esteActiv: true },
+        select: { id: true },
+      }),
+      db.asociatie.findFirst({
+        where: { id: chitanta.asociatieId, adminId: callerId },
+        select: { id: true },
+      }),
+    ])
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json(
+        { error: 'Chitanța nu a fost găsită' },
+        { status: 404 }
+      )
+    }
+
     const platiAggregate = await db.plata.aggregate({
       where: {
         chitantaId: chitanta.id,
