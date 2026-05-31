@@ -79,3 +79,38 @@
 **Pair commit on Legal**: `441d90e` — added nullable `registrationNumber` column to `LegalEntity` schema (Legal commit) + UPDATE `class-rda` SET `registrationNumber='J40/2439/2012'`. See `Legal/Reports/DIRECT-CHANGES-2026-05.md` 2026-05-28 entry.
 
 **Scope**: 1 source file (ORG constant only, no JSX), 4 values. No payment-flow files. Values hardcoded for now (runtime fetch from Legal `/api/v1/public/active-entity` is a future improvement if user wants true runtime single-source).
+
+---
+
+## 2026-05-31 — True E2E Full Audit [10] + G-BLOC-001 SSL renewal fix (infra)
+
+**Trigger**: True E2E Full Audit [10] on blochub (NO-TOUCH CRITIC, audit-only). Report: `Reports/TRUE-E2E-FULL-2026-05-31.md`. 14 gaps ledgered (G-BLOC-001…014). User authorized fixing all BlocHub-related gaps this session (propose-confirm-apply).
+
+**G-BLOC-001 RESOLVED (infra, NO-TOUCH host VPS2)** — blocx.ro SSL renewal was failing (cert expiring 2026-06-16, 16d).
+- Root cause: `/etc/nginx/sites-available/blocx.ro` :80 block had a **server-level** `return 301 https://...` that pre-empts location matching → webroot http-01 acme-challenge (authenticator `webroot`, `/var/www/html`) got 301-redirected to HTTPS (Next.js app, no acme route) → challenge fails.
+- Fix (2 edits, backups `.bak-2026-05-31-acme` + `-acme2`): (1) added `location ^~ /.well-known/acme-challenge/ { root /var/www/html; try_files $uri =404; }`; (2) wrapped the server-level `return 301` into `location / { return 301 ...; }` so the `^~` acme location wins. `nginx -t` OK + reload each step.
+- Verified: `http://blocx.ro/.well-known/acme-challenge/probe` 301→**404** (served from webroot); `/`→301 preserved; `certbot renew --cert-name blocx.ro --force-renewal` → "all renewals succeeded"; cert **Jun 16 → Aug 28 2026 (89d)**; nginx reloaded serves new cert; blocx.ro 200, www 301. Auto-renew now functional permanently (timer was active, only the challenge path was broken).
+- Note: killed a stale self-inflicted `certbot renew` stuck in non-interactive random-sleep (holding lock) before the clean forced renewal.
+
+**Scope**: nginx vhost only (1 file, :80 block). No application code, no payment flows, no DB. blochub app untouched.
+
+**Remaining gaps G-BLOC-002…014**: being addressed in priority groups this session (security IDOR → financial integrity → audit trail → polish), each propose-confirm-apply per CLASSIFICATION §2d.
+
+### Code fixes (commits `95f7bf1` + `84ce0c5`, deployed VPS2 + verified)
+
+**`95f7bf1` fix(security): IDOR cluster (G-BLOC-002/003/004/008)** — 4 routes, +58/-3, all additive ownership checks mirroring the house `findFirst({where:{id,adminId}})` pattern:
+- `apartamente/[id]/documente` GET/POST/DELETE → scope to `asociatie.adminId`
+- `apartamente/[id]/contoare/reset` → verify apartment ownership before reset
+- `scari` GET → verify asociație ownership (POST/DELETE already did)
+- `payments/create-intent` (NO-TOUCH payment) → caller must be active proprietar OR asociație admin
+Portal (resident) routes unaffected (separate `/api/portal/*`).
+
+**`84ce0c5` fix(blochub): financial + audit + promo (G-BLOC-005/006/007/012)** — 4 files, +91/-9:
+- G-BLOC-006: `calcul-chitanta.ts` APARTAMENT mode divides by full apartment count (`db.apartament.count`), not subset `apartamente.length`.
+- G-BLOC-005: `incasari` cash receipt number via atomic `increment`+return → no duplicate official receipt numbers under concurrency.
+- G-BLOC-007: `logAudit` for INREGISTRARE_PLATA + STERGERE_PLATA (incasari) + STERGERE_ASOCIATIE (asociatii), fire-safe wrapped.
+- G-BLOC-012: server-side IP throttle (10/min) on `/api/roata/spin`.
+
+**Deploy** (VPS2 `/var/www/blochub`, NOT standalone): `git pull origin main` (2ca714e→84ce0c5) + `npm run build` (OK) + `pm2 restart blochub --update-env`. Verified: blocx.ro 200 + /api/health 200, cabinet.4pro.io 200 (L41), blochub pm2 online no crash loop, **journey re-audit 14 OK / 3 GATED — identical to pre-deploy (admin legit access preserved, IDOR scoping non-breaking)**.
+
+**Deferred (OPEN, with reasons — see AUDIT_GAPS)**: G-BLOC-009 (Float→Decimal+residual rounding — needs tests), G-BLOC-005-remainder (generate txn wrap), G-BLOC-007-remainder (role/settings logging), G-BLOC-010 (webhook atomicity), G-BLOC-011 (a11y/mobile UI), G-BLOC-013 (Legal-hub fetch — 2nd NO-TOUCH project, separate session), G-BLOC-014 (webhook 400/CONSUM). Rationale: money-math + UI + cross-NO-TOUCH changes warrant dedicated tested sessions, not a rushed mega-diff on live payment code (no-half-measures).
