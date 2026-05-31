@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 // GET individual association
 export async function GET(
@@ -109,6 +110,21 @@ export async function DELETE(
     }
 
     await db.asociatie.delete({ where: { id } })
+
+    // Audit trail for association deletion (G-BLOC-007)
+    try {
+      await logAudit({
+        userId,
+        userName: (session.user as any).name || (session.user as any).email || undefined,
+        actiune: 'STERGERE_ASOCIATIE',
+        entitate: 'Asociatie',
+        entitatId: id,
+        valoriVechi: { nume: existing.nume },
+        asociatieId: id,
+      })
+    } catch (e) {
+      console.error('audit log (STERGERE_ASOCIATIE) failed:', e)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

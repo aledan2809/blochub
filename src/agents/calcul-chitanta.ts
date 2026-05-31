@@ -95,6 +95,14 @@ export class CalculChitantaAgent extends BaseAgent {
         _sum: { nrPersoane: true },
       })
 
+      // Full apartment count of the asociatie (NOT the possibly-subset `apartamente`),
+      // so per-apartment shares are identical whether this is a full or subset
+      // regeneration. (G-BLOC-006: APARTAMENT mode previously divided by the subset
+      // length, over-billing on partial runs.)
+      const totalApartamenteCount = await db.apartament.count({
+        where: { asociatieId },
+      })
+
       // Calculate data scadenta
       const dataScadenta = new Date(an, luna - 1, asociatie.ziScadenta)
       if (dataScadenta < new Date()) {
@@ -136,8 +144,9 @@ export class CalculChitantaAgent extends BaseAgent {
               break
 
             case ModRepartizare.APARTAMENT:
-              // Fix per apartament
-              sumaApartament = cheltuiala.suma / apartamente.length
+              // Fix per apartament — divide by the FULL apartment count, not the
+              // (possibly subset) `apartamente.length` (G-BLOC-006)
+              sumaApartament = cheltuiala.suma / (totalApartamenteCount || apartamente.length)
               break
 
             case ModRepartizare.CONSUM:

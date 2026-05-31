@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(request: NextRequest) {
   try {
@@ -208,15 +209,17 @@ export async function POST(request: NextRequest) {
     let serieChitanta: string | null = null
 
     if (isCashPayment) {
-      // Get next receipt number and update counter atomically
-      nextReceiptNumber = (asociatie.ultimulNumarChitanta || 0) + 1
       serieChitanta = asociatie.serieChitantier || null
 
-      // Update the counter
-      await db.asociatie.update({
+      // Atomically increment AND read the counter in a single DB op so two
+      // concurrent cash payments can never read the same value and emit
+      // duplicate official receipt numbers (G-BLOC-005).
+      const updatedAsoc = await db.asociatie.update({
         where: { id: asociatie.id },
-        data: { ultimulNumarChitanta: nextReceiptNumber }
+        data: { ultimulNumarChitanta: { increment: 1 } },
+        select: { ultimulNumarChitanta: true }
       })
+      nextReceiptNumber = updatedAsoc.ultimulNumarChitanta
     }
 
     // Create payment (with receipt number only for CASH)
@@ -273,6 +276,26 @@ export async function POST(request: NextRequest) {
         where: { id: chitanta.id },
         data: { status: newStatus }
       })
+    }
+
+    // Audit trail for payment recording (G-BLOC-007)
+    try {
+      await logAudit({
+        userId,
+        userName: (session.user as any).name || (session.user as any).email || undefined,
+        actiune: 'INREGISTRARE_PLATA',
+        entitate: 'Plata',
+        entitatId: plata.id,
+        valoriNoi: {
+          suma,
+          metodaPlata: metodaPlata || 'CASH',
+          chitantaId: chitanta.id,
+          numarChitantaIncasare: nextReceiptNumber,
+        },
+        asociatieId: asociatie.id,
+      })
+    } catch (e) {
+      console.error('audit log (INREGISTRARE_PLATA) failed:', e)
     }
 
     return NextResponse.json({ plata }, { status: 201 })
@@ -338,6 +361,26 @@ export async function DELETE(request: NextRequest) {
       where: { id: plata.chitantaId },
       data: { status: newStatus }
     })
+
+    // Audit trail for payment reversal (G-BLOC-007)
+    try {
+      await logAudit({
+        userId,
+        userName: (session.user as any).name || (session.user as any).email || undefined,
+        actiune: 'STERGERE_PLATA',
+        entitate: 'Plata',
+        entitatId: id,
+        valoriVechi: {
+          suma: plata.suma,
+          metodaPlata: plata.metodaPlata,
+          chitantaId: plata.chitantaId,
+          numarChitantaIncasare: plata.numarChitantaIncasare,
+        },
+        asociatieId: plata.chitanta.asociatieId,
+      })
+    } catch (e) {
+      console.error('audit log (STERGERE_PLATA) failed:', e)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
