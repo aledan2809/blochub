@@ -114,3 +114,12 @@ Portal (resident) routes unaffected (separate `/api/portal/*`).
 **Deploy** (VPS2 `/var/www/blochub`, NOT standalone): `git pull origin main` (2ca714e→84ce0c5) + `npm run build` (OK) + `pm2 restart blochub --update-env`. Verified: blocx.ro 200 + /api/health 200, cabinet.4pro.io 200 (L41), blochub pm2 online no crash loop, **journey re-audit 14 OK / 3 GATED — identical to pre-deploy (admin legit access preserved, IDOR scoping non-breaking)**.
 
 **Deferred (OPEN, with reasons — see AUDIT_GAPS)**: G-BLOC-009 (Float→Decimal+residual rounding — needs tests), G-BLOC-005-remainder (generate txn wrap), G-BLOC-007-remainder (role/settings logging), G-BLOC-010 (webhook atomicity), G-BLOC-011 (a11y/mobile UI), G-BLOC-013 (Legal-hub fetch — 2nd NO-TOUCH project, separate session), G-BLOC-014 (webhook 400/CONSUM). Rationale: money-math + UI + cross-NO-TOUCH changes warrant dedicated tested sessions, not a rushed mega-diff on live payment code (no-half-measures).
+
+### /review self-audit + fixes (commit `be18d32`, deployed VPS2 + verified)
+
+Ran `/code-review` on this session's fix commits (`2ca714e..84ce0c5`). Found 3 issues, all fixed:
+1. **(bug, caught pre-prod)** STERGERE_ASOCIATIE audit set `asociatieId = <just-deleted id>`; `AuditLog.asociatieId` is a FK → insert threw post-delete → my own `try/catch` swallowed it → association deletions were **silently un-audited** (defeated that part of G-BLOC-007). Fix: dropped `asociatieId`, kept id in `entitatId` + `valoriVechi`.
+2. **(altitude)** Extracted repeated inline IDOR checks → `src/lib/ownership.ts` (`findOwnedApartament` / `ownsAsociatie`); refactored documente/contoare-reset/scari. Future routes can't forget the guard; behavior identical.
+3. **(note)** Documented roata limiter's single-process assumption (hard cap remains the persisted claim).
+
+Build OK · deploy (be18d32) · blocx.ro 200 + /api/health 200 · pm2 online no crash loop · journey re-audit **14 OK / 3 GATED — identical to baseline** (helper refactor non-breaking). The self-review caught a real bug I introduced earlier the same session, before it reached anyone.
