@@ -36,7 +36,7 @@ export default function PrivacyPage() {
             legate de prelucrarea datelor personale, ne puteti contacta la:
           </p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
-            <li>Email: <a href="mailto:dpo@blocx.ro" className="text-blue-600 hover:underline">dpo@blocx.ro</a></li>
+            <li>Email: <a href="mailto:dpo@4pro.io" className="text-blue-600 hover:underline">dpo@4pro.io</a></li>
             <li>Email suport: <a href="mailto:support@blocx.ro" className="text-blue-600 hover:underline">support@blocx.ro</a></li>
           </ul>
         </section>
@@ -137,7 +137,7 @@ export default function PrivacyPage() {
           </ul>
           <p className="text-slate-600 leading-relaxed">
             Pentru exercitarea drepturilor, contactati-ne la{' '}
-            <a href="mailto:dpo@blocx.ro" className="text-blue-600 hover:underline">dpo@blocx.ro</a>.
+            <a href="mailto:dpo@4pro.io" className="text-blue-600 hover:underline">dpo@4pro.io</a>.
             Vom raspunde in maximum 30 de zile.
           </p>
         </section>
@@ -174,7 +174,7 @@ export default function PrivacyPage() {
             Pentru orice intrebari legate de aceasta politica de confidentialitate:
           </p>
           <ul className="list-disc pl-6 text-slate-600 space-y-1">
-            <li>Email protectia datelor: <a href="mailto:dpo@blocx.ro" className="text-blue-600 hover:underline">dpo@blocx.ro</a></li>
+            <li>Email protectia datelor: <a href="mailto:dpo@4pro.io" className="text-blue-600 hover:underline">dpo@4pro.io</a></li>
             <li>Email suport: <a href="mailto:support@blocx.ro" className="text-blue-600 hover:underline">support@blocx.ro</a></li>
           </ul>
         </section>

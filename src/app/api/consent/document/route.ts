@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
 
   const legalUrl = process.env.LEGAL_API_URL || 'https://legal.knowbest.ro';
 
-  // App-specific GDPR/DPO contact — blochub uses its own domain mailbox,
-  // not the shared controller-entity dpoEmail (Class RDA serves several apps).
-  const APP_DPO_EMAIL = 'dpo@blocx.ro';
+  // Single ecosystem-wide DPO contact (user directive 2026-06-01): one mailbox
+  // for every app, not per-project addresses. Matches Legal hub's ECOSYSTEM_DPO_EMAIL.
+  const APP_DPO_EMAIL = 'dpo@4pro.io';
 
   try {
     const res = await fetch(
