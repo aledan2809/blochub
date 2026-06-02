@@ -1,0 +1,309 @@
+{
+  "email": "journey-newuser@blochub.app",
+  "started": "2026-06-02T07:29:23.274Z",
+  "durationMs": 64609,
+  "log": [
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "homepage",
+      "t_ms": 3262,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/01-homepage.png"
+    },
+    {
+      "phase": "homepage",
+      "status": "ok",
+      "detail": "register CTA visible on home: true",
+      "t_ms": 3278,
+      "ctaLinks": [
+        {
+          "t": "Autentificare",
+          "h": "/auth/login"
+        },
+        {
+          "t": "Începe Gratuit",
+          "h": "/auth/register"
+        },
+        {
+          "t": "Începe Gratuit - 0 lei",
+          "h": "/auth/register"
+        },
+        {
+          "t": "Vezi Demo",
+          "h": "#demo"
+        },
+        {
+          "t": "Începe Gratuit",
+          "h": "/auth/register"
+        },
+        {
+          "t": "Începe Trial 14 Zile",
+          "h": "/auth/register?plan=pro"
+        },
+        {
+          "t": "Contactează-ne",
+          "h": "/contact"
+        },
+        {
+          "t": "Începe Gratuit Acum",
+          "h": "/auth/register"
+        },
+        {
+          "t": "Prețuri",
+          "h": "/pricing"
+        },
+        {
+          "t": "Demo",
+          "h": "/demo"
+        }
+      ]
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "register-empty",
+      "t_ms": 5178,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/02-register-empty.png"
+    },
+    {
+      "phase": "register",
+      "status": "ok",
+      "detail": "terms checkbox present + checked",
+      "t_ms": 5275
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "register-filled",
+      "t_ms": 5320,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/03-register-filled.png"
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "register-after-submit",
+      "t_ms": 8395,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/04-register-after-submit.png"
+    },
+    {
+      "phase": "register",
+      "status": "warn",
+      "detail": "after submit url=https://blocx.ro/auth/login?registered=true errorTextPresent=true",
+      "t_ms": 8398
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "login-filled",
+      "t_ms": 10007,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/05-login-filled.png"
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "after-login",
+      "t_ms": 15175,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/06-after-login.png"
+    },
+    {
+      "phase": "login",
+      "status": "ok",
+      "detail": "landed url=https://blocx.ro/dashboard",
+      "t_ms": 15175
+    },
+    {
+      "phase": "wizard",
+      "status": "gap",
+      "detail": "onboarding wizard shown: false",
+      "t_ms": 15177
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "wizard-step1",
+      "t_ms": 15303,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/07-wizard-step1.png"
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-dashboard",
+      "t_ms": 18924,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/08-motor-dashboard.png"
+    },
+    {
+      "phase": "motor:dashboard",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 18926
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-cladire",
+      "t_ms": 23041,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/09-motor-cladire.png"
+    },
+    {
+      "phase": "motor:cladire",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 23043
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-apartamente",
+      "t_ms": 27079,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/10-motor-apartamente.png"
+    },
+    {
+      "phase": "motor:apartamente",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 27080
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-proprietari",
+      "t_ms": 30772,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/11-motor-proprietari.png"
+    },
+    {
+      "phase": "motor:proprietari",
+      "status": "gap",
+      "detail": "http=200 empty=true hasGuidanceWords=true errText=true",
+      "t_ms": 30774
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-cheltuieli",
+      "t_ms": 34446,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/12-motor-cheltuieli.png"
+    },
+    {
+      "phase": "motor:cheltuieli",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 34447
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-incasari",
+      "t_ms": 38145,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/13-motor-incasari.png"
+    },
+    {
+      "phase": "motor:incasari",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 38147
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-plati",
+      "t_ms": 42200,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/14-motor-plati.png"
+    },
+    {
+      "phase": "motor:plati",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 42202
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-chitante",
+      "t_ms": 45930,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/15-motor-chitante.png"
+    },
+    {
+      "phase": "motor:chitante",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 45932
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-rapoarte",
+      "t_ms": 49705,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/16-motor-rapoarte.png"
+    },
+    {
+      "phase": "motor:rapoarte",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 49707
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-tichete",
+      "t_ms": 53380,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/17-motor-tichete.png"
+    },
+    {
+      "phase": "motor:tichete",
+      "status": "gap",
+      "detail": "http=200 empty=true hasGuidanceWords=true errText=true",
+      "t_ms": 53381
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-avizier",
+      "t_ms": 57116,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/18-motor-avizier.png"
+    },
+    {
+      "phase": "motor:avizier",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 57117
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-referral",
+      "t_ms": 60910,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/19-motor-referral.png"
+    },
+    {
+      "phase": "motor:referral",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 60912
+    },
+    {
+      "phase": "screenshot",
+      "status": "ok",
+      "detail": "motor-setari",
+      "t_ms": 64607,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/20-motor-setari.png"
+    },
+    {
+      "phase": "motor:setari",
+      "status": "gap",
+      "detail": "http=200 empty=false hasGuidanceWords=true errText=true",
+      "t_ms": 64608
+    },
+    {
+      "phase": "consoleErrors",
+      "status": "warn",
+      "detail": "4 console errors",
+      "t_ms": 64608,
+      "sample": [
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ]
+    }
+  ]
+}

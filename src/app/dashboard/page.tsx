@@ -133,28 +133,9 @@ export default function DashboardPage() {
   }
 
   if (!currentAsociatie?.id || !data?.hasAsociatie) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[500px] gap-6">
-        <div className="bg-blue-50 rounded-full p-6">
-          <Building2 className="h-16 w-16 text-blue-600" />
-        </div>
-        <div className="text-center max-w-md">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Bun venit in BlocX!</h2>
-          <p className="text-gray-500 leading-relaxed">
-            Pentru a incepe, adauga prima ta cladire din meniul din stanga.
-            Vei putea gestiona apartamente, proprietari, cheltuieli si incasari — totul intr-un singur loc.
-          </p>
-        </div>
-        <div className="flex gap-3 mt-2">
-          <Link href="/dashboard/cladire">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Adauga prima cladire
-            </Button>
-          </Link>
-        </div>
-      </div>
-    )
+    // Onboarding ghidat în 4 pași (creează asociație + scări + apartamente).
+    // Înlocuiește empty-state-ul sec care doar trimitea în meniu. (G-BLOC-016)
+    return <SetupWizard />
   }
 
   const stats = data.stats!
@@ -766,6 +747,8 @@ function SetupWizard() {
         body: JSON.stringify({ apartamente, asociatieId: asociatie.id })
       })
 
+      // Selectează asociația nou creată înainte de reload (G-BLOC-016)
+      try { localStorage.setItem('currentAsociatieId', asociatie.id) } catch {}
       // Reload to show dashboard
       window.location.reload()
     } catch (err) {

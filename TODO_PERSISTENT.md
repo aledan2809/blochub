@@ -31,7 +31,7 @@
 
 ---
 
-## [ ] 📖 Manual de utilizare + verdict „produsul se auto-explică?" (creat 2026-06-01)
+## [x] 📖 Manual de utilizare + verdict „produsul se auto-explică?" — DONE 2026-06-02 (`knowledge/MANUAL.md` + `Reports/newuser-journey-2026-06-02/REPORT.md`; docs uncommitted — vezi nota la final)
 
 **Cerință user:** „Presupune că ești nou intrat pe site-ul aplicației și vrei să știi ce face și cum o folosești. Ai aici tot ce-ți trebuie? Fă un sumar cu ce face + ce butoane trebuie apăsate ca să ajungi aici — un manual."
 
@@ -40,7 +40,13 @@
 2. **Verdict onest de auto-explicabilitate:** „un user nou are TOT ce-i trebuie ca să se descurce singur?" — unde se blochează, unde lipsesc indicii (tooltips, empty-state guidance, wizard, help), unde trebuie să ghicească. Acoperă AMBELE roluri (vezi decizia #1 mai jos).
 3. Output: `knowledge/MANUAL.md` (manualul) + secțiune „Gaps de onboarding/UX" în raport.
 
-## [ ] 🧪 Test UI real / journey / TGW din perspectiva user-ului NOU (creat 2026-06-01)
+## [x] 🧪 Test UI real / journey / TGW din perspectiva user-ului NOU — DONE 2026-06-02
+
+**Rezultat (2026-06-02):** Decizii: Direct · admin+proprietar · PROD cu fixture+cleanup · TGW inclus. Test real ambele roluri pe blocx.ro. **12 gap-uri noi OPEN (G-BLOC-015..026)** + G-BLOC-TGW-001. Headline: **G-BLOC-015 [P1]** invite-accept rupt (middleware auth-gate pe `/api/invitations/accept`) → proprietarii nu pot intra; **G-BLOC-016 [P2]** wizard onboarding orfan; **G-BLOC-020 [P3]** auto-explicabilitate (proprietarul nu vede *de ce* plătește). journey-audit 14 OK/3 GATED (baseline). TGW repornit cu token curent dar critical-flows blocat (schema errors + lipsă `BLOCHUB_TEST_EMAIL`). Fixture PROD curățat complet (verificat 0 test rows; real data intact; blocx.ro 200/200). Raport: `Reports/newuser-journey-2026-06-02/REPORT.md`. Ledger: `Reports/DIRECT-CHANGES-2026-06.md`.
+
+---
+
+## [archived-context] 🧪 Test UI real — decizii originale (creat 2026-06-01)
 
 **Cerință user:** „Testează cu UI real / journey / TGW și vom vedea cât de ușor e pentru un user nou. Fă testarea cum trebuie, responsabil și fără să omiți nimic, raportează onest unde sunt problemele/gap-urile. Voi verifica și eu live și comparăm rezultatele."
 

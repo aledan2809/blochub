@@ -1,0 +1,19 @@
+{
+  "steps": [
+    "login OK",
+    "{\"createAsociatie\":{\"status\":201,\"body\":{\"asociatie\":{\"id\":\"cmpwc3inm0002o48vq9j38xzp\",\"nume\":\"Asociatia Test Journey CLEANUP\",\"cui\":null,\"adresa\":\"Str. Test Journey nr. 1\",\"oras\":\"Bucuresti\",\"judet\":\"Bucuresti\",\"codPostal\":null,\"email\":null,\"telefon\":null,\"contBancar\":null,\"banca\":null,\"ziScadenta\":25,\"penalizareZi\":0.0002,\"serieChitantier\":null,\"numarChitantierStart\":1,\"ultimulNumarChitanta\":0,\"createdAt\":\"2026-06-02T07:46:45.682Z\",\"updatedAt\":\"2026-06-02T07:46:45.682Z\",\"adminId\":\"cmpwbhauo0000o48vcrh90322\",\"organizatieId\":null}}}}",
+    "{\"asociatieId\":\"cmpwc3inm0002o48vq9j38xzp\"}",
+    "{\"cladire\":{\"status\":201,\"body\":{\"cladire\":{\"id\":\"cmpwc3iq70006o48vnnfb5rkq\",\"nume\":\"Cladirea Test\",\"asociatieId\":\"cmpwc3inm0002o48vq9j38xzp\",\"createdAt\":\"2026-06-02T07:46:45.775Z\",\"updatedAt\":\"2026-06-02T07:46:45.775Z\"}}}}",
+    "{\"scari\":{\"status\":201,\"body\":{\"scari\":[{\"id\":\"cmpwc3isx0007o48v9fyu899e\",\"numar\":\"A\",\"etaje\":4,\"cladireId\":\"cmpwc3iq70006o48vnnfb5rkq\",\"asociatieId\":\"cmpwc3inm0002o48vq9j38xzp\"}]}}}",
+    "{\"apartamente\":{\"status\":200,\"body\":{\"created\":2,\"apartamente\":[{\"id\":\"cmpwc3ivh0008o48v4vck4aef\",\"numar\":\"1\",\"tipUnitate\":\"APARTAMENT\",\"tipUnitateCustom\":null,\"codUnic\":\"cmpwc3ivh0009o48vlbgqxe7y\",\"nrCadastral\":null,\"etaj\":null,\"suprafata\":null,\"nrCamere\":null,\"cotaIndiviza\":null,\"nrPersoane\":1,\"esteInchiriat\":false,\"debransamente\":null,\"asociatieId\":\"cmpwc3inm0002o48vq9j38xzp\",\"scaraId\":\"cmpwc3isx0007o48v9fyu899e\",\"tipApartamentId\":null,\"scara\":{\"id\":\"cmpwc3isx0007o48v9fyu899e\",\"numar\":\"A\",\"etaje\":4,\"cladireId\":\"cmpwc3iq70006o48vnnfb5rkq\",\"asociatieId\":\"cmpwc3inm0002o48vq9j38xzp\"}},{\"id\":\"cmpwc3ivh000ao48v82pm2423\",\"numar\":\"2\",\"tipUnitate\":\"APARTAMENT\",\"tipUnitateCustom\":null,\"codUnic\":\"cmpwc3ivh000bo48vmdxer6mm\",\"nrCadastral\":null,\"etaj\":null,\"suprafata\":null,\"nrCamere\":null,\"cotaIndiviza\":null,\"nrPersoane\":1,\"esteInchiriat\":false,\"debransamente\":null,\"asociatieId\":\"cmpwc3inm0002o48vq9j38xzp\",\"scaraId\":\"cmpwc3isx0007o48v9fyu899e\",\"tipApartamentId\":null,\"scara\":{\"id\":\"cmpwc3isx0007o48v9fyu899e\",\"numar\":\"A\",\"etaje\":4,\"cladireId\":\"cmpwc3iq70006o48vnnfb5rkq\",\"asociatieId\":\"cmpwc3inm0002o48vq9j38xzp\"}}],\"message\":\"2 apartamente created\"}}}",
+    "{\"apartamentId\":\"cmpwc3ivh0008o48v4vck4aef\",\"aptCount\":2}",
+    "{\"invitation\":{\"status\":200,\"body\":{\"success\":true,\"invitation\":{\"id\":\"cmpwc3j0n000do48vbqp2m4t8\",\"email\":\"journey-proprietar@blochub.app\",\"expires\":\"2026-06-09T07:46:46.151Z\",\"apartament\":{\"numar\":\"1\"}},\"emailSent\":true}}}",
+    "{\"ids\":{\"asociatieId\":\"cmpwc3inm0002o48vq9j38xzp\",\"cladireId\":\"cmpwc3iq70006o48vnnfb5rkq\",\"scaraId\":\"cmpwc3isx0007o48v9fyu899e\",\"apartamentId\":\"cmpwc3ivh0008o48v4vck4aef\"}}"
+  ],
+  "ids": {
+    "asociatieId": "cmpwc3inm0002o48vq9j38xzp",
+    "cladireId": "cmpwc3iq70006o48vnnfb5rkq",
+    "scaraId": "cmpwc3isx0007o48v9fyu899e",
+    "apartamentId": "cmpwc3ivh0008o48v4vck4aef"
+  }
+}

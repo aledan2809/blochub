@@ -1,0 +1,145 @@
+{
+  "log": [
+    {
+      "phase": "dismiss",
+      "status": "ok",
+      "detail": "cookie banner dismissed",
+      "t_ms": 35532
+    },
+    {
+      "phase": "dismiss",
+      "status": "ok",
+      "detail": "cookie banner dismissed",
+      "t_ms": 66760
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "dashboard-clean",
+      "t_ms": 67225,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/51-dashboard-clean.png"
+    },
+    {
+      "phase": "wizard",
+      "status": "info",
+      "detail": "\"Bine ai venit\" present: false",
+      "t_ms": 67227
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "wiz1-filled",
+      "t_ms": 127285,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/52-wiz1-filled.png"
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "wiz2-scari",
+      "t_ms": 158334,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/53-wiz2-scari.png"
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "wiz2-filled",
+      "t_ms": 158795,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/54-wiz2-filled.png"
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "wiz3-tipuri",
+      "t_ms": 189656,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/55-wiz3-tipuri.png"
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "wiz4-summary",
+      "t_ms": 220506,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/56-wiz4-summary.png"
+    },
+    {
+      "phase": "dismiss",
+      "status": "ok",
+      "detail": "cookie banner dismissed",
+      "t_ms": 286519
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "after-finalize",
+      "t_ms": 286968,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/57-after-finalize.png"
+    },
+    {
+      "phase": "finalize",
+      "status": "info",
+      "detail": "url=https://blocx.ro/dashboard",
+      "t_ms": 286969
+    },
+    {
+      "phase": "dismiss",
+      "status": "ok",
+      "detail": "cookie banner dismissed",
+      "t_ms": 321052
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "post-dashboard",
+      "t_ms": 321510,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/58-post-dashboard.png"
+    },
+    {
+      "phase": "dismiss",
+      "status": "ok",
+      "detail": "cookie banner dismissed",
+      "t_ms": 356135
+    },
+    {
+      "phase": "shot",
+      "status": "ok",
+      "detail": "post-cladire",
+      "t_ms": 356584,
+      "file": "/Users/danciulescu/Projects/blochub/Reports/newuser-journey-2026-06-02/admin/59-post-cladire.png"
+    },
+    {
+      "phase": "dismiss",
+      "status": "ok",
+      "detail": "cookie banner dismissed",
+      "t_ms": 387211
+    },
+    {
+      "phase": "shot",
+      "status": "warn",
+      "detail": "post-apartamente: page.screenshot: Target page, context or browser has been closed",
+      "t_ms": 387213
+    },
+    {
+      "phase": "motor",
+      "status": "warn",
+      "detail": "cheltuieli: page.goto: Target page, context or browser has been closed",
+      "t_ms": 387213
+    },
+    {
+      "phase": "motor",
+      "status": "warn",
+      "detail": "proprietari: page.goto: Target page, context or browser has been closed",
+      "t_ms": 387213
+    },
+    {
+      "phase": "motor",
+      "status": "warn",
+      "detail": "chitante: page.goto: Target page, context or browser has been closed",
+      "t_ms": 387213
+    },
+    {
+      "phase": "motor",
+      "status": "warn",
+      "detail": "incasari: page.goto: Target page, context or browser has been closed",
+      "t_ms": 387213
+    }
+  ]
+}

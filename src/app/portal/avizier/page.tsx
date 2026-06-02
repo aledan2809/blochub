@@ -174,6 +174,12 @@ export default function PortalAvizierPage() {
                 {data.totaluri.penalizari.toLocaleString('ro-RO')} lei
               </p>
             </div>
+            <div className="p-3 bg-purple-50 rounded-lg">
+              <p className="text-xs text-purple-600 font-medium">Total Fonduri</p>
+              <p className="text-lg font-bold text-purple-900">
+                {data.totaluri.fonduri.toLocaleString('ro-RO')} lei
+              </p>
+            </div>
             <div className="p-3 bg-green-50 rounded-lg">
               <p className="text-xs text-green-600 font-medium">Total General</p>
               <p className="text-lg font-bold text-green-900">

@@ -79,6 +79,13 @@ export class CalculChitantaAgent extends BaseAgent {
           chitante: {
             where: {
               status: { in: ['RESTANTA', 'GENERATA', 'TRIMISA'] },
+              // Doar perioade STRICT anterioare — altfel regenerarea aceleiași
+              // luni numără propria chitanță neplătită drept restanță și
+              // inflează totalul la fiecare rulare. (G-BLOC-024)
+              OR: [
+                { an: { lt: an } },
+                { an, luna: { lt: luna } },
+              ],
             },
           },
         },

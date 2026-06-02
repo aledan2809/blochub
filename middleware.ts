@@ -19,11 +19,22 @@ export default withAuth(
       }
     }
 
+    // Proprietarii folosesc portalul, nu dashboard-ul de admin (G-BLOC-019)
+    if (pathname.startsWith('/dashboard') && token?.role === 'PROPRIETAR') {
+      return NextResponse.redirect(new URL('/portal', req.url))
+    }
+
     return NextResponse.next()
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token, req }) => {
+        // Public: invite verification + acceptance — the invitee has no session
+        // yet (the whole point of accepting an invitation). Gating it broke the
+        // entire proprietar onboarding flow. (G-BLOC-015)
+        if (req.nextUrl.pathname.startsWith('/api/invitations/accept')) return true
+        return !!token
+      },
     },
   }
 )

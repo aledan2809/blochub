@@ -38,8 +38,16 @@ export function LevelUpCelebration() {
       ? localStorage.getItem(STORAGE_KEY)
       : null) as Level | null
 
+    // Prima dată (fără nivel memorat) = nivelul de bază primit gratuit. NU-l
+    // sărbători — altfel modalul acoperă onboarding-ul la primul login. Doar
+    // memorează-l silențios. (G-BLOC-022)
+    if (!stored) {
+      if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, current)
+      return
+    }
+
     const currentIdx = LEVEL_ORDER.indexOf(current)
-    const storedIdx = stored ? LEVEL_ORDER.indexOf(stored) : -1
+    const storedIdx = LEVEL_ORDER.indexOf(stored)
 
     if (currentIdx > storedIdx) {
       setOldLevel(stored ?? ('Incepator' as Level))

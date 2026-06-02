@@ -1,0 +1,15 @@
+{
+  "steps": [
+    "after login url=https://blocx.ro/dashboard",
+    "shot portal-portal",
+    "portal: url=/portal login?=false chitan=true suma60=false fondR=false defalcare=true restanta=false",
+    "shot portal-payments",
+    "payments: url=/portal/payments login?=false chitan=true suma60=true fondR=false defalcare=true restanta=false",
+    "shot portal-avizier",
+    "avizier: url=/portal/avizier login?=false chitan=true suma60=true fondR=false defalcare=true restanta=true",
+    "shot portal-sesizari",
+    "sesizari: url=/portal/sesizari login?=false chitan=true suma60=false fondR=false defalcare=true restanta=false",
+    "shot portal-documente",
+    "documente: url=/portal/documente login?=false chitan=true suma60=false fondR=false defalcare=true restanta=false"
+  ]
+}

@@ -14,6 +14,12 @@ import {
   ArrowLeft
 } from 'lucide-react'
 
+interface ChitantaDetaliu {
+  denumire: string
+  tip?: string
+  suma: number
+}
+
 interface Chitanta {
   id: string
   numar: number
@@ -21,6 +27,11 @@ interface Chitanta {
   an: number
   sumaTotal: number
   sumaRamasa: number
+  sumaIntretinere?: number
+  sumaRestanta?: number
+  sumaPenalizare?: number
+  sumaFonduri?: number
+  detalii?: ChitantaDetaliu[]
   status: string
   dataScadenta: string
 }
@@ -181,6 +192,34 @@ export default function PaymentsPage() {
                         </p>
                         <div className="mt-1">
                           {getStatusBadge(chitanta.status)}
+                        </div>
+                        {/* Defalcare — de ce această sumă (G-BLOC-020) */}
+                        <div className="mt-2 text-xs text-gray-600 space-y-0.5 max-w-xs">
+                          {chitanta.detalii && chitanta.detalii.length > 0 &&
+                            chitanta.detalii.map((d, i) => (
+                              <div key={i} className="flex justify-between gap-6">
+                                <span>{d.denumire}</span>
+                                <span>{d.suma.toFixed(2)} RON</span>
+                              </div>
+                            ))}
+                          {!!chitanta.sumaFonduri && (
+                            <div className="flex justify-between gap-6">
+                              <span>Fonduri</span>
+                              <span>{chitanta.sumaFonduri.toFixed(2)} RON</span>
+                            </div>
+                          )}
+                          {!!chitanta.sumaRestanta && (
+                            <div className="flex justify-between gap-6 text-orange-600">
+                              <span>Restanță</span>
+                              <span>{chitanta.sumaRestanta.toFixed(2)} RON</span>
+                            </div>
+                          )}
+                          {!!chitanta.sumaPenalizare && (
+                            <div className="flex justify-between gap-6 text-red-600">
+                              <span>Penalizări</span>
+                              <span>{chitanta.sumaPenalizare.toFixed(2)} RON</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

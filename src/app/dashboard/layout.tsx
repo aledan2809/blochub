@@ -92,7 +92,7 @@ function AddBuildingModal({
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h3 className="text-lg font-semibold mb-4">Adaugă clădire nouă</h3>
+        <h3 className="text-lg font-semibold mb-4">Adaugă asociație nouă</h3>
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
@@ -348,7 +348,7 @@ function BuildingSelector() {
           className="flex items-center gap-2 px-3 py-2 mx-3 mb-2 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors w-[calc(100%-1.5rem)]"
         >
           <Plus className="h-4 w-4" />
-          Adaugă prima clădire
+          Creează prima asociație
         </button>
         <AddBuildingModal
           isOpen={showAddModal}
@@ -441,7 +441,7 @@ function BuildingSelector() {
                   <div className="h-7 w-7 bg-blue-100 rounded-lg flex items-center justify-center">
                     <Plus className="h-3.5 w-3.5" />
                   </div>
-                  <span className="text-sm font-medium">Adaugă clădire nouă</span>
+                  <span className="text-sm font-medium">Adaugă asociație nouă</span>
                 </button>
               </div>
             </div>
@@ -571,9 +571,20 @@ function DashboardLayoutContent({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = useSession()
+  const { currentAsociatie, loading: asocLoading } = useAsociatie()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notifications, setNotifications] = useState(0)
+
+  // Fără asociație configurată, paginile de date se învârt la infinit (fetch
+  // early-return, loading rămâne true). Trimite user-ul înapoi la /dashboard,
+  // unde apare wizard-ul de onboarding, în loc de spinner. (G-BLOC-018)
+  useEffect(() => {
+    if (!asocLoading && !currentAsociatie && pathname !== '/dashboard') {
+      router.replace('/dashboard')
+    }
+  }, [asocLoading, currentAsociatie, pathname, router])
 
   // Get user initials
   const userInitials = session?.user?.name

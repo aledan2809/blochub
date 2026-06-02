@@ -111,11 +111,8 @@ export async function POST(request: NextRequest) {
       furnizorId = newFurnizor.id
     }
 
-    // Validate that furnizor is provided
-    if (!furnizorId) {
-      return NextResponse.json({ error: 'Furnizorul este obligatoriu' }, { status: 400 })
-    }
-
+    // Furnizorul e opțional — un admin nou poate înregistra o cheltuială simplă
+    // fără să fi creat întâi un furnizor. (G-BLOC-025)
     const cheltuiala = await db.cheltuiala.create({
       data: {
         tip: validatedData.tip,
@@ -128,7 +125,7 @@ export async function POST(request: NextRequest) {
         luna: validatedData.luna,
         an: validatedData.an,
         dataFactura: new Date(validatedData.dataFactura),
-        furnizorId: furnizorId,
+        furnizorId: furnizorId || null,
       },
       include: {
         furnizor: { select: { id: true, nume: true, cui: true, contBancar: true } },

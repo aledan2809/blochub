@@ -1,0 +1,18 @@
+{
+  "net": [
+    "GET /api/asociatii -> 200 :: {\"asociatii\":[]}"
+  ],
+  "dialogs": [],
+  "steps": [
+    "LOGIN OK -> dashboard",
+    "gamification dismissed",
+    "cookie: clicked /Citește & Acceptă/i",
+    "wizard \"Bine ai venit\" present: false",
+    "empty-state \"adauga prima cladire\" present: true",
+    "NO wizard nume input found -> taking empty-state path screenshot",
+    "clicked Adauga prima cladire CTA, url=https://blocx.ro/dashboard",
+    "\n=== NETWORK ===",
+    "GET /api/asociatii -> 200 :: {\"asociatii\":[]}",
+    "=== DIALOGS ==="
+  ]
+}

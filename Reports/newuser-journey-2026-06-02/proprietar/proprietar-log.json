@@ -1,0 +1,25 @@
+{
+  "steps": [
+    "shot invite-landing",
+    "invite shows asociatie/apartament info: true",
+    "invite invalid/expired? true",
+    "name fill err page.fill: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('input[placeholder=\"Ion Popescu\"]')\n",
+    "shot invite-filled",
+    "accept click err locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /Acceptă Invitația|Accepta Invitatia/i }).first()\n",
+    "shot after-accept",
+    "after-accept url=https://blocx.ro/invite/ace379a7d430201ed8ce59198a2507fed9d133744c54cfbc14e2a3c2ec2dfa96",
+    "proprietar login url=https://blocx.ro/auth/login",
+    "shot portal-portal",
+    "portal:portal url=https://blocx.ro/portal hasChitanta=true hasDefalcare=false redirectedToLogin=false",
+    "shot portal-payments",
+    "portal:payments url=https://blocx.ro/portal/payments hasChitanta=true hasDefalcare=false redirectedToLogin=false",
+    "shot portal-avizier",
+    "portal:avizier url=https://blocx.ro/portal/avizier hasChitanta=true hasDefalcare=false redirectedToLogin=false",
+    "shot portal-sesizari",
+    "portal:sesizari url=https://blocx.ro/portal/sesizari hasChitanta=true hasDefalcare=false redirectedToLogin=false",
+    "shot portal-documente",
+    "portal:documente url=https://blocx.ro/portal/documente hasChitanta=true hasDefalcare=false redirectedToLogin=false",
+    "shot portal-chat",
+    "portal:chat url=https://blocx.ro/portal/chat hasChitanta=true hasDefalcare=false redirectedToLogin=false"
+  ]
+}

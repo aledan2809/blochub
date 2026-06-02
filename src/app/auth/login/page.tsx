@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -19,9 +19,15 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Evită race-ul de hidratare: butonul rămâne dezactivat (în SSR) până când
+  // React s-a montat, ca un submit pre-hidratare să nu declanșeze un POST/GET
+  // nativ al formularului care ratează handler-ul. (G-BLOC-026)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!mounted) return
     setError('')
     setLoading(true)
 
@@ -101,7 +107,7 @@ function LoginForm() {
               </Link>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" loading={loading}>
+            <Button type="submit" className="w-full" size="lg" loading={loading} disabled={!mounted}>
               Intră în cont
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

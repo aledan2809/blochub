@@ -71,6 +71,10 @@ export async function GET(request: NextRequest) {
         sumaFonduri: chitanta.sumaFonduri,
         sumaTotal: chitanta.sumaTotal,
         sumaRamasa: chitanta.sumaTotal - sumaPlatita,
+        // Defalcarea pe linii — ca proprietarul să vadă DE CE plătește suma X (G-BLOC-020)
+        detalii: (() => {
+          try { return chitanta.detaliiJson ? JSON.parse(chitanta.detaliiJson) : [] } catch { return [] }
+        })(),
         status: chitanta.status,
         dataEmitere: chitanta.dataEmitere.toISOString(),
         dataScadenta: chitanta.dataScadenta.toISOString(),
