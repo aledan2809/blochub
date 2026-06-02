@@ -38,16 +38,18 @@ export function LevelUpCelebration() {
       ? localStorage.getItem(STORAGE_KEY)
       : null) as Level | null
 
-    // Prima dată (fără nivel memorat) = nivelul de bază primit gratuit. NU-l
-    // sărbători — altfel modalul acoperă onboarding-ul la primul login. Doar
-    // memorează-l silențios. (G-BLOC-022)
-    if (!stored) {
+    const currentIdx = LEVEL_ORDER.indexOf(current)
+    const storedIdx = stored ? LEVEL_ORDER.indexOf(stored) : -1
+
+    // Prima dată (fără nivel memorat) SAU un nivel memorat necunoscut (taxonomie
+    // schimbată) = nu sărbători — altfel modalul acoperă onboarding-ul la primul
+    // login / la fiecare login pe valori vechi. Doar memorează silențios.
+    // Și un nivel curent necunoscut nu declanșează nimic. (G-BLOC-022 + R6)
+    if (currentIdx === -1) return
+    if (!stored || storedIdx === -1) {
       if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, current)
       return
     }
-
-    const currentIdx = LEVEL_ORDER.indexOf(current)
-    const storedIdx = LEVEL_ORDER.indexOf(stored)
 
     if (currentIdx > storedIdx) {
       setOldLevel(stored ?? ('Incepator' as Level))

@@ -6,7 +6,6 @@ import Link from 'next/link'
 import {
   CreditCard,
   FileText,
-  Gauge,
   AlertCircle,
   CheckCircle,
   ChevronRight,
@@ -27,6 +26,7 @@ interface Chitanta {
   an: number
   sumaTotal: number
   sumaRamasa: number
+  sumaRestanta?: number
   status: string
   dataScadenta: string
   apartament: string
@@ -44,12 +44,18 @@ export default function PortalHomePage() {
   const { data: session } = useSession()
   const [chitante, setChitante] = useState<Chitanta[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     fetch('/api/portal/chitante')
-      .then(r => (r.ok ? r.json() : []))
+      // Nu transforma 401/403/500 într-o listă goală — un portal „curat" fals
+      // ar ascunde o sesiune/legătură-apartament ruptă. (R3)
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then(d => setChitante(Array.isArray(d) ? d : []))
-      .catch(() => setChitante([]))
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
 
@@ -58,7 +64,9 @@ export default function PortalHomePage() {
   const asociatie = chitante[0]?.asociatie
   const neplatite = chitante.filter(c => !isPaid(c.status) && c.sumaRamasa > 0)
   const dePlata = neplatite.reduce((s, c) => s + c.sumaRamasa, 0)
-  const restanta = neplatite.reduce((s, c) => s + (c.sumaRamasa), 0)
+  // Restanța reală = suma componentelor de restanță (perioade anterioare
+  // neplătite), distinctă de totalul curent de plată. (R2)
+  const restanta = chitante.reduce((s, c) => s + (c.sumaRestanta || 0), 0)
   const hasDebt = dePlata > 0
   const recente = chitante.slice(0, 3)
   const urmatoareaScadenta = neplatite[0]?.dataScadenta
@@ -67,6 +75,18 @@ export default function PortalHomePage() {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] gap-3 text-center px-4">
+        <AlertCircle className="h-10 w-10 text-orange-500" />
+        <p className="font-medium text-gray-900">Nu am putut încărca datele portalului.</p>
+        <p className="text-sm text-gray-500">
+          Reîncarcă pagina. Dacă problema persistă, contactează administratorul asociației.
+        </p>
       </div>
     )
   }
@@ -135,7 +155,7 @@ export default function PortalHomePage() {
                 <Calendar className="h-5 w-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total de plată</p>
+                <p className="text-sm text-gray-500">Restanță</p>
                 <p className="font-semibold">{restanta.toFixed(2)} lei</p>
               </div>
             </div>
@@ -187,32 +207,8 @@ export default function PortalHomePage() {
         </CardContent>
       </Card>
 
-      {/* Contoare — fără date demo; doar CTA real către trimiterea indexilor */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Indexuri contoare</CardTitle>
-            <Link href="/portal/contoare" className="text-blue-600 text-sm font-medium">
-              Trimite indexi
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-            <div className="flex items-start gap-2">
-              <Gauge className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">
-                  Trimite indexii contoarelor tale
-                </p>
-                <p className="text-xs text-yellow-600 mt-1">
-                  Poți fotografia contoarele direct din aplicație.
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Contoarele: ruta /portal/contoare nu există încă — nu afișa un CTA
+          care duce la 404. De re-adăugat când există feature-ul real. (R5) */}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-4">

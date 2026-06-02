@@ -193,20 +193,34 @@ export default function PaymentsPage() {
                         <div className="mt-1">
                           {getStatusBadge(chitanta.status)}
                         </div>
-                        {/* Defalcare — de ce această sumă (G-BLOC-020) */}
+                        {/* Defalcare — de ce această sumă (G-BLOC-020).
+                            detalii conține deja liniile de întreținere + fonduri;
+                            le afișăm pe acelea când există, altfel cădem pe
+                            subtotalurile pe categorii. Restanța/penalizările NU
+                            sunt în detalii, deci le adăugăm separat. */}
                         <div className="mt-2 text-xs text-gray-600 space-y-0.5 max-w-xs">
-                          {chitanta.detalii && chitanta.detalii.length > 0 &&
+                          {chitanta.detalii && chitanta.detalii.length > 0 ? (
                             chitanta.detalii.map((d, i) => (
                               <div key={i} className="flex justify-between gap-6">
                                 <span>{d.denumire}</span>
                                 <span>{d.suma.toFixed(2)} RON</span>
                               </div>
-                            ))}
-                          {!!chitanta.sumaFonduri && (
-                            <div className="flex justify-between gap-6">
-                              <span>Fonduri</span>
-                              <span>{chitanta.sumaFonduri.toFixed(2)} RON</span>
-                            </div>
+                            ))
+                          ) : (
+                            <>
+                              {!!chitanta.sumaIntretinere && (
+                                <div className="flex justify-between gap-6">
+                                  <span>Întreținere</span>
+                                  <span>{chitanta.sumaIntretinere.toFixed(2)} RON</span>
+                                </div>
+                              )}
+                              {!!chitanta.sumaFonduri && (
+                                <div className="flex justify-between gap-6">
+                                  <span>Fonduri</span>
+                                  <span>{chitanta.sumaFonduri.toFixed(2)} RON</span>
+                                </div>
+                              )}
+                            </>
                           )}
                           {!!chitanta.sumaRestanta && (
                             <div className="flex justify-between gap-6 text-orange-600">

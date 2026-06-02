@@ -32,7 +32,7 @@ export default withAuth(
         // Public: invite verification + acceptance — the invitee has no session
         // yet (the whole point of accepting an invitation). Gating it broke the
         // entire proprietar onboarding flow. (G-BLOC-015)
-        if (req.nextUrl.pathname.startsWith('/api/invitations/accept')) return true
+        if (req.nextUrl.pathname === '/api/invitations/accept') return true
         return !!token
       },
     },
