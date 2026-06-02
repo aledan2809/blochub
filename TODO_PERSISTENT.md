@@ -28,3 +28,48 @@
 - Verifică: pagina publică se încarcă, formularul salvează lead, contorul scade.
 
 **Status:** spec gata (sesiune dedicată pt build, ca să nu se facă pe finalul unei sesiuni lungi).
+
+---
+
+## [ ] 📖 Manual de utilizare + verdict „produsul se auto-explică?" (creat 2026-06-01)
+
+**Cerință user:** „Presupune că ești nou intrat pe site-ul aplicației și vrei să știi ce face și cum o folosești. Ai aici tot ce-ți trebuie? Fă un sumar cu ce face + ce butoane trebuie apăsate ca să ajungi aici — un manual."
+
+**De livrat:**
+1. **Manual de utilizare** (RO) — pas cu pas, din perspectiva unui user complet nou: ce face BlocX + traseul de butoane/click-uri pentru fiecare capabilitate majoră (signup → onboarding asociație → clădire/scări/apartamente → proprietari → cheltuieli → repartizare → chitanțe → încasări/plăți → tichete → portal proprietar). Pentru fiecare: „ca să ajungi aici, apeși X → Y → Z".
+2. **Verdict onest de auto-explicabilitate:** „un user nou are TOT ce-i trebuie ca să se descurce singur?" — unde se blochează, unde lipsesc indicii (tooltips, empty-state guidance, wizard, help), unde trebuie să ghicească. Acoperă AMBELE roluri (vezi decizia #1 mai jos).
+3. Output: `knowledge/MANUAL.md` (manualul) + secțiune „Gaps de onboarding/UX" în raport.
+
+## [ ] 🧪 Test UI real / journey / TGW din perspectiva user-ului NOU (creat 2026-06-01)
+
+**Cerință user:** „Testează cu UI real / journey / TGW și vom vedea cât de ușor e pentru un user nou. Fă testarea cum trebuie, responsabil și fără să omiți nimic, raportează onest unde sunt problemele/gap-urile. Voi verifica și eu live și comparăm rezultatele."
+
+**De făcut (complet, fără a omite):**
+- Journey audit (`npx @aledan007/tester journey-audit`) + TGW (`Tester-Gateway/apps/blochub.json` — config creată 2026-05-31) + UI real headed pe traseul de prim-contact.
+- Focus: **uşurinţa pentru user nou**, nu doar „pagina se încarcă 200". Măsoară fricțiunea: câți pași până la prima valoare, unde se gripează, ce e neclar.
+- Raport onest cu gap-uri (severitate), comparabil cu verificarea live a user-ului.
+
+**⚠️ 3 DECIZII DE LUAT LA STARTUL NOII SESIUNI (nelămuriri semnalate 2026-06-01):**
+1. **Cine e „user-ul nou"?** Admin (cumpărătorul — signup + onboarding = traseul make-or-break) vs proprietar (portal). *Default propus:* AMBELE, admin-primar. Manual + test acoperă întâi traseul admin (signup→onboarding), apoi portalul proprietar.
+2. **Cont nou + onboarding complet pe PROD?** Ca să testezi traseul REAL de user nou trebuie **înregistrat un cont proaspăt + parcurs onboarding-ul** (creează asociație/clădire/apartamente = scrieri în PROD local PG, blochub NO-TOUCH CRITIC). *Default propus:* da, cu un **cont test clar etichetat** (ex. `journey-newuser@blochub.app`) + fixture minimal + **cleanup la final** (ledger în DIRECT-CHANGES). Alternativă (mai slabă): doar public + contul existent care se gripează la onboarding-wall. **Cere confirm user.**
+3. **Precondiții TGW:** gateway-ul rulează cu token nepotrivit față de `.env` (run-ul a fost blocat 2026-05-31) → **restart TG cu tokenul curent** sau resolve token. Scoring-ul Vision poate fi credit-blocked (Anthropic) → folosește calea **Claude-CLI-subprocess** din `mesh/qa/ui-tester.js` (L118 closed) ca să meargă fără credit API.
+
+---
+
+## [ ] 🔧 Gap-uri audit deferate (din True E2E 2026-05-31 — vezi AUDIT_GAPS.md)
+
+Ordine recomandată: G-BLOC-009 (deblochează transparența publică) → G-BLOC-005-rest+010 (sesiune txn+webhook) → G-BLOC-007-rest → G-BLOC-011 (UI) → G-BLOC-013 (cross-NO-TOUCH cu Legal) → 012-rest/014.
+- [ ] **G-BLOC-009** (P2) — repartizare `Float`→`Decimal` + alocare rest la rotunjire (necesită teste; **precondiție pt cifrele publice din `/cat-costa`**)
+- [ ] **G-BLOC-005-rest** (P1) — `$transaction` wrap pe `chitante/generate` + race numar chitanță
+- [ ] **G-BLOC-010** (P2) — atomicitate recompute webhook Stripe/Revolut (bundle cu 005)
+- [ ] **G-BLOC-007-rest** (P1) — audit-log pe schimbări rol/user (`admin/users`) + settings (`admin/settings`) + asociație create
+- [ ] **G-BLOC-011** (P2) — contrast a11y (5×/) + touch targets <44px pe landing (pas UI + verificare vizuală)
+- [ ] **G-BLOC-013** (P3) — pagini legale → fetch din Legal hub (**atinge Legal = al 2-lea NO-TOUCH → sesiune separată**; = „fresh items 1+2" handoff)
+- [ ] **G-BLOC-012-rest** (P2) — TOCTOU pe claim roata · **G-BLOC-014** (P3) — webhook 400 + CONSUM bill-0
+
+## [ ] 🚀 Build motor viral (specuri gata din STRATEGY.md — creat 2026-05-31)
+
+- [ ] **`/cat-costa`** — educatorul public de întreținere (spec build-ready: `knowledge/spec-cat-costa.md`). Vectorul de conținut viral + SEO. ~1 săpt. Precondiție cifre: G-BLOC-009.
+- [ ] **`/cere-blocx`** — demand-pull proprietar→admin (vectorul viral #1; spec în `knowledge/viral-loop-spec.md`). ~1–1.5 săpt. Emite lead → MA nurture.
+- [ ] Defalcare-transparență în portal (post-plată) + bridge spre `/roata`. ~3–5 zile.
+- [ ] Referral pe luni gratis (înlocuiește XP) + pitch firme de administrare.
