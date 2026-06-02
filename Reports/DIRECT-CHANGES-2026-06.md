@@ -73,3 +73,19 @@
 - Verification fixture (journey-verify admin + asoc + apt + invitation) cleaned up; verified 0 fixture rows; real data intact (1 asoc, 2 users).
 
 **AUDIT_GAPS.md**: all 12 → ✅ Eliminated 2026-06-02 (`d2b458c`). G-BLOC-024 description corrected to the real root cause.
+
+---
+
+## 2026-06-02 (PM-2) — /review on the 12 fixes → 6 self-corrections (commit `b74e555`, deployed+verified)
+
+Ran a 7-angle code review on `d2b458c`. It caught real regressions in my own fix code:
+- **R1 [HIGH]** `portal/payments`: Fonduri double-rendered — `detalii` already contains the FOND_RULMENT line (calcul-chitanta:214) AND I rendered a separate `sumaFonduri` row. Fixed: render `detalii` OR category subtotals (never both); restanță/penalizări stay separate (not in detalii).
+- **R2 [MED]** `portal/page`: `restanta` was a verbatim clone of `dePlata` (two cards, same number). Fixed: real arrears = Σ `sumaRestanta`; card relabeled "Restanță".
+- **R3 [MED]** `portal/page`: fetch swallowed 401/403/500 → false-clean empty portal. Fixed: surfaces an error state (relevant since G-BLOC-019 now routes PROPRIETAR here).
+- **R4 [LOW]** `middleware`: `startsWith` → exact `=== '/api/invitations/accept'` (no future-sibling whitelist).
+- **R5 [LOW]** `portal/page`: removed dead `/portal/contoare` CTA (route 404) + unused `Gauge` import.
+- **R6 [LOW]** `level-up`: stale/unknown stored level no longer triggers a false celebration.
+
+Refuted (not bugs): penalty loop excluding current period (correct — don't penalize a chitanță on itself); `mounted` login guard; furnizor-optional; middleware `req` destructuring; SetupWizard SSR.
+
+**Build OK, tsc clean.** Deployed VPS2 (`16e1a5f`+`b74e555`, `pm2 restart blochub`). **Verified live** on a fresh fixture (admin + chitanță with fonduri + DB proprietar): payments breakdown shows Fonduri **once** (was 2× — R1 fixed); portal home shows distinct "Sold curent" + "Restanță" cards (R2 fixed); blocx.ro + /api/health 200; invite carve-out still public after exact-match (bogus→404). Fixture cleaned up (0 rows; real data intact: 1 asoc, 2 users).
