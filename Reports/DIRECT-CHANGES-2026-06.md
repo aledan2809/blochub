@@ -49,3 +49,27 @@
 **Verify ritual**: re-ran blocx.ro health (200/200) post-cleanup; journey-audit baseline preserved (14 OK/3 GATED). No deploy (no code change).
 
 **Cross-ref**: handoff 2026-06-02; `Reports/newuser-journey-2026-06-02/REPORT.md`.
+
+---
+
+## 2026-06-02 (PM) — FIX ALL 12 new-user gaps (G-BLOC-015..026) — deployed + verified
+
+**Mode**: Direct, **user-authorized NO-TOUCH override** ("fix all cu TWG" → "TWG pe tot (override NO-TOUCH)" + "Toate cele 12"). Executed as surgical fixes by Claude (Guru role) + Tester/journey verification loop (TWG pattern done safely on payment code — an unattended generic Guru would risk mangling Next.js middleware/payment code).
+
+**Commit `d2b458c`** (11 code files, +193/−109): see commit body. Highlights:
+- G-BLOC-015 (P1): `middleware.ts` `authorized` callback carve-out for `/api/invitations/accept`.
+- G-BLOC-016/017/018/019: SetupWizard wired; modal relabeled to "asociație"; no-asociatie data pages redirect to /dashboard; proprietari → /portal.
+- G-BLOC-020/021/023: portal chitanță breakdown exposed+rendered; portal home rewritten to real data (was full mock); avizier Fonduri card.
+- G-BLOC-022: gamification celebrates only real level-ups.
+- G-BLOC-024 (financial): **reclassified** — no DB duplication (route dedups); real fix = restanță query in `calcul-chitanta` excludes the period being generated (`OR: [{an:{lt}}, {an, luna:{lt}}]`).
+- G-BLOC-025: furnizor optional. G-BLOC-026: login hydration guard.
+
+**Build**: local `npm run build` ✓ (Next 16, 0 errors); tsc clean on changed files (10 pre-existing test-file errors only).
+**Deploy VPS2**: `git pull origin main` (`466222b..d2b458c`) → `npm run build` ✓ → `pm2 restart blochub --update-env` (id 5) ✓. NOT standalone (`next start`).
+**Verified live (verify-ritual — re-ran the original failing flows on a fresh fixture, then cleaned up)**:
+- blocx.ro / + /api/health = 200/200.
+- G-BLOC-015: `/api/invitations/accept?token=bogus` → `404 {"error":"Invitație invalidă"}` (no signin redirect); **valid token → `200 {"valid":true, invitation:{asociatie, apartament, invitedBy}, userExists:false}` unauthenticated** → "Invitație Invalidă" gone, invite flow restored end-to-end.
+- journey-audit (admin): **14 OK / 3 GATED** = baseline, no regression.
+- Verification fixture (journey-verify admin + asoc + apt + invitation) cleaned up; verified 0 fixture rows; real data intact (1 asoc, 2 users).
+
+**AUDIT_GAPS.md**: all 12 → ✅ Eliminated 2026-06-02 (`d2b458c`). G-BLOC-024 description corrected to the real root cause.

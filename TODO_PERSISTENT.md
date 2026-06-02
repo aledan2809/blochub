@@ -31,7 +31,7 @@
 
 ---
 
-## [x] 📖 Manual de utilizare + verdict „produsul se auto-explică?" — DONE 2026-06-02 (`knowledge/MANUAL.md` + `Reports/newuser-journey-2026-06-02/REPORT.md`; docs uncommitted — vezi nota la final)
+## [x] 📖 Manual de utilizare + verdict „produsul se auto-explică?" — DONE 2026-06-02 (`knowledge/MANUAL.md` + `Reports/newuser-journey-2026-06-02/REPORT.md`; commit d2b458c, deployed)
 
 **Cerință user:** „Presupune că ești nou intrat pe site-ul aplicației și vrei să știi ce face și cum o folosești. Ai aici tot ce-ți trebuie? Fă un sumar cu ce face + ce butoane trebuie apăsate ca să ajungi aici — un manual."
 
@@ -40,7 +40,7 @@
 2. **Verdict onest de auto-explicabilitate:** „un user nou are TOT ce-i trebuie ca să se descurce singur?" — unde se blochează, unde lipsesc indicii (tooltips, empty-state guidance, wizard, help), unde trebuie să ghicească. Acoperă AMBELE roluri (vezi decizia #1 mai jos).
 3. Output: `knowledge/MANUAL.md` (manualul) + secțiune „Gaps de onboarding/UX" în raport.
 
-## [x] 🧪 Test UI real / journey / TGW din perspectiva user-ului NOU — DONE 2026-06-02
+## [x] 🧪 Test UI real / journey / TGW + FIX ALL 12 gaps — DONE 2026-06-02 (commit d2b458c deployed+verified)
 
 **Rezultat (2026-06-02):** Decizii: Direct · admin+proprietar · PROD cu fixture+cleanup · TGW inclus. Test real ambele roluri pe blocx.ro. **12 gap-uri noi OPEN (G-BLOC-015..026)** + G-BLOC-TGW-001. Headline: **G-BLOC-015 [P1]** invite-accept rupt (middleware auth-gate pe `/api/invitations/accept`) → proprietarii nu pot intra; **G-BLOC-016 [P2]** wizard onboarding orfan; **G-BLOC-020 [P3]** auto-explicabilitate (proprietarul nu vede *de ce* plătește). journey-audit 14 OK/3 GATED (baseline). TGW repornit cu token curent dar critical-flows blocat (schema errors + lipsă `BLOCHUB_TEST_EMAIL`). Fixture PROD curățat complet (verificat 0 test rows; real data intact; blocx.ro 200/200). Raport: `Reports/newuser-journey-2026-06-02/REPORT.md`. Ledger: `Reports/DIRECT-CHANGES-2026-06.md`.
 
