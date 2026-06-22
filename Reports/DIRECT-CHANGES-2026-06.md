@@ -89,3 +89,10 @@ Ran a 7-angle code review on `d2b458c`. It caught real regressions in my own fix
 Refuted (not bugs): penalty loop excluding current period (correct — don't penalize a chitanță on itself); `mounted` login guard; furnizor-optional; middleware `req` destructuring; SetupWizard SSR.
 
 **Build OK, tsc clean.** Deployed VPS2 (`16e1a5f`+`b74e555`, `pm2 restart blochub`). **Verified live** on a fresh fixture (admin + chitanță with fonduri + DB proprietar): payments breakdown shows Fonduri **once** (was 2× — R1 fixed); portal home shows distinct "Sold curent" + "Restanță" cards (R2 fixed); blocx.ro + /api/health 200; invite carve-out still public after exact-match (bogus→404). Fixture cleaned up (0 rows; real data intact: 1 asoc, 2 users).
+
+## 2026-06-22 — payments/webhook atomic + idempotent (commit `78dbaeb`, local, NU deployat)
+- **Context**: Introspection Audit 2026-06-20 critical — webhook `payment_intent.succeeded` făcea confirm→aggregate→update→notify secvențial, fără `$transaction` și fără gardă anti-retry. Un retry Stripe re-trimitea notificarea „Plată confirmată" + risc stare parțială la crash.
+- **Fix (propose-confirm-apply, user approved 2026-06-22)**: înfășurat în `db.$transaction` + gardă de idempotență prin filtrul `status: { not: 'CONFIRMED' }` pe `updateMany` → un eveniment deja procesat actualizează 0 rânduri → `return` early, side-effects exact-o-dată. Fără schimbare de schemă.
+- **Verificare**: `npx tsc --noEmit` — 0 erori noi (cele 10 preexistente = matchers jest-dom în fișiere de test, neatinse).
+- **Status**: commit LOCAL pe `main`, **NEpush / NEdeploy** — așteaptă decizia de deploy.
+- **Rămase aprobate ca sesiuni dedicate**: #2 Float→Decimal (migrare schemă + `pg_dump`), #3 dependențe (bump țintit + mitigare `xlsx`).
