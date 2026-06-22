@@ -36,50 +36,59 @@ export async function POST(request: NextRequest) {
     case 'payment_intent.succeeded': {
       const paymentIntent = event.data.object as Stripe.PaymentIntent
 
-      await db.plata.updateMany({
-        where: { stripePaymentId: paymentIntent.id },
-        data: {
-          status: 'CONFIRMED',
-          dataPlata: new Date(),
-        },
-      })
-
-      const plata = await db.plata.findFirst({
-        where: { stripePaymentId: paymentIntent.id },
-        include: { chitanta: true },
-      })
-
-      if (plata) {
-        const totalPlatit = await db.plata.aggregate({
-          where: {
-            chitantaId: plata.chitantaId,
-            status: 'CONFIRMED',
-          },
-          _sum: { suma: true },
-        })
-
-        const sumaPlatita = totalPlatit._sum.suma || 0
-
-        await db.chitanta.update({
-          where: { id: plata.chitantaId },
+      // Atomic + idempotent: a Stripe retry of an already-confirmed payment
+      // updates 0 rows (status != CONFIRMED filter) → skip all side-effects,
+      // so the confirmation notification + aggregate run exactly once.
+      await db.$transaction(async (tx) => {
+        const updated = await tx.plata.updateMany({
+          where: { stripePaymentId: paymentIntent.id, status: { not: 'CONFIRMED' } },
           data: {
-            status: sumaPlatita >= plata.chitanta.sumaTotal
-              ? 'PLATITA'
-              : 'PARTIAL_PLATITA',
+            status: 'CONFIRMED',
+            dataPlata: new Date(),
           },
         })
 
-        if (plata.userId) {
-          await db.notificare.create({
+        if (updated.count === 0) {
+          return
+        }
+
+        const plata = await tx.plata.findFirst({
+          where: { stripePaymentId: paymentIntent.id },
+          include: { chitanta: true },
+        })
+
+        if (plata) {
+          const totalPlatit = await tx.plata.aggregate({
+            where: {
+              chitantaId: plata.chitantaId,
+              status: 'CONFIRMED',
+            },
+            _sum: { suma: true },
+          })
+
+          const sumaPlatita = totalPlatit._sum.suma || 0
+
+          await tx.chitanta.update({
+            where: { id: plata.chitantaId },
             data: {
-              tip: 'PLATA_CONFIRMATA',
-              titlu: 'Plată confirmată',
-              mesaj: `Plata de ${plata.suma.toFixed(2)} RON pentru chitanța ${plata.chitanta.numar}/${plata.chitanta.luna}/${plata.chitanta.an} a fost procesată cu succes.`,
-              userId: plata.userId,
+              status: sumaPlatita >= plata.chitanta.sumaTotal
+                ? 'PLATITA'
+                : 'PARTIAL_PLATITA',
             },
           })
+
+          if (plata.userId) {
+            await tx.notificare.create({
+              data: {
+                tip: 'PLATA_CONFIRMATA',
+                titlu: 'Plată confirmată',
+                mesaj: `Plata de ${plata.suma.toFixed(2)} RON pentru chitanța ${plata.chitanta.numar}/${plata.chitanta.luna}/${plata.chitanta.an} a fost procesată cu succes.`,
+                userId: plata.userId,
+              },
+            })
+          }
         }
-      }
+      })
       break
     }
 
