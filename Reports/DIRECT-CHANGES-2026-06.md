@@ -94,5 +94,5 @@ Refuted (not bugs): penalty loop excluding current period (correct — don't pen
 - **Context**: Introspection Audit 2026-06-20 critical — webhook `payment_intent.succeeded` făcea confirm→aggregate→update→notify secvențial, fără `$transaction` și fără gardă anti-retry. Un retry Stripe re-trimitea notificarea „Plată confirmată" + risc stare parțială la crash.
 - **Fix (propose-confirm-apply, user approved 2026-06-22)**: înfășurat în `db.$transaction` + gardă de idempotență prin filtrul `status: { not: 'CONFIRMED' }` pe `updateMany` → un eveniment deja procesat actualizează 0 rânduri → `return` early, side-effects exact-o-dată. Fără schimbare de schemă.
 - **Verificare**: `npx tsc --noEmit` — 0 erori noi (cele 10 preexistente = matchers jest-dom în fișiere de test, neatinse).
-- **Status**: commit LOCAL pe `main`, **NEpush / NEdeploy** — așteaptă decizia de deploy.
+- **Status**: **DEPLOYED LIVE 2026-06-22** — push `main`→origin (`0ab7a39`) + `git pull` + `npm run build` (BUILD_OK) + `pm2 restart blochub` pe VPS2. Verificat: blocx.ro 200, /auth/login 200, restart curat (1 reload), L41 neighbors VPS2 toate sănătoase (procuchain/contakt 200, etutor 307). Fără schimbare de schemă → fără migrare.
 - **Rămase aprobate ca sesiuni dedicate**: #2 Float→Decimal (migrare schemă + `pg_dump`), #3 dependențe (bump țintit + mitigare `xlsx`).
