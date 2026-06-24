@@ -96,3 +96,26 @@ Refuted (not bugs): penalty loop excluding current period (correct — don't pen
 - **Verificare**: `npx tsc --noEmit` — 0 erori noi (cele 10 preexistente = matchers jest-dom în fișiere de test, neatinse).
 - **Status**: **DEPLOYED LIVE 2026-06-22** — push `main`→origin (`0ab7a39`) + `git pull` + `npm run build` (BUILD_OK) + `pm2 restart blochub` pe VPS2. Verificat: blocx.ro 200, /auth/login 200, restart curat (1 reload), L41 neighbors VPS2 toate sănătoase (procuchain/contakt 200, etutor 307). Fără schimbare de schemă → fără migrare.
 - **Rămase aprobate ca sesiuni dedicate**: #2 Float→Decimal (migrare schemă + `pg_dump`), #3 dependențe (bump țintit + mitigare `xlsx`).
+
+---
+
+## 2026-06-24 — front 3: penny-leak fix (G-BLOC-009a) + deps security bumps (#3)
+
+**Mode**: Direct, regim mesh (dev → /review high → deploy). NO-TOUCH CRITIC, propose-confirm-apply — user a ales scope „penny-leak + deps (ambele câștiguri sigure)" și apoi „toate găurile, inclusiv riscante" + „da, deploy ambele acum".
+
+### A. Penny-leak — G-BLOC-009a ELIMINATED (commit `7e17b5e`)
+- **De ce**: cotele per-apartament erau rotunjite independent → suma bucăților ≠ totalul cheltuielii (ex. 100/3 → 99,99). Strategia: „transparent dar greșit = anti-viral instant".
+- **Change**: nou `src/lib/repartizare.ts` — `allocateByLargestRemainder` (Hamilton), pur, calculat peste setul COMPLET de apartamente (subset-regen safe, G-BLOC-006). Cablat în `calcul-chitanta.ts` (sursa de adevăr) + `avizier/export` pe modurile proporționale (COTA_INDIVIZA/PERSOANE/APARTAMENT). CONSUM + restanță/penalizări istorice din avizier = neatinse (out of scope). **Fără schemă/migrare** (rămâne Float; Float→Decimal = G-BLOC-009b, deferat).
+- **Verify**: 9 teste jest noi (inclusiv property-test 500 cazuri „se închide mereu"); tsc curat pe fișierele mele; `npm run build` OK; /review high → Approve, 0 fix-uri.
+
+### B. Dependențe vulnerabile — #3 (commits `bc7636f` + revert `e17c690`)
+- **Rezultat**: critical **1→0**, high **8→2**. Total 38→31.
+- **Bumpate** (verificate build+jest 17/17): jspdf 4.0.0→4.2.1 (CRITICAL: PDF injection RCE), next 16.1.3→16.2.9 (2× HIGH DoS), + overrides flatted 3.4.2 / form-data 4.0.6 / ws 8.21.0 / minimatch 10.2.5 / picomatch 4.0.4 (HIGH ReDoS/method-injection).
+- **nodemailer**: încercat 7→9 (ar fi închis HIGH-ul) dar **conflict peer cu next-auth `^7.0.7`** (ERESOLVE pe VPS) → revert la 7.0.13. HIGH rămâne (expunere reală mică — envelope.size/transport name = config intern, nu input user).
+- **xlsx**: HIGH rămas — pachet abandonat (0.18.5), **fără fix npm**; remediu = migrare la distribuția SheetJS CDN (task dedicat).
+- **26 moderate** (lanț resend/svix/uuid etc.) = în afara acestui pas.
+
+### Deploy
+- push `main`→origin (`e17c690`) + VPS2: `git pull` + `npm install` + `npm run build` (28.5s OK) + `pm2 restart blochub --update-env`.
+- **Verificat LIVE**: blocx.ro / + /auth/login + /auth/register + /pricing toate **200**; vecini VPS2 (tradeinvest/contakt/legal) 200 — neatinși.
+- AUDIT_GAPS: G-BLOC-009 split → 009a Eliminated, 009b OPEN-DEFERRED.
