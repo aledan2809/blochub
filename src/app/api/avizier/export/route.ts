@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import * as XLSX from 'xlsx'
 import { checkRateLimit, getClientIdentifier, RATE_LIMIT_CONFIGS } from '@/lib/rate-limit'
+import { allocateByLargestRemainder, AllocationWeight } from '@/lib/repartizare'
 
 const tipCheltuialaLabels: Record<string, string> = {
   APA_RECE: 'Apă rece',
@@ -242,6 +243,23 @@ async function getAvizierData(asociatie: any, luna: number, an: number) {
     penalizariByApartment[apt.id] = Math.round(penalizareTotal * 100) / 100
   })
 
+  // Pre-compute each current-month expense's per-apartment split via the
+  // largest-remainder method, so the exported per-category amounts reconcile to
+  // the expense totals (no rounding penny-leak — G-BLOC-009a). CONSUM is not a
+  // fixed-total split and is not distributed here (same as before).
+  const allocByCheltuiala = new Map<string, Record<string, number>>()
+  cheltuieli.forEach(ch => {
+    let weights: AllocationWeight[] | null = null
+    if (ch.modRepartizare === 'COTA_INDIVIZA' && totalCotaIndiviza > 0) {
+      weights = apartamente.map(a => ({ id: a.id, weight: a.cotaIndiviza || 0 }))
+    } else if (ch.modRepartizare === 'PERSOANE' && totalPersons > 0) {
+      weights = apartamente.map(a => ({ id: a.id, weight: a.nrPersoane }))
+    } else if (ch.modRepartizare === 'APARTAMENT' && apartamente.length > 0) {
+      weights = apartamente.map(a => ({ id: a.id, weight: 1 }))
+    }
+    if (weights) allocByCheltuiala.set(ch.id, allocateByLargestRemainder(ch.suma, weights))
+  })
+
   // Build final data
   const rows = apartamente.map(apt => {
     const cheltuieliApt: Record<string, number> = {}
@@ -249,14 +267,7 @@ async function getAvizierData(asociatie: any, luna: number, an: number) {
 
     cheltuieli.forEach(ch => {
       const tipLabel = tipCheltuialaLabels[ch.tip] || ch.tip
-      let sumaApt = 0
-      if (ch.modRepartizare === 'COTA_INDIVIZA' && totalCotaIndiviza > 0) {
-        sumaApt = (ch.suma * (apt.cotaIndiviza || 0)) / totalCotaIndiviza
-      } else if (ch.modRepartizare === 'PERSOANE' && totalPersons > 0) {
-        sumaApt = (ch.suma * apt.nrPersoane) / totalPersons
-      } else if (ch.modRepartizare === 'APARTAMENT' && apartamente.length > 0) {
-        sumaApt = ch.suma / apartamente.length
-      }
+      const sumaApt = allocByCheltuiala.get(ch.id)?.[apt.id] ?? 0
       cheltuieliApt[tipLabel] = (cheltuieliApt[tipLabel] || 0) + sumaApt
       totalIntretinere += sumaApt
     })

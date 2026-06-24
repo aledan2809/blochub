@@ -2,6 +2,7 @@ import { AgentType, TipCheltuiala, ModRepartizare, StatusChitanta } from '@prism
 import { BaseAgent, AgentInput, AgentOutput } from './base'
 import { db } from '@/lib/db'
 import { calculatePenalty } from '@/lib/utils'
+import { allocateByLargestRemainder, AllocationWeight } from '@/lib/repartizare'
 
 interface ChitantaLineItem {
   denumire: string
@@ -91,24 +92,40 @@ export class CalculChitantaAgent extends BaseAgent {
         },
       })
 
-      // Get total cota indiviza for repartition
-      const totalCota = await db.apartament.aggregate({
+      // Full apartment set keys (NOT the possibly-subset `apartamente`), used to
+      // pre-compute each expense's per-apartment split over the WHOLE asociație.
+      const allApartamenteKeys = await db.apartament.findMany({
         where: { asociatieId },
-        _sum: { cotaIndiviza: true },
+        select: { id: true, cotaIndiviza: true, nrPersoane: true },
       })
 
-      const totalPersoane = await db.apartament.aggregate({
-        where: { asociatieId },
-        _sum: { nrPersoane: true },
-      })
-
-      // Full apartment count of the asociatie (NOT the possibly-subset `apartamente`),
-      // so per-apartment shares are identical whether this is a full or subset
-      // regeneration. (G-BLOC-006: APARTAMENT mode previously divided by the subset
-      // length, over-billing on partial runs.)
-      const totalApartamenteCount = await db.apartament.count({
-        where: { asociatieId },
-      })
+      // Pre-compute, per cheltuială, the per-apartment share for the proportional
+      // modes using the largest-remainder method. This guarantees the shares sum
+      // EXACTLY to the expense total (no rounding penny-leak — G-BLOC-009a) and are
+      // identical whether this is a full or subset regeneration (G-BLOC-006).
+      // CONSUM is consumption-based (cantitate × pretUnitar), not a fixed-total
+      // split, so it is handled per-apartment in the loop below — left unchanged.
+      const allocationsByCheltuiala = new Map<string, Record<string, number>>()
+      for (const cheltuiala of asociatie.cheltuieli) {
+        let weights: AllocationWeight[] | null = null
+        switch (cheltuiala.modRepartizare) {
+          case ModRepartizare.COTA_INDIVIZA:
+            weights = allApartamenteKeys.map((a) => ({ id: a.id, weight: a.cotaIndiviza || 1 }))
+            break
+          case ModRepartizare.PERSOANE:
+            weights = allApartamenteKeys.map((a) => ({ id: a.id, weight: a.nrPersoane || 1 }))
+            break
+          case ModRepartizare.APARTAMENT:
+            weights = allApartamenteKeys.map((a) => ({ id: a.id, weight: 1 }))
+            break
+        }
+        if (weights) {
+          allocationsByCheltuiala.set(
+            cheltuiala.id,
+            allocateByLargestRemainder(cheltuiala.suma, weights)
+          )
+        }
+      }
 
       // Calculate data scadenta
       const dataScadenta = new Date(an, luna - 1, asociatie.ziScadenta)
@@ -136,24 +153,13 @@ export class CalculChitantaAgent extends BaseAgent {
           let pretUnitar: number | undefined
 
           switch (cheltuiala.modRepartizare) {
+            // Proportional modes read their per-apartment share from the
+            // pre-computed largest-remainder allocation (sums exactly to the
+            // expense total; stable on full/subset regen). (G-BLOC-009a, G-BLOC-006)
             case ModRepartizare.COTA_INDIVIZA:
-              // Repartizare pe cotă indiviză
-              const cotaApt = apt.cotaIndiviza || 1
-              const totalC = totalCota._sum.cotaIndiviza || 100
-              sumaApartament = (cheltuiala.suma * cotaApt) / totalC
-              break
-
             case ModRepartizare.PERSOANE:
-              // Repartizare pe persoane
-              const persApt = apt.nrPersoane || 1
-              const totalP = totalPersoane._sum.nrPersoane || 1
-              sumaApartament = (cheltuiala.suma * persApt) / totalP
-              break
-
             case ModRepartizare.APARTAMENT:
-              // Fix per apartament — divide by the FULL apartment count, not the
-              // (possibly subset) `apartamente.length` (G-BLOC-006)
-              sumaApartament = cheltuiala.suma / (totalApartamenteCount || apartamente.length)
+              sumaApartament = allocationsByCheltuiala.get(cheltuiala.id)?.[apt.id] ?? 0
               break
 
             case ModRepartizare.CONSUM:
