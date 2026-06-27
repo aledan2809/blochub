@@ -134,4 +134,9 @@ Sursă: `blochub/Reports/INTROSPECTION-2026-06-20/`
 
 ## [ ] 🧩 Module reuse gap (propus 2026-06-27, din matricea Lego Master)
 
-- [ ] **+ AICR (bannere anunțuri)** — ECOSYSTEM_REGISTRY listează „Planned: BlocHub announcement banners". `@aledan/aicr` `generateImage`. **NU început** — blochub = NO-TOUCH CRITIC (payment flows) → propose-confirm §2d, sesiune dedicată. Identificat via `/matrix`.
+- [ ] **+ AICR — bannere pentru anunțuri** (`@aledan/aicr`) — identificat via `/matrix`
+  - **De ce aici**: BlocHub trimite anunțuri către locatari (HOA); un banner-imagine generat face anunțul mai vizibil/profesionist. ECOSYSTEM_REGISTRY: „Planned: BlocHub announcement banners".
+  - **Integrare**: `file:../AICR`; `import { generateImage } from '@aledan/aicr'` (server-side, Gemini Imagen primary → OpenAI fallback). Chei din `Master/credentials/.env.shared`. Telemetrie `Master/metrics/aicr/blochub.jsonl`.
+  - **Suprafața**: la crearea unui anunț (modulul de announcements), buton opțional „generează banner" → atașează imaginea la anunț.
+  - **Governance**: blochub = NO-TOUCH CRITIC — **NU atinge `src/app/api/payments/*`**; feature-ul e pe announcements, departe de money-path. propose-confirm-apply §2d. AICR = al 2-lea+ consumator → §6.1.
+  - **Verificare**: build; smoke `generateImage`; anunț cu banner randează în UI locatar.
