@@ -79,3 +79,59 @@ Ordine recomandată: G-BLOC-009 (deblochează transparența publică) → G-BLOC
 - [ ] **`/cere-blocx`** — demand-pull proprietar→admin (vectorul viral #1; spec în `knowledge/viral-loop-spec.md`). ~1–1.5 săpt. Emite lead → MA nurture.
 - [ ] Defalcare-transparență în portal (post-plată) + bridge spre `/roata`. ~3–5 zile.
 - [ ] Referral pe luni gratis (înlocuiește XP) + pitch firme de administrare.
+
+## BlocHub (`blocx.ro`) — NO-TOUCH CRITIC (toate = PROPUNERI, se aplică doar cu confirmul tău)
+Sursă: `blochub/Reports/INTROSPECTION-2026-06-20/`
+
+- [ ] 🔴 **Decizie Float→Decimal pe banii din DB** — 33 câmpuri `Float`, 0 `Decimal` (~25 sunt bani: sume/sold/preț/penalizări). Float pe bani = erori de rotunjire în timp. Schimbare de schemă pe prod-live → sesiune dedicată cu backup `pg_dump`. Confirmă să o programez.
+- [ ] 🔴 **Aprobă fix atomicitate + idempotență pe webhook-ul de plată** — `payments/webhook` face update→aggregate→update→create secvențial fără `$transaction`; un retry Stripe poate procesa plata de două ori. Risc direct pe bani.
+- [ ] 🔴 **Aprobă sesiune de dependențe** — 15 vulnerabilități (1 critică `jspdf`; `xlsx` HIGH fără fix → mitigare). NU fac `audit fix --force` orb pe NO-TOUCH.
+- [ ] 🟡 **GDPR** — categorii de cookie + buton „Refuză tot" + Google Analytics doar după consimțământ + retenție date. Confirmă entitatea legală (Class RDA via Legal Hub) + textul.
+- [ ] 🟡 **Confirmă revizuirea izolării multi-tenant** — anti-IDOR cross-asociație pe rutele cu auth dar fără scoping `asociatieId`.
+- [ ] 🟢 **Trust/SEO** (scor Trust 55) — 6 linkuri rupte de reparat + info contact reale + conținut de încredere.
+- [ ] 🟢 (opțional) Rotire secrete VPS2 + CSP cu nonce (termen lung).
+
+---
+
+## BlocHub (`blocx.ro`) — NO-TOUCH CRITIC (toate = PROPUNERI, se aplică doar cu confirmul tău)
+Sursă: `blochub/Reports/INTROSPECTION-2026-06-20/`
+
+- [ ] 🔴 **Decizie Float→Decimal pe banii din DB** — 33 câmpuri `Float`, 0 `Decimal` (~25 sunt bani: sume/sold/preț/penalizări). Float pe bani = erori de rotunjire în timp. Schimbare de schemă pe prod-live → sesiune dedicată cu backup `pg_dump`. Confirmă să o programez.
+- [ ] 🔴 **Aprobă fix atomicitate + idempotență pe webhook-ul de plată** — `payments/webhook` face update→aggregate→update→create secvențial fără `$transaction`; un retry Stripe poate procesa plata de două ori. Risc direct pe bani.
+- [ ] 🔴 **Aprobă sesiune de dependențe** — 15 vulnerabilități (1 critică `jspdf`; `xlsx` HIGH fără fix → mitigare). NU fac `audit fix --force` orb pe NO-TOUCH.
+- [ ] 🟡 **GDPR** — categorii de cookie + buton „Refuză tot" + Google Analytics doar după consimțământ + retenție date. Confirmă entitatea legală (Class RDA via Legal Hub) + textul.
+- [ ] 🟡 **Confirmă revizuirea izolării multi-tenant** — anti-IDOR cross-asociație pe rutele cu auth dar fără scoping `asociatieId`.
+- [ ] 🟢 **Trust/SEO** (scor Trust 55) — 6 linkuri rupte de reparat + info contact reale + conținut de încredere.
+- [ ] 🟢 (opțional) Rotire secrete VPS2 + CSP cu nonce (termen lung).
+
+---
+
+## 🔍 Introspection Audit 2026-06-20
+> Audit complet (gap strategie↔cod · ghid per-pagină · deep research · funcțional + cyber).
+> **Scor AIWebAuditor: 83/100** · GDPR 80. 7 acțiuni deschise · 🔴 3 critice.
+> Rapoarte: `Reports/INTROSPECTION-2026-06-20/` (00-SUMMARY.md, 01-gap-strategy-vs-code.md, 02-pages-guide-RO.md, 03-deep-research-optimization.md, 04-audit-findings.md, 04b-security-audit.md)
+> Checklist Alex centralizat: `Master/reports/Alex_TODO_2026-06-20.md` + tab „Introspection Audit" în UI Master.
+
+## BlocHub (`blocx.ro`) — NO-TOUCH CRITIC (toate = PROPUNERI, se aplică doar cu confirmul tău)
+Sursă: `blochub/Reports/INTROSPECTION-2026-06-20/`
+
+- [ ] 🔴 **Decizie Float→Decimal pe banii din DB** — 33 câmpuri `Float`, 0 `Decimal` (~25 sunt bani: sume/sold/preț/penalizări). Float pe bani = erori de rotunjire în timp. Schimbare de schemă pe prod-live → sesiune dedicată cu backup `pg_dump`. Confirmă să o programez.
+  - 🗣️ *Pe înțelesul tău:* Sumele de bani sunt ținute ca numere aproximative, care în timp pot să nu se închidă la sfârșit de lună (un ban-doi în plus/minus). Schimbarea le face exacte — important înainte de a arăta cifre publice administratorilor.
+- [ ] 🔴 **Aprobă fix atomicitate + idempotență pe webhook-ul de plată** — `payments/webhook` face update→aggregate→update→create secvențial fără `$transaction`; un retry Stripe poate procesa plata de două ori. Risc direct pe bani.
+  - 🗣️ *Pe înțelesul tău:* Dacă Stripe retrimite o confirmare de plată, sistemul poate înregistra plata de două ori — bani contabilizați greșit. Fixul pune o plasă de siguranță ca o plată să conteze o singură dată.
+- [ ] 🔴 **Aprobă sesiune de dependențe** — 15 vulnerabilități (1 critică `jspdf`; `xlsx` HIGH fără fix → mitigare). NU fac `audit fix --force` orb pe NO-TOUCH.
+  - 🗣️ *Pe înțelesul tău:* Câteva biblioteci externe (în special cea de generat PDF-uri și cea de citit Excel) sunt învechite și au găuri. Fiind site live cu bani, nu le ating orbește — aprobă o sesiune și le curăț cu testare după.
+- [ ] 🟡 **GDPR** — categorii de cookie + buton „Refuză tot" + Google Analytics doar după consimțământ + retenție date. Confirmă entitatea legală (Class RDA via Legal Hub) + textul.
+  - 🗣️ *Pe înțelesul tău:* Bannerul de cookie e incomplet și urmărirea pornește posibil înainte de acord — risc de reclamație. După fix ești în regulă cu legea protecției datelor.
+- [ ] 🟡 **Confirmă revizuirea izolării multi-tenant** — anti-IDOR cross-asociație pe rutele cu auth dar fără scoping `asociatieId`.
+  - 🗣️ *Pe înțelesul tău:* Vreau să verific că un user dintr-o asociație nu poate vedea datele altei asociații. E o verificare de siguranță — confirmă să o fac.
+- [ ] 🟢 **Trust/SEO** (scor Trust 55) — 6 linkuri rupte de reparat + info contact reale + conținut de încredere.
+  - 🗣️ *Pe înțelesul tău:* Pe pagina de prezentare, 6 linkuri duc în gol și nu se vede contact sau dovadă că ai clienți reali — exact la momentul deciziei, omul pleacă. Reparate, câștigi încredere.
+- [ ] 🟢 (opțional) Rotire secrete VPS2 + CSP cu nonce (termen lung).
+  - 🗣️ *Pe înțelesul tău:* Igienă de securitate pe termen lung — schimbat parolele de server și o întărire suplimentară a paginii. Opțional, nu urgent.
+
+---
+
+## [ ] 🧩 Module reuse gap (propus 2026-06-27, din matricea Lego Master)
+
+- [ ] **+ AICR (bannere anunțuri)** — ECOSYSTEM_REGISTRY listează „Planned: BlocHub announcement banners". `@aledan/aicr` `generateImage`. **NU început** — blochub = NO-TOUCH CRITIC (payment flows) → propose-confirm §2d, sesiune dedicată. Identificat via `/matrix`.
