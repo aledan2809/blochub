@@ -80,32 +80,6 @@ Ordine recomandată: G-BLOC-009 (deblochează transparența publică) → G-BLOC
 - [ ] Defalcare-transparență în portal (post-plată) + bridge spre `/roata`. ~3–5 zile.
 - [ ] Referral pe luni gratis (înlocuiește XP) + pitch firme de administrare.
 
-## BlocHub (`blocx.ro`) — NO-TOUCH CRITIC (toate = PROPUNERI, se aplică doar cu confirmul tău)
-Sursă: `blochub/Reports/INTROSPECTION-2026-06-20/`
-
-- [ ] 🔴 **Decizie Float→Decimal pe banii din DB** — 33 câmpuri `Float`, 0 `Decimal` (~25 sunt bani: sume/sold/preț/penalizări). Float pe bani = erori de rotunjire în timp. Schimbare de schemă pe prod-live → sesiune dedicată cu backup `pg_dump`. Confirmă să o programez.
-- [ ] 🔴 **Aprobă fix atomicitate + idempotență pe webhook-ul de plată** — `payments/webhook` face update→aggregate→update→create secvențial fără `$transaction`; un retry Stripe poate procesa plata de două ori. Risc direct pe bani.
-- [ ] 🔴 **Aprobă sesiune de dependențe** — 15 vulnerabilități (1 critică `jspdf`; `xlsx` HIGH fără fix → mitigare). NU fac `audit fix --force` orb pe NO-TOUCH.
-- [ ] 🟡 **GDPR** — categorii de cookie + buton „Refuză tot" + Google Analytics doar după consimțământ + retenție date. Confirmă entitatea legală (Class RDA via Legal Hub) + textul.
-- [ ] 🟡 **Confirmă revizuirea izolării multi-tenant** — anti-IDOR cross-asociație pe rutele cu auth dar fără scoping `asociatieId`.
-- [ ] 🟢 **Trust/SEO** (scor Trust 55) — 6 linkuri rupte de reparat + info contact reale + conținut de încredere.
-- [ ] 🟢 (opțional) Rotire secrete VPS2 + CSP cu nonce (termen lung).
-
----
-
-## BlocHub (`blocx.ro`) — NO-TOUCH CRITIC (toate = PROPUNERI, se aplică doar cu confirmul tău)
-Sursă: `blochub/Reports/INTROSPECTION-2026-06-20/`
-
-- [ ] 🔴 **Decizie Float→Decimal pe banii din DB** — 33 câmpuri `Float`, 0 `Decimal` (~25 sunt bani: sume/sold/preț/penalizări). Float pe bani = erori de rotunjire în timp. Schimbare de schemă pe prod-live → sesiune dedicată cu backup `pg_dump`. Confirmă să o programez.
-- [ ] 🔴 **Aprobă fix atomicitate + idempotență pe webhook-ul de plată** — `payments/webhook` face update→aggregate→update→create secvențial fără `$transaction`; un retry Stripe poate procesa plata de două ori. Risc direct pe bani.
-- [ ] 🔴 **Aprobă sesiune de dependențe** — 15 vulnerabilități (1 critică `jspdf`; `xlsx` HIGH fără fix → mitigare). NU fac `audit fix --force` orb pe NO-TOUCH.
-- [ ] 🟡 **GDPR** — categorii de cookie + buton „Refuză tot" + Google Analytics doar după consimțământ + retenție date. Confirmă entitatea legală (Class RDA via Legal Hub) + textul.
-- [ ] 🟡 **Confirmă revizuirea izolării multi-tenant** — anti-IDOR cross-asociație pe rutele cu auth dar fără scoping `asociatieId`.
-- [ ] 🟢 **Trust/SEO** (scor Trust 55) — 6 linkuri rupte de reparat + info contact reale + conținut de încredere.
-- [ ] 🟢 (opțional) Rotire secrete VPS2 + CSP cu nonce (termen lung).
-
----
-
 ## 🔍 Introspection Audit 2026-06-20
 > Audit complet (gap strategie↔cod · ghid per-pagină · deep research · funcțional + cyber).
 > **Scor AIWebAuditor: 83/100** · GDPR 80. 7 acțiuni deschise · 🔴 3 critice.
